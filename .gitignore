@@ -41,8 +41,7 @@ temp/
 
 # Local agent/reference materials
 .agents/
-ref/
-about.pdf
+
 
 # Vite
 vite.config.ts.timestamp-*
