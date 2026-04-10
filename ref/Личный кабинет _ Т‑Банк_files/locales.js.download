@@ -1,0 +1,4 @@
+window.tmsgLocale = {
+    locale: `ru-RU`,
+    availableLocales: `ru-RU,en-GB,en-PH,en-US,zh-CN,tt-RU,tg-TJ,ky-KG,uz-UZ`,
+};
