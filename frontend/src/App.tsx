@@ -188,9 +188,6 @@ function AppHeader({
         >
           Операции
         </NavLink>
-        <NavLink to="/profile" className={({ isActive }) => (isActive ? 'active' : '')}>
-          Личный кабинет
-        </NavLink>
       </nav>
 
       <button type="button" className="theme-toggle" onClick={onToggleTheme}>
