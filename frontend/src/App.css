@@ -1301,6 +1301,27 @@
   gap: 14px;
 }
 
+.smartdebit-details-page {
+  display: grid;
+  gap: 14px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #425271;
+  background: #edf2f9;
+  border: 1px solid #d7e0ec;
+  padding: 8px 10px;
+  width: fit-content;
+}
+
+.back-link:hover {
+  background: #e6edf6;
+}
+
 .operations-grid.with-smartdebit {
   grid-template-columns: minmax(0, 1fr) 360px;
 }
@@ -1316,12 +1337,17 @@
   background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
   color: #253147;
   text-align: left;
+  text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
   cursor: pointer;
+}
+
+.smart-panel-full {
+  max-width: 880px;
 }
 
 .smartdebit-strip-body {
@@ -1378,6 +1404,16 @@
 
 :root[data-theme='dark'] .theme-toggle:hover {
   background: #253247;
+}
+
+:root[data-theme='dark'] .back-link {
+  color: #c5d4eb;
+  background: #1a2535;
+  border-color: #334156;
+}
+
+:root[data-theme='dark'] .back-link:hover {
+  background: #223046;
 }
 
 :root[data-theme='dark'] .topbar-user {

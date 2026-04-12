@@ -731,25 +731,11 @@ function OperationsPage({
   dashboard,
   loading,
   error,
-  notice,
-  onToggle,
-  onPayDebt,
-  onStatusChange,
-  onAddPayment,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
-  notice: string
-  onToggle: (enabled: boolean) => Promise<void>
-  onPayDebt: (paymentId: string) => Promise<void>
-  onStatusChange: (paymentId: string, status: PaymentStatus) => Promise<void>
-  onAddPayment: (payload: CreatePaymentPayload) => Promise<void>
 }) {
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isSmartDebitDetailsOpen, setIsSmartDebitDetailsOpen] = useState(false)
-
   const operations = useMemo(() => buildOperationsFeed(dashboard), [dashboard])
 
   const upcomingPayments = useMemo(() => {
@@ -766,25 +752,20 @@ function OperationsPage({
 
   const nextPayment = upcomingPayments[0] ?? null
 
-  async function handleChangeStatus(status: PaymentStatus) {
-    if (!selectedPayment) {
-      return
-    }
-
-    await onStatusChange(selectedPayment.id, status)
-    setSelectedPayment(null)
-  }
-
   return (
     <section className="operations-screen">
-      <button
-        type="button"
+      <Link
+        to="/operations/smartdebit"
         className="smartdebit-strip"
-        onClick={() => setIsSmartDebitDetailsOpen((value) => !value)}
       >
         <div className="smartdebit-strip-body">
           <strong>SmartDebit</strong>
-          {dashboard?.enabled ? (
+          {loading ? (
+            <>
+              <p>Загружаем информацию по SmartDebit...</p>
+              <small>Подождите несколько секунд.</small>
+            </>
+          ) : dashboard?.enabled ? (
             <>
               <p>
                 На ближайшие 7 дней спишется {formatCurrency(upcomingTotal)}
@@ -802,19 +783,12 @@ function OperationsPage({
             </>
           )}
         </div>
-        <span className="smartdebit-strip-action">
-          {isSmartDebitDetailsOpen ? 'Скрыть детали' : 'Открыть детали'}
-        </span>
-      </button>
+        <span className="smartdebit-strip-action">Открыть детали</span>
+      </Link>
 
-      {notice ? <p className="notice">{notice}</p> : null}
       {error ? <p className="error">{error}</p> : null}
 
-      <div
-        className={`page-grid operations-grid ${
-          isSmartDebitDetailsOpen ? 'with-smartdebit' : 'without-smartdebit'
-        }`}
-      >
+      <div className="page-grid operations-grid without-smartdebit">
         <div className="column wide">
           <article className="panel">
             <div className="row-between wrap">
@@ -858,132 +832,166 @@ function OperationsPage({
             </ul>
           </article>
         </div>
+      </div>
+    </section>
+  )
+}
 
-        {isSmartDebitDetailsOpen ? (
-          <div className="column side">
-            <article className="panel smart-panel">
-              <div className="row-between">
-                <h2>SmartDebit</h2>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(dashboard?.enabled)}
-                    onChange={(event) => {
-                      void onToggle(event.target.checked)
-                    }}
-                    disabled={loading}
-                  />
-                  <span />
-                </label>
-              </div>
+function SmartDebitDetailsPage({
+  dashboard,
+  loading,
+  error,
+  notice,
+  onToggle,
+  onPayDebt,
+  onStatusChange,
+  onAddPayment,
+}: {
+  dashboard: DashboardPayload | null
+  loading: boolean
+  error: string
+  notice: string
+  onToggle: (enabled: boolean) => Promise<void>
+  onPayDebt: (paymentId: string) => Promise<void>
+  onStatusChange: (paymentId: string, status: PaymentStatus) => Promise<void>
+  onAddPayment: (payload: CreatePaymentPayload) => Promise<void>
+}) {
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
-              {loading ? <p className="muted">Обновляем данные...</p> : null}
+  async function handleChangeStatus(status: PaymentStatus) {
+    if (!selectedPayment) {
+      return
+    }
 
-              {!loading && dashboard && !dashboard.enabled ? (
-                <div className="onboard-box">
-                  <p>
-                    Включите SmartDebit, чтобы автоматически отслеживать регулярные
-                    списания и предупреждать о задолженностях.
-                  </p>
-                  <button
-                    type="button"
-                    className="primary"
-                    onClick={() => {
-                      void onToggle(true)
-                    }}
-                  >
-                    Включить SmartDebit
-                  </button>
-                </div>
-              ) : null}
+    await onStatusChange(selectedPayment.id, status)
+    setSelectedPayment(null)
+  }
 
-              {!loading && dashboard?.enabled ? (
-                <>
-                  {dashboard.alerts[0] ? (
-                    <div className="danger-box">
-                      <p>
-                        {dashboard.alerts[0].title} ·{' '}
-                        {numberFormatter.format(dashboard.alerts[0].amount)} ₽
-                      </p>
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={() => {
-                          void onPayDebt(dashboard.alerts[0].paymentId)
-                        }}
-                      >
-                        Погасить сейчас
-                      </button>
-                    </div>
-                  ) : null}
+  return (
+    <section className="smartdebit-details-page">
+      <Link to="/operations" className="back-link">
+        Назад к операциям
+      </Link>
 
-                  <div className="row-between">
-                    <h3>Ближайшие списания</h3>
-                    <button
-                      type="button"
-                      className="ghost"
-                      onClick={() => setIsAddModalOpen(true)}
-                    >
-                      + Добавить
-                    </button>
-                  </div>
+      {notice ? <p className="notice">{notice}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
 
-                  <ul className="payment-list">
-                    {dashboard.upcoming.map((payment) => (
-                      <li key={payment.id}>
-                        <button
-                          type="button"
-                          className="payment-item"
-                          onClick={() => setSelectedPayment(payment)}
-                        >
-                          <div>
-                            <p>{payment.title}</p>
-                            <small>
-                              {payment.provider} · {formatDate(payment.nextChargeDate)}
-                            </small>
-                          </div>
-                          <div className="payment-side-info">
-                            <StatusBadge status={payment.status} label={payment.statusLabel} />
-                            {payment.mandatory ? (
-                              <small className="mandatory">Обязательный</small>
-                            ) : null}
-                            <strong>{formatCurrency(payment.amount)}</strong>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+      <article className="panel smart-panel smart-panel-full">
+        <div className="row-between">
+          <h2>SmartDebit</h2>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={Boolean(dashboard?.enabled)}
+              onChange={(event) => {
+                void onToggle(event.target.checked)
+              }}
+              disabled={loading}
+            />
+            <span />
+          </label>
+        </div>
 
-                  <article className="mini-panel">
-                    <h3>Аналитика</h3>
-                    <AnalyticsDonut slices={dashboard.chart} />
-                  </article>
+        {loading ? <p className="muted">Обновляем данные...</p> : null}
 
-                  <article className="mini-panel">
-                    <h3>Уведомления</h3>
-                    <ul className="notify-list">
-                      {dashboard.notifications.map((notification) => (
-                        <li key={notification.id}>
-                          <p
-                            className={
-                              notification.level === 'critical'
-                                ? 'notification critical'
-                                : 'notification'
-                            }
-                          >
-                            {notification.title}
-                          </p>
-                          <small>{notification.subtitle}</small>
-                        </li>
-                      ))}
-                    </ul>
-                  </article>
-                </>
-              ) : null}
-            </article>
+        {!loading && dashboard && !dashboard.enabled ? (
+          <div className="onboard-box">
+            <p>
+              Включите SmartDebit, чтобы автоматически отслеживать регулярные
+              списания и предупреждать о задолженностях.
+            </p>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                void onToggle(true)
+              }}
+            >
+              Включить SmartDebit
+            </button>
           </div>
         ) : null}
-      </div>
+
+        {!loading && dashboard?.enabled ? (
+          <>
+            {dashboard.alerts[0] ? (
+              <div className="danger-box">
+                <p>
+                  {dashboard.alerts[0].title} · {numberFormatter.format(dashboard.alerts[0].amount)} ₽
+                </p>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    void onPayDebt(dashboard.alerts[0].paymentId)
+                  }}
+                >
+                  Погасить сейчас
+                </button>
+              </div>
+            ) : null}
+
+            <div className="row-between">
+              <h3>Ближайшие списания</h3>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setIsAddModalOpen(true)}
+              >
+                + Добавить
+              </button>
+            </div>
+
+            <ul className="payment-list">
+              {dashboard.upcoming.map((payment) => (
+                <li key={payment.id}>
+                  <button
+                    type="button"
+                    className="payment-item"
+                    onClick={() => setSelectedPayment(payment)}
+                  >
+                    <div>
+                      <p>{payment.title}</p>
+                      <small>
+                        {payment.provider} · {formatDate(payment.nextChargeDate)}
+                      </small>
+                    </div>
+                    <div className="payment-side-info">
+                      <StatusBadge status={payment.status} label={payment.statusLabel} />
+                      {payment.mandatory ? <small className="mandatory">Обязательный</small> : null}
+                      <strong>{formatCurrency(payment.amount)}</strong>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <article className="mini-panel">
+              <h3>Аналитика</h3>
+              <AnalyticsDonut slices={dashboard.chart} />
+            </article>
+
+            <article className="mini-panel">
+              <h3>Уведомления</h3>
+              <ul className="notify-list">
+                {dashboard.notifications.map((notification) => (
+                  <li key={notification.id}>
+                    <p
+                      className={
+                        notification.level === 'critical' ? 'notification critical' : 'notification'
+                      }
+                    >
+                      {notification.title}
+                    </p>
+                    <small>{notification.subtitle}</small>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </>
+        ) : null}
+      </article>
 
       {selectedPayment ? (
         <QuickManageModal
@@ -1214,6 +1222,16 @@ function App() {
                   dashboard={dashboard}
                   loading={loading}
                   error={error}
+                />
+              }
+            />
+            <Route
+              path="/operations/smartdebit"
+              element={
+                <SmartDebitDetailsPage
+                  dashboard={dashboard}
+                  loading={loading}
+                  error={error}
                   notice={notice}
                   onToggle={handleToggle}
                   onPayDebt={handlePayDebt}
@@ -1222,7 +1240,6 @@ function App() {
                 />
               }
             />
-            <Route path="/operations/smartdebit" element={<Navigate to="/operations" replace />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
