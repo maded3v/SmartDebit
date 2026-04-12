@@ -61,14 +61,12 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 8% -12%, rgba(255, 221, 45, 0.24), transparent 36%),
     radial-gradient(circle at 94% 14%, rgba(194, 210, 235, 0.45), transparent 40%),
     var(--surface-page);
 }
 
 :root[data-theme='dark'] body {
   background:
-    radial-gradient(circle at 8% -12%, rgba(255, 221, 45, 0.12), transparent 36%),
     radial-gradient(circle at 94% 14%, rgba(70, 94, 130, 0.35), transparent 40%),
     var(--surface-page);
 }
