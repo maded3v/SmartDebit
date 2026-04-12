@@ -28,6 +28,8 @@
   align-items: center;
   gap: 9px;
   min-width: 110px;
+  text-decoration: none;
+  color: inherit;
 }
 
 .brand-logo {
@@ -55,6 +57,20 @@
   padding-bottom: 2px;
 }
 
+.theme-toggle {
+  border: 1px solid #d8e0eb;
+  background: #f4f7fb;
+  color: #344259;
+  border-radius: 10px;
+  padding: 8px 11px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: #ebf1f8;
+}
+
 .topbar-nav a {
   text-decoration: none;
   color: #5f6d85;
@@ -77,66 +93,6 @@
   background: #f3f6fb;
   color: #111720;
   border-bottom-color: #ffdd2d;
-}
-
-.nav-icon {
-  font-size: 12px;
-  color: #6f7d93;
-}
-
-.chip {
-  border-radius: 999px;
-  background: #ffe366;
-  color: #10141d;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 4px 6px;
-  line-height: 1;
-}
-
-.topbar-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.notify-btn {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 0;
-  background: transparent;
-  display: grid;
-  place-items: center;
-  color: #45546c;
-  cursor: pointer;
-}
-
-.notify-btn:hover {
-  background: #f2f6fb;
-}
-
-.notify-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.notify-counter {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  padding: 0 3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 700;
-  color: #ffffff;
-  background: #da2d2d;
 }
 
 .topbar-user {
@@ -209,7 +165,7 @@
 
 .home-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -229,7 +185,7 @@
 
 .wallet-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
 }
@@ -250,11 +206,12 @@
 }
 
 .wallet-balance {
-  font-size: 37px;
+  font-size: 34px;
   line-height: 1.04;
   font-weight: 700;
   color: #101721;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .wallet-balance-wrap small {
@@ -268,22 +225,41 @@
   font-weight: 700;
   color: #40391f;
   background: #fff5ce;
+  white-space: nowrap;
 }
 
-.wallet-code-row {
+.wallet-card-link {
   margin-top: 12px;
+  display: block;
+  text-decoration: none;
+}
+
+.wallet-card-preview {
+  border-radius: 12px;
+  background: linear-gradient(135deg, #181f2e 0%, #232e44 100%);
+  border: 1px solid #2f3a53;
+  color: #f8faff;
+  padding: 11px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 7px;
 }
 
-.wallet-code-row span {
-  border-radius: 8px;
-  background: #2f3746;
-  color: #ffffff;
-  text-align: center;
-  padding: 8px 0;
-  font-size: 11px;
+.wallet-card-bank {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.wallet-card-preview strong {
+  font-size: 15px;
+  letter-spacing: 0.07em;
+}
+
+.wallet-card-preview small {
+  color: #c4d0e6;
+}
+
+.wallet-card-link:hover .wallet-card-preview {
+  filter: brightness(1.06);
 }
 
 .wallet-top-up-btn {
@@ -1078,6 +1054,37 @@
   letter-spacing: 0.05em;
 }
 
+.card-payments-panel {
+  grid-column: span 2;
+}
+
+.card-payments-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.card-payments-list li {
+  border: 1px solid #e4e9f2;
+  border-radius: 11px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.card-payments-list p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.card-payments-list small {
+  color: #6f7e93;
+}
+
 .clean-list,
 .bar-list {
   display: grid;
@@ -1289,9 +1296,308 @@
   gap: 8px;
 }
 
+.operations-screen {
+  display: grid;
+  gap: 14px;
+}
+
+.operations-grid.with-smartdebit {
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.operations-grid.without-smartdebit {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.smartdebit-strip {
+  width: 100%;
+  border: 1px solid #dce3ee;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  color: #253147;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.smartdebit-strip-body {
+  display: grid;
+  gap: 3px;
+}
+
+.smartdebit-strip-body strong {
+  font-size: 15px;
+}
+
+.smartdebit-strip-body p {
+  margin: 0;
+  color: #56647b;
+  font-size: 14px;
+}
+
+.smartdebit-strip-body small {
+  color: #71809a;
+}
+
+.smartdebit-strip-action {
+  color: #2f3d54;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .topbar {
+  border-color: #2f3a4f;
+  background: #111824;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='dark'] .brand strong {
+  color: #f0f4ff;
+}
+
+:root[data-theme='dark'] .topbar-nav a {
+  color: #94a3ba;
+}
+
+:root[data-theme='dark'] .topbar-nav a:hover,
+:root[data-theme='dark'] .topbar-nav a.active {
+  background: #1c2636;
+  color: #f5f7ff;
+}
+
+:root[data-theme='dark'] .theme-toggle {
+  border-color: #334156;
+  background: #1a2434;
+  color: #d2ddee;
+}
+
+:root[data-theme='dark'] .theme-toggle:hover {
+  background: #253247;
+}
+
+:root[data-theme='dark'] .topbar-user {
+  color: #e7edf9;
+  border-color: #334157;
+  background: #1a2433;
+}
+
+:root[data-theme='dark'] .topbar-user:hover {
+  background: #222d3f;
+}
+
+:root[data-theme='dark'] .user-avatar {
+  background: #ffd938;
+  color: #111827;
+}
+
+:root[data-theme='dark'] .home-title,
+:root[data-theme='dark'] .panel h1,
+:root[data-theme='dark'] .panel h2,
+:root[data-theme='dark'] .panel h3,
+:root[data-theme='dark'] .history-body p,
+:root[data-theme='dark'] .operation-body p,
+:root[data-theme='dark'] .payment-item p,
+:root[data-theme='dark'] .wallet-balance,
+:root[data-theme='dark'] .home-account-card p,
+:root[data-theme='dark'] .big-amount {
+  color: #f2f5ff;
+}
+
+:root[data-theme='dark'] .home-note {
+  border-color: #335070;
+  background: #1a2a3f;
+  color: #d2e4ff;
+}
+
+:root[data-theme='dark'] .home-error,
+:root[data-theme='dark'] .error {
+  border-color: #6a3a45;
+  background: #341d24;
+  color: #ffbdc8;
+}
+
+:root[data-theme='dark'] .panel,
+:root[data-theme='dark'] .home-wallet-card,
+:root[data-theme='dark'] .home-account-card,
+:root[data-theme='dark'] .home-history-panel,
+:root[data-theme='dark'] .payment-item,
+:root[data-theme='dark'] .mini-panel,
+:root[data-theme='dark'] .onboard-box,
+:root[data-theme='dark'] .danger-box,
+:root[data-theme='dark'] .modal-window {
+  border-color: #2f3a4f;
+  background: #111824;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme='dark'] .panel:hover,
+:root[data-theme='dark'] .payment-item:hover {
+  border-color: #42506a;
+  background: #152032;
+}
+
+:root[data-theme='dark'] .home-wallet-card,
+:root[data-theme='dark'] .home-account-card {
+  background: #111a27;
+}
+
+:root[data-theme='dark'] .wallet-balance-wrap small,
+:root[data-theme='dark'] .history-body small,
+:root[data-theme='dark'] .operation-body small,
+:root[data-theme='dark'] .payment-item small,
+:root[data-theme='dark'] .clean-list span,
+:root[data-theme='dark'] .notify-list small,
+:root[data-theme='dark'] .subtitle,
+:root[data-theme='dark'] .muted,
+:root[data-theme='dark'] .home-account-card small {
+  color: #8e9eb7;
+}
+
+:root[data-theme='dark'] .wallet-top-up-btn,
+:root[data-theme='dark'] .action-pay,
+:root[data-theme='dark'] .filter-row button,
+:root[data-theme='dark'] .ghost,
+:root[data-theme='dark'] .modal-actions button,
+:root[data-theme='dark'] .profile-action-grid button {
+  background: #1a2535;
+  color: #d3ddef;
+  border: 1px solid #314056;
+}
+
+:root[data-theme='dark'] .wallet-top-up-btn:hover,
+:root[data-theme='dark'] .action-pay:hover,
+:root[data-theme='dark'] .filter-row button:hover,
+:root[data-theme='dark'] .ghost:hover,
+:root[data-theme='dark'] .profile-action-grid button:hover {
+  background: #223046;
+}
+
+:root[data-theme='dark'] .action-transfer,
+:root[data-theme='dark'] .primary {
+  color: #141924;
+}
+
+:root[data-theme='dark'] .wallet-card-preview {
+  background: linear-gradient(135deg, #1b2334 0%, #2a3550 100%);
+  border-color: #3a4865;
+}
+
+:root[data-theme='dark'] .home-history-list li,
+:root[data-theme='dark'] .operation-list li,
+:root[data-theme='dark'] .clean-list li,
+:root[data-theme='dark'] .event-list li {
+  border-bottom-color: #273349;
+}
+
+:root[data-theme='dark'] .card-payments-list li {
+  border-color: #2f3a4f;
+  background: #151f2f;
+}
+
+:root[data-theme='dark'] .card-payments-list small {
+  color: #8b9cb7;
+}
+
+:root[data-theme='dark'] .history-icon.gray {
+  background: #243145;
+  color: #9cadca;
+}
+
+:root[data-theme='dark'] .history-icon.red {
+  background: #4a2830;
+  color: #ff8a9c;
+}
+
+:root[data-theme='dark'] .smart-tag,
+:root[data-theme='dark'] .history-tag,
+:root[data-theme='dark'] .mandatory {
+  background: #1d2a3a;
+  color: #9eb0ca;
+}
+
+:root[data-theme='dark'] .smart-tag.danger,
+:root[data-theme='dark'] .danger-box {
+  background: #3a2128;
+  color: #ffbac7;
+  border-color: #6c3944;
+}
+
+:root[data-theme='dark'] .status-badge.green {
+  background: #1d3a2c;
+  color: #85e0af;
+}
+
+:root[data-theme='dark'] .status-badge.yellow {
+  background: #3f3417;
+  color: #ffd96a;
+}
+
+:root[data-theme='dark'] .status-badge.red {
+  background: #4f252d;
+  color: #ff9caf;
+}
+
+:root[data-theme='dark'] .status-badge.gray {
+  background: #273449;
+  color: #a1b2cf;
+}
+
+:root[data-theme='dark'] .notice {
+  border-color: #36547a;
+  background: #1b2d42;
+  color: #c9ddff;
+}
+
+:root[data-theme='dark'] .switch input {
+  background: #3a4860;
+}
+
+:root[data-theme='dark'] .switch span {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='dark'] .form-grid input,
+:root[data-theme='dark'] .form-grid select {
+  background: #0f1724;
+  border-color: #324158;
+  color: #e5ecfb;
+}
+
+:root[data-theme='dark'] .modal-overlay {
+  background: rgba(5, 8, 13, 0.72);
+}
+
+:root[data-theme='dark'] .smartdebit-strip {
+  border-color: #374660;
+  background: linear-gradient(135deg, #131b2a 0%, #101724 100%);
+  color: #ecf1ff;
+}
+
+:root[data-theme='dark'] .smartdebit-strip-body p {
+  color: #d6def0;
+}
+
+:root[data-theme='dark'] .smartdebit-strip-body small {
+  color: #94a4bf;
+}
+
+:root[data-theme='dark'] .smartdebit-strip-action {
+  color: #ffe066;
+}
+
 @media (max-width: 1140px) {
   .home-layout,
   .operations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-grid.with-smartdebit,
+  .operations-grid.without-smartdebit {
     grid-template-columns: 1fr;
   }
 
@@ -1311,6 +1617,7 @@
   }
 
   .card-hero,
+  .card-payments-panel,
   .profile-hero,
   .profile-actions {
     grid-column: span 1;
@@ -1334,11 +1641,6 @@
   .topbar-nav {
     width: 100%;
     order: 3;
-  }
-
-  .topbar-right {
-    width: 100%;
-    justify-content: space-between;
   }
 
   .topbar-user {
