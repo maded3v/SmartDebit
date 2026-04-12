@@ -38,9 +38,13 @@ Thumbs.db
 tmp/
 temp/
 .cache/
+backend/data/
+mock-api/data/
 
 # Local agent/reference materials
 .agents/
+ref/
+about.pdf
 
 
 # Vite

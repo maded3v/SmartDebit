@@ -22,12 +22,23 @@ interface BankOperation {
   tone: 'neutral' | 'danger' | 'success'
 }
 
+interface HomeHistoryItem {
+  id: string
+  title: string
+  date: string
+  amount: number
+  icon: string
+  iconTone: 'green' | 'dark' | 'gray' | 'red'
+  smartTag?: string
+}
+
 const STATUS_TONE: Record<PaymentStatus, StatusTone> = {
   active: 'green',
   expected: 'yellow',
   predicted: 'green',
   low_balance: 'red',
   overdue: 'red',
+  cancelled: 'gray',
   disabled: 'gray',
   frozen: 'gray',
 }
@@ -159,27 +170,69 @@ function AppHeader() {
 
       <nav className="topbar-nav" aria-label="Основная навигация">
         <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
+          <span className="nav-icon" aria-hidden="true">
+            ⌂
+          </span>
           Главная
+        </NavLink>
+        <NavLink
+          to="/operations"
+          end
+          className={({ isActive }) => (isActive ? 'active' : '')}
+        >
+          <span className="nav-icon" aria-hidden="true">
+            ↔
+          </span>
+          Операции
+        </NavLink>
+        <NavLink
+          to="/operations/smartdebit"
+          className={({ isActive }) => (isActive ? 'active smart-link' : 'smart-link')}
+        >
+          <span className="nav-icon" aria-hidden="true">
+            ◎
+          </span>
+          SmartDebit
+          <span className="chip">NEW</span>
         </NavLink>
         <NavLink
           to="/card-overview"
           className={({ isActive }) => (isActive ? 'active' : '')}
         >
-          Обзор карты
-        </NavLink>
-        <NavLink
-          to="/operations"
-          className={({ isActive }) => (isActive ? 'active smart-link' : 'smart-link')}
-        >
-          Операции
-          <span className="chip">SmartDebit</span>
-        </NavLink>
-        <NavLink to="/profile" className={({ isActive }) => (isActive ? 'active' : '')}>
-          Личный кабинет
+          <span className="nav-icon" aria-hidden="true">
+            ▣
+          </span>
+          Платежи
         </NavLink>
       </nav>
 
-      <div className="topbar-user">{PROFILE.fullName}</div>
+      <div className="topbar-right">
+        <button type="button" className="notify-btn" aria-label="Уведомления">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 3a5 5 0 0 0-5 5v2.8c0 .8-.2 1.5-.7 2.1L5 14.7V16h14v-1.3l-1.3-1.8a3.8 3.8 0 0 1-.7-2.2V8a5 5 0 0 0-5-5Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M10 18a2 2 0 0 0 4 0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="notify-counter">4</span>
+        </button>
+
+        <NavLink to="/profile" className="topbar-user">
+          <span className="user-avatar">{PROFILE.shortName}</span>
+          <span>{PROFILE.fullName}</span>
+        </NavLink>
+      </div>
     </header>
   )
 }
@@ -193,102 +246,155 @@ function HomePage({
   loading: boolean
   error: string
 }) {
-  const operations = useMemo(() => {
-    return buildOperationsFeed(dashboard).slice(0, 8)
+  const historyItems = useMemo<HomeHistoryItem[]>(() => {
+    const mortgage = dashboard?.upcoming.find((payment) => payment.id === 'mortgage-sber')
+    const kion = dashboard?.upcoming.find((payment) => payment.id === 'kion')
+
+    return [
+      {
+        id: 'salary-main',
+        title: 'Зарплата',
+        date: '1 мар',
+        amount: 95000,
+        icon: '↙',
+        iconTone: 'green',
+      },
+      {
+        id: 'mortgage-main',
+        title: 'Ипотека (Сбербанк)',
+        date: '28 фев',
+        amount: -(mortgage?.amount ?? 45000),
+        icon: 'Б',
+        iconTone: 'dark',
+        smartTag: 'SmartDebit · Ежемесячный платеж',
+      },
+      {
+        id: 'samokat-main',
+        title: 'Самокат',
+        date: '27 фев',
+        amount: -1250,
+        icon: 'С',
+        iconTone: 'green',
+      },
+      {
+        id: 'plus-main',
+        title: 'Яндекс Плюс',
+        date: '27 фев',
+        amount: -299,
+        icon: '↻',
+        iconTone: 'gray',
+        smartTag: 'SmartDebit · Оплата за расчетный период: Март 2026',
+      },
+      {
+        id: 'eda-main',
+        title: 'Яндекс Еда',
+        date: '26 фев',
+        amount: -890,
+        icon: 'Я',
+        iconTone: 'dark',
+      },
+      {
+        id: 'start-main',
+        title: 'START Подписка',
+        date: '26 фев',
+        amount: -399,
+        icon: '↻',
+        iconTone: 'gray',
+        smartTag: 'SmartDebit · Оплата за расчетный период: Март 2026',
+      },
+      {
+        id: 'magnit-main',
+        title: 'Магнит',
+        date: '25 фев',
+        amount: -2340,
+        icon: 'М',
+        iconTone: 'red',
+      },
+      {
+        id: 'kion-main',
+        title: 'KION',
+        date: '24 фев',
+        amount: -(kion?.amount ?? 249),
+        icon: 'К',
+        iconTone: 'gray',
+      },
+    ]
   }, [dashboard])
 
   return (
-    <section className="page-grid home-grid">
-      <div className="column">
-        <article className="panel card-main">
-          <p className="greeting">Добрый день, Иван</p>
-          <p className="label">Текущий счет</p>
-          <h1>{formatCurrency(dashboard?.account.balance ?? 116783)}</h1>
-          <p className="subtitle">Доступно с учетом регулярных списаний</p>
-          <p className="highlight">{formatCurrency(dashboard?.account.available ?? 64500)}</p>
+    <section className="home-screen">
+      <h1 className="home-title">Добрый день, Иван</h1>
 
-          <div className="button-row">
-            <button type="button">Пополнить</button>
-            <button type="button">Перевести</button>
-            <button type="button">Оплатить</button>
+      {loading ? <p className="home-note">Загружаем данные...</p> : null}
+      {error ? <p className="home-error">{error}</p> : null}
+
+      <div className="home-layout">
+        <aside className="home-left-column">
+          <article className="home-wallet-card">
+            <div className="wallet-row">
+              <span className="wallet-currency">₽</span>
+              <div className="wallet-balance-wrap">
+                <p className="wallet-balance">
+                  {formatCurrency(dashboard?.account.balance ?? 116783)}
+                </p>
+                <small>Black</small>
+              </div>
+              <span className="wallet-chip">♥ 601 ₽</span>
+            </div>
+
+            <div className="wallet-code-row">
+              <span>6584</span>
+              <span>5161</span>
+              <span>1743</span>
+              <span>3803</span>
+            </div>
+
+            <button type="button" className="wallet-top-up-btn">
+              ▣ Пополните из другого банка
+            </button>
+          </article>
+
+          <article className="home-account-card">
+            <span className="account-icon savings">⌂</span>
+            <div>
+              <p>9 009,42 ₽</p>
+              <small>Накопительный счет</small>
+            </div>
+            <strong className="trend">+7,72 ₽</strong>
+          </article>
+
+          <article className="home-account-card">
+            <span className="account-icon invest">✧</span>
+            <div>
+              <p>350 000 ₽</p>
+              <small>Вклад «Стабильный»</small>
+            </div>
+          </article>
+
+          <div className="home-actions">
+            <button type="button" className="action-transfer">
+              ↗ Перевод
+            </button>
+            <button type="button" className="action-pay">
+              ▣ Оплатить
+            </button>
           </div>
+        </aside>
 
-          <div className="card-plate">
-            <span>Black Debit</span>
-            <strong>•••• 2294</strong>
-          </div>
-        </article>
-
-        <article className="panel tiny-panel">
-          <h3>Кэшбэк за месяц</h3>
-          <p className="tiny-amount">3 480 ₽</p>
-          <small>Следующее начисление 1 мая</small>
-        </article>
-      </div>
-
-      <div className="column wide">
-        <article className="panel">
-          <div className="row-between">
-            <h2>Ближайшие события</h2>
-            {dashboard?.enabled ? (
-              <span className="status-badge green">SmartDebit включен</span>
-            ) : (
-              <span className="status-badge gray">SmartDebit выключен</span>
-            )}
-          </div>
-
-          {loading ? <p className="muted">Загрузка SmartDebit...</p> : null}
-          {error ? <p className="error">{error}</p> : null}
-
-          {!loading && dashboard?.enabled ? (
-            <ul className="event-list">
-              {dashboard.upcoming.slice(0, 4).map((payment) => (
-                <li key={payment.id}>
-                  <div>
-                    <p>{payment.title}</p>
-                    <small>{formatDate(payment.nextChargeDate)}</small>
-                  </div>
-                  <strong>{formatCurrency(-payment.amount, true)}</strong>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {!loading && dashboard && !dashboard.enabled ? (
-            <p className="muted">
-              Включите SmartDebit в разделе операций, чтобы заранее видеть будущие
-              списания.
-            </p>
-          ) : null}
-        </article>
-
-        <article className="panel">
+        <article className="panel home-history-panel">
           <h2>История операций</h2>
-          <ul className="operation-list">
-            {operations.map((operation) => (
-              <li key={operation.id}>
-                <span className={`operation-icon ${operation.tone}`}>
-                  {getOperationIcon(operation.title)}
-                </span>
-                <div className="operation-body">
-                  <p>{operation.title}</p>
-                  <small>
-                    {operation.subtitle} · {operation.dateLabel}
-                  </small>
-                  {operation.smartTag ? (
-                    <small
-                      className={
-                        operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
-                      }
-                    >
-                      {operation.smartTag}
-                    </small>
-                  ) : null}
+
+          <ul className="home-history-list">
+            {historyItems.map((item) => (
+              <li key={item.id}>
+                <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
+                <div className="history-body">
+                  <p>{item.title}</p>
+                  <small>{item.date}</small>
+                  {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
                 </div>
-                <strong
-                  className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
-                >
-                  {formatCurrency(operation.amount, true)}
+                <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                  {formatCurrency(item.amount, true)}
                 </strong>
               </li>
             ))}
@@ -1046,6 +1152,21 @@ function App() {
             />
             <Route
               path="/operations"
+              element={
+                <OperationsPage
+                  dashboard={dashboard}
+                  loading={loading}
+                  error={error}
+                  notice={notice}
+                  onToggle={handleToggle}
+                  onPayDebt={handlePayDebt}
+                  onStatusChange={handleChangeStatus}
+                  onAddPayment={handleAddPayment}
+                />
+              }
+            />
+            <Route
+              path="/operations/smartdebit"
               element={
                 <OperationsPage
                   dashboard={dashboard}

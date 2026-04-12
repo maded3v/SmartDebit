@@ -1,8 +1,19 @@
 const express = require('express')
 const cors = require('cors')
+const { randomUUID } = require('crypto')
+const {
+  DB_PATH,
+  DEFAULT_USER_ID,
+  addDays,
+  addMonths,
+  createDatabase,
+  toIsoDate,
+  toIsoDateTime,
+} = require('./db/bootstrap')
 
 const app = express()
 const PORT = 4000
+const db = createDatabase()
 
 app.use(cors())
 app.use(express.json())
@@ -15,194 +26,318 @@ const STATUS_LABELS = {
   overdue: 'Просрочено',
   disabled: 'Отключено',
   frozen: 'Заморожено',
+  cancelled: 'Отменено',
 }
 
-const CATEGORY_COLORS = {
-  Развлечения: '#2f7df6',
-  ЖКХ: '#03b37d',
-  Финансы: '#101828',
-  Связь: '#f4b400',
-  Прочее: '#9aa4b2',
+const AVAILABLE_STATUSES = new Set([
+  'active',
+  'expected',
+  'predicted',
+  'low_balance',
+  'overdue',
+  'disabled',
+  'frozen',
+  'cancelled',
+])
+
+const debtMessagePattern = /неоплачен|просроч|долг/i
+
+const periodFormatter = new Intl.DateTimeFormat('ru-RU', {
+  month: 'long',
+  year: 'numeric',
+})
+
+const PAYMENT_SELECT_SQL = `
+  SELECT
+    rp.id,
+    rp.account_id,
+    rp.service_id,
+    rp.category_id,
+    rp.custom_name,
+    rp.amount,
+    rp.next_charge_date,
+    rp.periodicity,
+    rp.is_mandatory,
+    rp.status,
+    rp.frozen_until,
+    sd.name AS service_name,
+    sd.provider_name,
+    sd.default_is_mandatory,
+    c.name AS category_name,
+    c.hex_color,
+    dr.period_name AS debt_period_name,
+    CASE WHEN rp.service_id IS NULL THEN 'manual' ELSE 'auto' END AS source
+  FROM "RECURRING_PAYMENT" rp
+  LEFT JOIN "SERVICE_DICTIONARY" sd ON sd.id = rp.service_id
+  LEFT JOIN "CATEGORY" c ON c.id = rp.category_id
+  LEFT JOIN "DEBT_RECORD" dr
+    ON dr.recurring_payment_id = rp.id
+   AND dr.status = 'unpaid'
+`
+
+function toMoney(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100
 }
 
-function addDays(date, days) {
-  const value = new Date(date)
-  value.setDate(value.getDate() + days)
-  return value
+function capitalize(value) {
+  if (!value) {
+    return value
+  }
+  return value.slice(0, 1).toUpperCase() + value.slice(1)
 }
 
-function toIsoDate(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+function formatBillingPeriod(dateValue) {
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) {
+    return 'текущий период'
+  }
+
+  return capitalize(periodFormatter.format(date))
 }
 
-const now = new Date()
-
-const state = {
-  smartDebitEnabled: false,
-  account: {
-    balance: 116783,
-    available: 64500,
-  },
-  payments: [
-    {
-      id: 'mortgage-sber',
-      title: 'Ипотека (Сбербанк)',
-      provider: 'Сбербанк',
-      amount: 45000,
-      category: 'Финансы',
-      mandatory: true,
-      status: 'overdue',
-      nextChargeDate: toIsoDate(addDays(now, -2)),
-      periodLabel: 'Оплата за Март 2026',
-      source: 'auto',
-    },
-    {
-      id: 'tinkoff-pro',
-      title: 'Tinkoff Pro',
-      provider: 'Т-Банк',
-      amount: 199,
-      category: 'Развлечения',
-      mandatory: false,
-      status: 'active',
-      nextChargeDate: toIsoDate(addDays(now, 1)),
-      periodLabel: 'Оплата за Апрель 2026',
-      source: 'auto',
-    },
-    {
-      id: 'yandex-plus',
-      title: 'Яндекс Плюс',
-      provider: 'Яндекс',
-      amount: 299,
-      category: 'Развлечения',
-      mandatory: false,
-      status: 'low_balance',
-      nextChargeDate: toIsoDate(addDays(now, 2)),
-      periodLabel: 'Оплата за Апрель 2026',
-      source: 'auto',
-    },
-    {
-      id: 'mts',
-      title: 'МТС Связь',
-      provider: 'МТС',
-      amount: 3090,
-      category: 'Связь',
-      mandatory: true,
-      status: 'expected',
-      nextChargeDate: toIsoDate(addDays(now, 3)),
-      periodLabel: 'Оплата за Апрель 2026',
-      source: 'auto',
-    },
-    {
-      id: 'kion',
-      title: 'KION',
-      provider: 'МТС',
-      amount: 249,
-      category: 'Развлечения',
-      mandatory: false,
-      status: 'disabled',
-      nextChargeDate: toIsoDate(addDays(now, 4)),
-      periodLabel: 'Отключено в Апреле 2026',
-      source: 'auto',
-    },
-    {
-      id: 'alpha-loan',
-      title: 'Кредит (Альфа)',
-      provider: 'Альфа-Банк',
-      amount: 12500,
-      category: 'Финансы',
-      mandatory: true,
-      status: 'predicted',
-      nextChargeDate: toIsoDate(addDays(now, 6)),
-      periodLabel: 'Оплата за Апрель 2026',
-      source: 'auto',
-    },
-  ],
-  notifications: [
-    {
-      id: 'notif-1',
-      title: 'Завтра списание 199 ₽ за Tinkoff Pro',
-      subtitle: 'Проверьте, что на счете хватает средств',
-      level: 'neutral',
-    },
-    {
-      id: 'notif-2',
-      title: 'Неоплаченный платеж: Ипотека (Сбербанк)',
-      subtitle: 'Рекомендуем закрыть задолженность сегодня',
-      level: 'critical',
-    },
-  ],
+function isMandatoryPayment(row) {
+  return Boolean(row.is_mandatory || row.default_is_mandatory)
 }
 
-function serializePayment(payment) {
+function buildPeriodLabel(row) {
+  if (row.status === 'disabled') {
+    return `Отключено в ${formatBillingPeriod(row.next_charge_date)}`
+  }
+
+  if (row.status === 'overdue' && row.debt_period_name) {
+    return `Оплата за ${row.debt_period_name}`
+  }
+
+  if (row.source === 'manual') {
+    return 'Добавлено вручную'
+  }
+
+  return `Оплата за расчетный период: ${formatBillingPeriod(row.next_charge_date)}`
+}
+
+function serializePaymentRow(row) {
+  const title = row.custom_name || row.service_name || 'Регулярный платеж'
+  const provider = row.provider_name || row.service_name || 'Ручной платеж'
+  const category = row.category_name || 'Прочее'
+  const statusLabel = STATUS_LABELS[row.status] || 'Неизвестно'
+
   return {
-    ...payment,
-    statusLabel: STATUS_LABELS[payment.status],
+    id: row.id,
+    title,
+    provider,
+    amount: toMoney(row.amount),
+    category,
+    mandatory: isMandatoryPayment(row),
+    status: row.status,
+    statusLabel,
+    nextChargeDate: row.next_charge_date,
+    periodLabel: buildPeriodLabel(row),
+    source: row.source,
   }
 }
 
-function buildDashboard() {
-  const nowDate = new Date()
-  const weekBorder = addDays(nowDate, 7)
+function getMainAccount() {
+  return db
+    .prepare(
+      `SELECT id, balance
+       FROM "ACCOUNT"
+       WHERE user_id = ? AND type = 'Debit'
+       ORDER BY rowid
+       LIMIT 1`
+    )
+    .get(DEFAULT_USER_ID)
+}
 
-  const upcoming = state.payments
-    .filter((payment) => {
-      const chargeDate = new Date(payment.nextChargeDate)
-      return chargeDate <= weekBorder
-    })
-    .sort((left, right) => {
-      return new Date(left.nextChargeDate) - new Date(right.nextChargeDate)
-    })
+function getAccountSummary(accountId) {
+  const account = db
+    .prepare(
+      `SELECT id, balance
+       FROM "ACCOUNT"
+       WHERE id = ?`
+    )
+    .get(accountId)
 
-  const alerts = upcoming
-    .filter((payment) => payment.status === 'overdue')
-    .map((payment) => ({
-      id: `alert-${payment.id}`,
-      paymentId: payment.id,
-      title: `Просрочен платеж: ${payment.title}`,
-      amount: payment.amount,
-    }))
+  if (!account) {
+    return {
+      balance: 0,
+      available: 0,
+    }
+  }
 
-  const chartAccumulator = upcoming
-    .filter((payment) => payment.status !== 'disabled' && payment.status !== 'frozen')
-    .reduce((accumulator, payment) => {
-      accumulator[payment.category] = (accumulator[payment.category] || 0) + payment.amount
-      return accumulator
-    }, {})
+  const reserved = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount), 0) AS total
+       FROM "RECURRING_PAYMENT"
+       WHERE account_id = ?
+         AND status IN ('active', 'expected', 'predicted', 'low_balance', 'overdue')`
+    )
+    .get(accountId).total
 
-  const chart = Object.entries(chartAccumulator).map(([category, amount]) => ({
-    category,
-    amount,
-    color: CATEGORY_COLORS[category] || CATEGORY_COLORS['Прочее'],
-  }))
+  const balance = toMoney(account.balance)
+  const available = Math.max(0, toMoney(balance - reserved))
 
   return {
-    enabled: state.smartDebitEnabled,
-    account: state.account,
+    balance,
+    available,
+  }
+}
+
+function getPaymentRowById(paymentId) {
+  return db
+    .prepare(
+      `${PAYMENT_SELECT_SQL}
+       WHERE rp.id = ?`
+    )
+    .get(paymentId)
+}
+
+function validateStatus(nextStatus) {
+  return AVAILABLE_STATUSES.has(nextStatus)
+}
+
+function getDefaultCategoryId() {
+  const category = db
+    .prepare(
+      `SELECT id
+       FROM "CATEGORY"
+       WHERE name = 'Прочее'
+       LIMIT 1`
+    )
+    .get()
+
+  return category ? category.id : null
+}
+
+function resolveCategoryId(categoryName) {
+  if (!categoryName) {
+    return getDefaultCategoryId()
+  }
+
+  const category = db
+    .prepare(
+      `SELECT id
+       FROM "CATEGORY"
+       WHERE name = ?
+       LIMIT 1`
+    )
+    .get(categoryName)
+
+  if (category) {
+    return category.id
+  }
+
+  return getDefaultCategoryId()
+}
+
+function buildDashboard() {
+  const user = db
+    .prepare(
+      `SELECT id, full_name, is_smartdebit_enabled
+       FROM "USER"
+       WHERE id = ?`
+    )
+    .get(DEFAULT_USER_ID)
+
+  if (!user) {
+    throw new Error('Пользователь не найден в БД')
+  }
+
+  const mainAccount = getMainAccount()
+  if (!mainAccount) {
+    throw new Error('Не найден основной счет пользователя')
+  }
+
+  const weekBorder = toIsoDate(addDays(new Date(), 7))
+
+  const upcomingRows = db
+    .prepare(
+      `${PAYMENT_SELECT_SQL}
+       WHERE date(rp.next_charge_date) <= date(?)
+         AND rp.status <> 'cancelled'
+       ORDER BY date(rp.next_charge_date) ASC, rp.amount DESC`
+    )
+    .all(weekBorder)
+
+  const upcoming = upcomingRows.map(serializePaymentRow)
+
+  const alerts = db
+    .prepare(
+      `SELECT
+         dr.id,
+         dr.amount,
+         rp.id AS payment_id,
+         COALESCE(rp.custom_name, sd.name) AS payment_title
+       FROM "DEBT_RECORD" dr
+       JOIN "RECURRING_PAYMENT" rp ON rp.id = dr.recurring_payment_id
+       LEFT JOIN "SERVICE_DICTIONARY" sd ON sd.id = rp.service_id
+       WHERE dr.status = 'unpaid'
+       ORDER BY dr.created_at DESC`
+    )
+    .all()
+    .map((row) => ({
+      id: row.id,
+      paymentId: row.payment_id,
+      title: `Просрочен платеж: ${row.payment_title}`,
+      amount: toMoney(row.amount),
+    }))
+
+  const chart = db
+    .prepare(
+      `SELECT
+         COALESCE(c.name, 'Прочее') AS category,
+         COALESCE(c.hex_color, '#9aa4b2') AS color,
+         ROUND(SUM(rp.amount), 2) AS amount
+       FROM "RECURRING_PAYMENT" rp
+       LEFT JOIN "CATEGORY" c ON c.id = rp.category_id
+       WHERE date(rp.next_charge_date) <= date(?)
+         AND rp.status NOT IN ('disabled', 'frozen', 'cancelled')
+       GROUP BY category, color
+       ORDER BY amount DESC`
+    )
+    .all(weekBorder)
+    .map((row) => ({
+      category: row.category,
+      amount: toMoney(row.amount),
+      color: row.color,
+    }))
+
+  const notifications = db
+    .prepare(
+      `SELECT id, message, is_read, created_at
+       FROM "NOTIFICATION"
+       WHERE user_id = ?
+       ORDER BY datetime(created_at) DESC
+       LIMIT 10`
+    )
+    .all(DEFAULT_USER_ID)
+    .map((row) => ({
+      id: row.id,
+      title: row.message,
+      subtitle: row.is_read
+        ? `Прочитано · ${row.created_at.slice(0, 16)}`
+        : `Новое · ${row.created_at.slice(0, 16)}`,
+      level: debtMessagePattern.test(row.message) ? 'critical' : 'neutral',
+    }))
+
+  return {
+    enabled: Boolean(user.is_smartdebit_enabled),
+    account: getAccountSummary(mainAccount.id),
     alerts,
-    upcoming: upcoming.map(serializePayment),
+    upcoming,
     chart,
-    notifications: state.notifications,
+    notifications,
     generatedAt: new Date().toISOString(),
   }
 }
 
-function validateStatus(nextStatus) {
-  return [
-    'active',
-    'expected',
-    'predicted',
-    'low_balance',
-    'overdue',
-    'disabled',
-    'frozen',
-  ].includes(nextStatus)
-}
-
 app.get('/api/v1/smartdebit/dashboard', (_request, response) => {
-  response.json(buildDashboard())
+  try {
+    response.json(buildDashboard())
+  } catch (error) {
+    response.status(500).json({
+      message: error instanceof Error ? error.message : 'Ошибка при сборке дашборда',
+    })
+  }
 })
 
 app.post('/api/v1/smartdebit/toggle', (request, response) => {
@@ -213,8 +348,13 @@ app.post('/api/v1/smartdebit/toggle', (request, response) => {
     return
   }
 
-  state.smartDebitEnabled = request.body.enabled
-  response.json({ enabled: state.smartDebitEnabled })
+  db.prepare(
+    `UPDATE "USER"
+     SET is_smartdebit_enabled = ?
+     WHERE id = ?`
+  ).run(request.body.enabled ? 1 : 0, DEFAULT_USER_ID)
+
+  response.json({ enabled: request.body.enabled })
 })
 
 app.post('/api/v1/smartdebit/payments', (request, response) => {
@@ -245,25 +385,49 @@ app.post('/api/v1/smartdebit/payments', (request, response) => {
     return
   }
 
-  const payment = {
-    id: `manual-${Date.now()}`,
-    title,
-    provider: 'Ручной платеж',
-    amount,
-    category: category || 'Прочее',
-    mandatory: Boolean(mandatory),
-    status: 'expected',
-    nextChargeDate: toIsoDate(dateValue),
-    periodLabel: 'Добавлено вручную',
-    source: 'manual',
+  const account = getMainAccount()
+  if (!account) {
+    response.status(500).json({ message: 'Не найден основной счет пользователя' })
+    return
   }
 
-  state.payments.push(payment)
-  response.status(201).json(serializePayment(payment))
+  const paymentId = randomUUID()
+  const categoryId = resolveCategoryId(category)
+
+  db.prepare(
+    `INSERT INTO "RECURRING_PAYMENT" (
+       id,
+       account_id,
+       service_id,
+       category_id,
+       custom_name,
+       amount,
+       next_charge_date,
+       periodicity,
+       is_mandatory,
+       status,
+       frozen_until
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    paymentId,
+    account.id,
+    null,
+    categoryId,
+    title.trim(),
+    amount,
+    toIsoDate(dateValue),
+    'month',
+    mandatory ? 1 : 0,
+    'expected',
+    null
+  )
+
+  const paymentRow = getPaymentRowById(paymentId)
+  response.status(201).json(serializePaymentRow(paymentRow))
 })
 
 app.patch('/api/v1/smartdebit/payments/:paymentId/status', (request, response) => {
-  const payment = state.payments.find((entry) => entry.id === request.params.paymentId)
+  const payment = getPaymentRowById(request.params.paymentId)
 
   if (!payment) {
     response.status(404).json({ message: 'Платеж не найден' })
@@ -276,53 +440,188 @@ app.patch('/api/v1/smartdebit/payments/:paymentId/status', (request, response) =
     return
   }
 
-  if (payment.mandatory && (nextStatus === 'disabled' || nextStatus === 'frozen')) {
+  const mandatoryPayment = isMandatoryPayment(payment)
+  if (mandatoryPayment && ['disabled', 'frozen', 'cancelled'].includes(nextStatus)) {
     response.status(403).json({
       message: 'Обязательный платеж нельзя отключить или заморозить',
     })
     return
   }
 
-  payment.status = nextStatus
-  response.json(serializePayment(payment))
+  const frozenUntil = nextStatus === 'frozen' ? toIsoDate(addMonths(new Date(), 1)) : null
+
+  db.prepare(
+    `UPDATE "RECURRING_PAYMENT"
+     SET status = ?,
+         frozen_until = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`
+  ).run(nextStatus, frozenUntil, payment.id)
+
+  if (nextStatus === 'disabled') {
+    db.prepare(
+      `INSERT INTO "NOTIFICATION" (id, user_id, message, is_read, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(
+      randomUUID(),
+      DEFAULT_USER_ID,
+      `Автоплатеж отключен: ${payment.custom_name || payment.service_name}`,
+      0,
+      toIsoDateTime(new Date())
+    )
+  }
+
+  const updatedPayment = getPaymentRowById(payment.id)
+  response.json(serializePaymentRow(updatedPayment))
 })
 
 app.post('/api/v1/smartdebit/payments/:paymentId/pay-debt', (request, response) => {
-  const payment = state.payments.find((entry) => entry.id === request.params.paymentId)
+  const payment = getPaymentRowById(request.params.paymentId)
 
   if (!payment) {
     response.status(404).json({ message: 'Платеж не найден' })
     return
   }
 
-  if (state.account.balance < payment.amount) {
+  const account = db
+    .prepare(
+      `SELECT id, balance
+       FROM "ACCOUNT"
+       WHERE id = ?`
+    )
+    .get(payment.account_id)
+
+  if (!account) {
+    response.status(404).json({ message: 'Счет платежа не найден' })
+    return
+  }
+
+  const debtRecord = db
+    .prepare(
+      `SELECT id, amount, period_name
+       FROM "DEBT_RECORD"
+       WHERE recurring_payment_id = ?
+         AND status = 'unpaid'
+       ORDER BY created_at DESC
+       LIMIT 1`
+    )
+    .get(payment.id)
+
+  const debtAmount = toMoney(debtRecord ? debtRecord.amount : payment.amount)
+  const periodName = debtRecord
+    ? debtRecord.period_name
+    : formatBillingPeriod(payment.next_charge_date)
+
+  if (account.balance < debtAmount) {
     response.status(409).json({
       message: 'Недостаточно средств на счете',
     })
     return
   }
 
-  state.account.balance -= payment.amount
-  state.account.available = Math.max(0, state.account.available - payment.amount)
-  payment.status = 'active'
-  payment.nextChargeDate = toIsoDate(addDays(new Date(), 30))
-  payment.periodLabel = 'Долг погашен, следующее списание через месяц'
+  const payDebt = db.transaction(() => {
+    const resolvedDebtId = debtRecord ? debtRecord.id : randomUUID()
+
+    if (!debtRecord) {
+      db.prepare(
+        `INSERT INTO "DEBT_RECORD" (
+           id,
+           recurring_payment_id,
+           amount,
+           period_name,
+           status,
+           created_at
+         ) VALUES (?, ?, ?, ?, ?, ?)`
+      ).run(
+        resolvedDebtId,
+        payment.id,
+        debtAmount,
+        periodName,
+        'unpaid',
+        toIsoDateTime(new Date())
+      )
+    }
+
+    db.prepare(
+      `UPDATE "ACCOUNT"
+       SET balance = balance - ?
+       WHERE id = ?`
+    ).run(debtAmount, account.id)
+
+    db.prepare(
+      `UPDATE "DEBT_RECORD"
+       SET status = 'paid'
+       WHERE id = ?`
+    ).run(resolvedDebtId)
+
+    db.prepare(
+      `UPDATE "RECURRING_PAYMENT"
+       SET status = 'active',
+           next_charge_date = ?,
+           frozen_until = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).run(toIsoDate(addMonths(new Date(), 1)), payment.id)
+
+    db.prepare(
+      `INSERT INTO "TRANSACTION" (
+         id,
+         account_id,
+         amount,
+         date,
+         merchant_name,
+         type,
+         status,
+         recurring_payment_id,
+         billing_period
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      randomUUID(),
+      account.id,
+      -debtAmount,
+      toIsoDateTime(new Date()),
+      payment.custom_name || payment.service_name || 'SmartDebit платеж',
+      'smartdebit',
+      'success',
+      payment.id,
+      periodName
+    )
+
+    db.prepare(
+      `INSERT INTO "NOTIFICATION" (id, user_id, message, is_read, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(
+      randomUUID(),
+      DEFAULT_USER_ID,
+      `Задолженность погашена: ${payment.custom_name || payment.service_name}`,
+      0,
+      toIsoDateTime(new Date())
+    )
+  })
+
+  payDebt()
+
+  const updatedPayment = getPaymentRowById(payment.id)
 
   response.json({
     message: 'Задолженность успешно погашена',
-    payment: serializePayment(payment),
-    account: state.account,
+    payment: serializePaymentRow(updatedPayment),
+    account: getAccountSummary(account.id),
   })
 })
 
 app.get('/api/v1/health', (_request, response) => {
-  response.json({ status: 'ok' })
+  response.json({ status: 'ok', db: 'sqlite' })
 })
 
 app.get('/', (_request, response) => {
   response.json({
     service: 'SmartDebit mock API',
     status: 'running',
+    storage: {
+      engine: 'sqlite',
+      path: DB_PATH,
+    },
     endpoints: [
       'GET /api/v1/health',
       'GET /api/v1/smartdebit/dashboard',
@@ -336,4 +635,5 @@ app.get('/', (_request, response) => {
 
 app.listen(PORT, () => {
   console.log(`SmartDebit mock API listening on http://localhost:${PORT}`)
+  console.log(`SQLite database initialized at: ${DB_PATH}`)
 })
