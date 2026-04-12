@@ -5,7 +5,9 @@
 ## Структура
 
 - `frontend/` - React + TypeScript интерфейс.
-- `mock-api/` - Express мок API с in-memory данными.
+- `mock-api/` - Express мок API с SQLite базой.
+- `backend/db/schema.sql` - рабочая SQL-схема БД по ER-диаграмме проекта.
+- `mock-api/db/bootstrap.js` - инициализация SQLite для dev-стенда.
 
 ## Быстрый старт
 
@@ -32,3 +34,9 @@ npm run dev
 - `POST /api/v1/smartdebit/payments`
 - `PATCH /api/v1/smartdebit/payments/:paymentId/status`
 - `POST /api/v1/smartdebit/payments/:paymentId/pay-debt`
+
+## База данных
+
+- Движок: SQLite (`backend/data/smartdebit.sqlite`).
+- Инициализация и сидирование выполняются автоматически при запуске `mock-api`.
+- В схему добавлено поле `provider_name` в `SERVICE_DICTIONARY` для корректного отображения провайдера в UI.

@@ -4,6 +4,7 @@ export type PaymentStatus =
   | 'predicted'
   | 'low_balance'
   | 'overdue'
+  | 'cancelled'
   | 'disabled'
   | 'frozen'
 
