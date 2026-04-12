@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import { smartDebitApi } from './api'
 import './App.css'
 import type { FormEvent } from 'react'
@@ -79,7 +79,6 @@ const BASE_OPERATIONS: BankOperation[] = [
 ]
 
 const PROFILE = {
-  shortName: 'II',
   fullName: 'Иван Иванов',
   cardNameLatin: 'IVAN IVANOV',
   clientId: '428531',
@@ -87,6 +86,10 @@ const PROFILE = {
   email: 'ivan.ivanov@example.com',
   city: 'Москва',
 }
+
+const PROFILE_INITIAL = PROFILE.fullName.trim().slice(0, 1).toUpperCase()
+
+type ThemeMode = 'light' | 'dark'
 
 const numberFormatter = new Intl.NumberFormat('ru-RU')
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
@@ -160,19 +163,22 @@ function StatusBadge({
   return <span className={`status-badge ${STATUS_TONE[status]}`}>{label}</span>
 }
 
-function AppHeader() {
+function AppHeader({
+  theme,
+  onToggleTheme,
+}: {
+  theme: ThemeMode
+  onToggleTheme: () => void
+}) {
   return (
     <header className="topbar">
-      <div className="brand">
+      <Link to="/" className="brand">
         <div className="brand-logo">T</div>
         <strong>Банк</strong>
-      </div>
+      </Link>
 
       <nav className="topbar-nav" aria-label="Основная навигация">
         <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
-          <span className="nav-icon" aria-hidden="true">
-            ⌂
-          </span>
           Главная
         </NavLink>
         <NavLink
@@ -180,59 +186,21 @@ function AppHeader() {
           end
           className={({ isActive }) => (isActive ? 'active' : '')}
         >
-          <span className="nav-icon" aria-hidden="true">
-            ↔
-          </span>
           Операции
         </NavLink>
-        <NavLink
-          to="/operations/smartdebit"
-          className={({ isActive }) => (isActive ? 'active smart-link' : 'smart-link')}
-        >
-          <span className="nav-icon" aria-hidden="true">
-            ◎
-          </span>
-          SmartDebit
-          <span className="chip">NEW</span>
-        </NavLink>
-        <NavLink
-          to="/card-overview"
-          className={({ isActive }) => (isActive ? 'active' : '')}
-        >
-          <span className="nav-icon" aria-hidden="true">
-            ▣
-          </span>
-          Платежи
+        <NavLink to="/profile" className={({ isActive }) => (isActive ? 'active' : '')}>
+          Личный кабинет
         </NavLink>
       </nav>
 
-      <div className="topbar-right">
-        <button type="button" className="notify-btn" aria-label="Уведомления">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 3a5 5 0 0 0-5 5v2.8c0 .8-.2 1.5-.7 2.1L5 14.7V16h14v-1.3l-1.3-1.8a3.8 3.8 0 0 1-.7-2.2V8a5 5 0 0 0-5-5Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M10 18a2 2 0 0 0 4 0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span className="notify-counter">4</span>
-        </button>
+      <button type="button" className="theme-toggle" onClick={onToggleTheme}>
+        {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
+      </button>
 
-        <NavLink to="/profile" className="topbar-user">
-          <span className="user-avatar">{PROFILE.shortName}</span>
-          <span>{PROFILE.fullName}</span>
-        </NavLink>
-      </div>
+      <NavLink to="/profile" className="topbar-user">
+        <span className="user-avatar">{PROFILE_INITIAL}</span>
+        <span>{PROFILE.fullName}</span>
+      </NavLink>
     </header>
   )
 }
@@ -339,18 +307,19 @@ function HomePage({
                 </p>
                 <small>Black</small>
               </div>
-              <span className="wallet-chip">♥ 601 ₽</span>
+              <span className="wallet-chip">601 ₽</span>
             </div>
 
-            <div className="wallet-code-row">
-              <span>6584</span>
-              <span>5161</span>
-              <span>1743</span>
-              <span>3803</span>
-            </div>
+            <Link to="/card-overview" className="wallet-card-link">
+              <div className="wallet-card-preview">
+                <span className="wallet-card-bank">T-Банк</span>
+                <strong>6584 5161 1743 3803</strong>
+                <small>Открыть карту и платежи</small>
+              </div>
+            </Link>
 
             <button type="button" className="wallet-top-up-btn">
-              ▣ Пополните из другого банка
+              Пополните из другого банка
             </button>
           </article>
 
@@ -373,10 +342,10 @@ function HomePage({
 
           <div className="home-actions">
             <button type="button" className="action-transfer">
-              ↗ Перевод
+              Перевод
             </button>
             <button type="button" className="action-pay">
-              ▣ Оплатить
+              Оплатить
             </button>
           </div>
         </aside>
@@ -450,6 +419,25 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
             <span>Свободно к тратам</span>
             <strong>{formatCurrency(dashboard?.account.available ?? 64500)}</strong>
           </li>
+        </ul>
+      </article>
+
+      <article className="panel card-payments-panel">
+        <div className="row-between">
+          <h2>Платежи по карте</h2>
+          <span className="status-badge gray">{dashboard?.upcoming.length ?? 0}</span>
+        </div>
+
+        <ul className="card-payments-list">
+          {(dashboard?.upcoming ?? []).slice(0, 6).map((payment) => (
+            <li key={payment.id}>
+              <div>
+                <p>{payment.title}</p>
+                <small>{formatDate(payment.nextChargeDate)}</small>
+              </div>
+              <strong>{formatCurrency(payment.amount)}</strong>
+            </li>
+          ))}
         </ul>
       </article>
 
@@ -763,8 +751,23 @@ function OperationsPage({
 }) {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isSmartDebitDetailsOpen, setIsSmartDebitDetailsOpen] = useState(false)
 
   const operations = useMemo(() => buildOperationsFeed(dashboard), [dashboard])
+
+  const upcomingPayments = useMemo(() => {
+    return [...(dashboard?.upcoming ?? [])].sort((left, right) => {
+      return new Date(left.nextChargeDate).getTime() - new Date(right.nextChargeDate).getTime()
+    })
+  }, [dashboard])
+
+  const upcomingTotal = useMemo(() => {
+    return upcomingPayments
+      .filter((payment) => !['disabled', 'cancelled'].includes(payment.status))
+      .reduce((sum, payment) => sum + payment.amount, 0)
+  }, [upcomingPayments])
+
+  const nextPayment = upcomingPayments[0] ?? null
 
   async function handleChangeStatus(status: PaymentStatus) {
     if (!selectedPayment) {
@@ -776,174 +779,213 @@ function OperationsPage({
   }
 
   return (
-    <section className="page-grid operations-grid">
-      <div className="column wide">
-        <article className="panel">
-          <div className="row-between wrap">
-            <h2>Операции</h2>
-            <div className="filter-row">
-              <button type="button" className="active">Все</button>
-              <button type="button">Доходы</button>
-              <button type="button">Расходы</button>
-              <button type="button">Подписки</button>
-            </div>
-          </div>
-
-          <ul className="operation-list">
-            {operations.map((operation) => (
-              <li key={operation.id}>
-                <span className={`operation-icon ${operation.tone}`}>
-                  {getOperationIcon(operation.title)}
-                </span>
-                <div className="operation-body">
-                  <p>{operation.title}</p>
-                  <small>
-                    {operation.subtitle} · {operation.dateLabel}
-                  </small>
-                  {operation.smartTag ? (
-                    <small
-                      className={
-                        operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
-                      }
-                    >
-                      {operation.smartTag}
-                    </small>
-                  ) : null}
-                </div>
-                <strong
-                  className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
-                >
-                  {formatCurrency(operation.amount, true)}
-                </strong>
-              </li>
-            ))}
-          </ul>
-        </article>
-      </div>
-
-      <div className="column side">
-        <article className="panel smart-panel">
-          <div className="row-between">
-            <h2>SmartDebit</h2>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={Boolean(dashboard?.enabled)}
-                onChange={(event) => {
-                  void onToggle(event.target.checked)
-                }}
-                disabled={loading}
-              />
-              <span />
-            </label>
-          </div>
-
-          {notice ? <p className="notice">{notice}</p> : null}
-          {error ? <p className="error">{error}</p> : null}
-          {loading ? <p className="muted">Обновляем данные...</p> : null}
-
-          {!loading && dashboard && !dashboard.enabled ? (
-            <div className="onboard-box">
-              <p>
-                Включите SmartDebit, чтобы автоматически отслеживать регулярные
-                списания и предупреждать о задолженностях.
-              </p>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  void onToggle(true)
-                }}
-              >
-                Включить SmartDebit
-              </button>
-            </div>
-          ) : null}
-
-          {!loading && dashboard?.enabled ? (
+    <section className="operations-screen">
+      <button
+        type="button"
+        className="smartdebit-strip"
+        onClick={() => setIsSmartDebitDetailsOpen((value) => !value)}
+      >
+        <div className="smartdebit-strip-body">
+          <strong>SmartDebit</strong>
+          {dashboard?.enabled ? (
             <>
-              {dashboard.alerts[0] ? (
-                <div className="danger-box">
+              <p>
+                На ближайшие 7 дней спишется {formatCurrency(upcomingTotal)}
+              </p>
+              <small>
+                {nextPayment
+                  ? `Ближайшее списание: ${formatDate(nextPayment.nextChargeDate)} · ${formatCurrency(nextPayment.amount)}`
+                  : 'Ближайших списаний нет'}
+              </small>
+            </>
+          ) : (
+            <>
+              <p>Сервис выключен. Включите SmartDebit, чтобы видеть будущие списания.</p>
+              <small>Нажмите, чтобы открыть подробности.</small>
+            </>
+          )}
+        </div>
+        <span className="smartdebit-strip-action">
+          {isSmartDebitDetailsOpen ? 'Скрыть детали' : 'Открыть детали'}
+        </span>
+      </button>
+
+      {notice ? <p className="notice">{notice}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
+
+      <div
+        className={`page-grid operations-grid ${
+          isSmartDebitDetailsOpen ? 'with-smartdebit' : 'without-smartdebit'
+        }`}
+      >
+        <div className="column wide">
+          <article className="panel">
+            <div className="row-between wrap">
+              <h2>Операции</h2>
+              <div className="filter-row">
+                <button type="button" className="active">Все</button>
+                <button type="button">Доходы</button>
+                <button type="button">Расходы</button>
+                <button type="button">Подписки</button>
+              </div>
+            </div>
+
+            <ul className="operation-list">
+              {operations.map((operation) => (
+                <li key={operation.id}>
+                  <span className={`operation-icon ${operation.tone}`}>
+                    {getOperationIcon(operation.title)}
+                  </span>
+                  <div className="operation-body">
+                    <p>{operation.title}</p>
+                    <small>
+                      {operation.subtitle} · {operation.dateLabel}
+                    </small>
+                    {operation.smartTag ? (
+                      <small
+                        className={
+                          operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
+                        }
+                      >
+                        {operation.smartTag}
+                      </small>
+                    ) : null}
+                  </div>
+                  <strong
+                    className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
+                  >
+                    {formatCurrency(operation.amount, true)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </div>
+
+        {isSmartDebitDetailsOpen ? (
+          <div className="column side">
+            <article className="panel smart-panel">
+              <div className="row-between">
+                <h2>SmartDebit</h2>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(dashboard?.enabled)}
+                    onChange={(event) => {
+                      void onToggle(event.target.checked)
+                    }}
+                    disabled={loading}
+                  />
+                  <span />
+                </label>
+              </div>
+
+              {loading ? <p className="muted">Обновляем данные...</p> : null}
+
+              {!loading && dashboard && !dashboard.enabled ? (
+                <div className="onboard-box">
                   <p>
-                    {dashboard.alerts[0].title} ·{' '}
-                    {numberFormatter.format(dashboard.alerts[0].amount)} ₽
+                    Включите SmartDebit, чтобы автоматически отслеживать регулярные
+                    списания и предупреждать о задолженностях.
                   </p>
                   <button
                     type="button"
                     className="primary"
                     onClick={() => {
-                      void onPayDebt(dashboard.alerts[0].paymentId)
+                      void onToggle(true)
                     }}
                   >
-                    Погасить сейчас
+                    Включить SmartDebit
                   </button>
                 </div>
               ) : null}
 
-              <div className="row-between">
-                <h3>Ближайшие списания</h3>
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => setIsAddModalOpen(true)}
-                >
-                  + Добавить
-                </button>
-              </div>
+              {!loading && dashboard?.enabled ? (
+                <>
+                  {dashboard.alerts[0] ? (
+                    <div className="danger-box">
+                      <p>
+                        {dashboard.alerts[0].title} ·{' '}
+                        {numberFormatter.format(dashboard.alerts[0].amount)} ₽
+                      </p>
+                      <button
+                        type="button"
+                        className="primary"
+                        onClick={() => {
+                          void onPayDebt(dashboard.alerts[0].paymentId)
+                        }}
+                      >
+                        Погасить сейчас
+                      </button>
+                    </div>
+                  ) : null}
 
-              <ul className="payment-list">
-                {dashboard.upcoming.map((payment) => (
-                  <li key={payment.id}>
+                  <div className="row-between">
+                    <h3>Ближайшие списания</h3>
                     <button
                       type="button"
-                      className="payment-item"
-                      onClick={() => setSelectedPayment(payment)}
+                      className="ghost"
+                      onClick={() => setIsAddModalOpen(true)}
                     >
-                      <div>
-                        <p>{payment.title}</p>
-                        <small>
-                          {payment.provider} · {formatDate(payment.nextChargeDate)}
-                        </small>
-                      </div>
-                      <div className="payment-side-info">
-                        <StatusBadge status={payment.status} label={payment.statusLabel} />
-                        {payment.mandatory ? (
-                          <small className="mandatory">Обязательный</small>
-                        ) : null}
-                        <strong>{formatCurrency(payment.amount)}</strong>
-                      </div>
+                      + Добавить
                     </button>
-                  </li>
-                ))}
-              </ul>
+                  </div>
 
-              <article className="mini-panel">
-                <h3>Аналитика</h3>
-                <AnalyticsDonut slices={dashboard.chart} />
-              </article>
+                  <ul className="payment-list">
+                    {dashboard.upcoming.map((payment) => (
+                      <li key={payment.id}>
+                        <button
+                          type="button"
+                          className="payment-item"
+                          onClick={() => setSelectedPayment(payment)}
+                        >
+                          <div>
+                            <p>{payment.title}</p>
+                            <small>
+                              {payment.provider} · {formatDate(payment.nextChargeDate)}
+                            </small>
+                          </div>
+                          <div className="payment-side-info">
+                            <StatusBadge status={payment.status} label={payment.statusLabel} />
+                            {payment.mandatory ? (
+                              <small className="mandatory">Обязательный</small>
+                            ) : null}
+                            <strong>{formatCurrency(payment.amount)}</strong>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
 
-              <article className="mini-panel">
-                <h3>Уведомления</h3>
-                <ul className="notify-list">
-                  {dashboard.notifications.map((notification) => (
-                    <li key={notification.id}>
-                      <p
-                        className={
-                          notification.level === 'critical'
-                            ? 'notification critical'
-                            : 'notification'
-                        }
-                      >
-                        {notification.title}
-                      </p>
-                      <small>{notification.subtitle}</small>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            </>
-          ) : null}
-        </article>
+                  <article className="mini-panel">
+                    <h3>Аналитика</h3>
+                    <AnalyticsDonut slices={dashboard.chart} />
+                  </article>
+
+                  <article className="mini-panel">
+                    <h3>Уведомления</h3>
+                    <ul className="notify-list">
+                      {dashboard.notifications.map((notification) => (
+                        <li key={notification.id}>
+                          <p
+                            className={
+                              notification.level === 'critical'
+                                ? 'notification critical'
+                                : 'notification'
+                            }
+                          >
+                            {notification.title}
+                          </p>
+                          <small>{notification.subtitle}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                </>
+              ) : null}
+            </article>
+          </div>
+        ) : null}
       </div>
 
       {selectedPayment ? (
@@ -968,7 +1010,7 @@ function ProfilePage() {
   return (
     <section className="page-grid profile-grid">
       <article className="panel profile-hero">
-        <div className="avatar">{PROFILE.shortName}</div>
+        <div className="avatar">{PROFILE_INITIAL}</div>
         <div>
           <h2>{PROFILE.fullName}</h2>
           <p className="muted">Премиум клиент · ID {PROFILE.clientId}</p>
@@ -1052,6 +1094,19 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') {
+      return 'light'
+    }
+
+    const stored = window.localStorage.getItem('smartdebit-theme')
+    return stored === 'dark' ? 'dark' : 'light'
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    window.localStorage.setItem('smartdebit-theme', theme)
+  }, [theme])
 
   const refreshDashboard = useCallback(async (silent = false) => {
     if (!silent) {
@@ -1142,7 +1197,12 @@ function App() {
   return (
     <BrowserRouter>
       <div className="shell">
-        <AppHeader />
+        <AppHeader
+          theme={theme}
+          onToggleTheme={() => {
+            setTheme((current) => (current === 'light' ? 'dark' : 'light'))
+          }}
+        />
         <main className="content">
           <Routes>
             <Route path="/" element={<HomePage dashboard={dashboard} loading={loading} error={error} />} />
@@ -1165,21 +1225,7 @@ function App() {
                 />
               }
             />
-            <Route
-              path="/operations/smartdebit"
-              element={
-                <OperationsPage
-                  dashboard={dashboard}
-                  loading={loading}
-                  error={error}
-                  notice={notice}
-                  onToggle={handleToggle}
-                  onPayDebt={handlePayDebt}
-                  onStatusChange={handleChangeStatus}
-                  onAddPayment={handleAddPayment}
-                />
-              }
-            />
+            <Route path="/operations/smartdebit" element={<Navigate to="/operations" replace />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

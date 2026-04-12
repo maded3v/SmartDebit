@@ -44,6 +44,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-theme='dark'] {
+  --surface-page: #0b111b;
+  --surface-card: #111824;
+  --stroke: #2e3a4f;
+  --text-muted: #8f9cb3;
+  --soft-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+  color: #e7edf9;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -54,6 +63,13 @@ body {
   background:
     radial-gradient(circle at 8% -12%, rgba(255, 221, 45, 0.24), transparent 36%),
     radial-gradient(circle at 94% 14%, rgba(194, 210, 235, 0.45), transparent 40%),
+    var(--surface-page);
+}
+
+:root[data-theme='dark'] body {
+  background:
+    radial-gradient(circle at 8% -12%, rgba(255, 221, 45, 0.12), transparent 36%),
+    radial-gradient(circle at 94% 14%, rgba(70, 94, 130, 0.35), transparent 40%),
     var(--surface-page);
 }
 
