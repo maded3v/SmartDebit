@@ -57,6 +57,85 @@
   padding-bottom: 2px;
 }
 
+.topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-wrap {
+  position: relative;
+}
+
+.notification-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #d8e0eb;
+  background: #f6f8fc;
+  color: #324259;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.notification-btn:hover {
+  background: #edf2f8;
+}
+
+.notification-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d93e3e;
+  border: 1px solid #ffffff;
+}
+
+.notification-dropdown {
+  position: absolute;
+  right: 0;
+  top: 42px;
+  width: 300px;
+  border: 1px solid #dbe2ed;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(15, 24, 39, 0.18);
+  padding: 10px;
+  z-index: 40;
+}
+
+.notification-dropdown > p {
+  margin: 0 0 8px;
+  color: #5d6b82;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-item {
+  border: 1px solid #e8edf5;
+  border-radius: 10px;
+  background: #f9fbff;
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.notification-item + .notification-item {
+  margin-top: 6px;
+}
+
+.notification-item strong {
+  font-size: 13px;
+  color: #1e2738;
+}
+
+.notification-item small {
+  color: #68778e;
+}
+
 .theme-toggle {
   border: 1px solid #d8e0eb;
   background: #f4f7fb;
@@ -84,12 +163,55 @@
   border-bottom: 2px solid transparent;
 }
 
+.topbar-nav a svg,
+.payments-nav-button svg {
+  flex-shrink: 0;
+}
+
+.nav-new-chip {
+  border-radius: 999px;
+  background: #ffe064;
+  color: #171b25;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
 .topbar-nav a:hover {
   background: #f3f6fb;
   color: #111720;
 }
 
 .topbar-nav a.active {
+  background: #f3f6fb;
+  color: #111720;
+  border-bottom-color: #ffdd2d;
+}
+
+.payments-nav-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #5f6d85;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 10px 10px 0 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payments-nav-button:hover {
+  background: #f3f6fb;
+  color: #111720;
+}
+
+.payments-nav-button.active {
   background: #f3f6fb;
   color: #111720;
   border-bottom-color: #ffdd2d;
@@ -175,6 +297,68 @@
   gap: 12px;
 }
 
+.home-right-column {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.home-smartdebit-widget {
+  display: grid;
+  gap: 10px;
+}
+
+.home-widget-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+
+.home-widget-list li {
+  border: 1px solid #e5ebf4;
+  border-radius: 10px;
+  background: #fbfcff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+}
+
+.home-widget-list p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1b2537;
+}
+
+.home-widget-list small {
+  color: #6f7e93;
+}
+
+.home-widget-list strong {
+  white-space: nowrap;
+  color: #1a2230;
+}
+
+.widget-link-btn {
+  border: 1px solid #d7e1ed;
+  border-radius: 10px;
+  padding: 9px 11px;
+  text-decoration: none;
+  color: #2f3f58;
+  background: #f4f7fc;
+  width: fit-content;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.widget-link-btn:hover {
+  background: #ecf2fa;
+}
+
 .home-wallet-card {
   border: 1px solid #dde4ee;
   border-radius: 14px;
@@ -206,7 +390,7 @@
 }
 
 .wallet-balance {
-  font-size: 34px;
+  font-size: 32px;
   line-height: 1.04;
   font-weight: 700;
   color: #101721;
@@ -313,7 +497,7 @@
 
 .home-account-card p {
   margin: 0;
-  font-size: 35px;
+  font-size: 28px;
   line-height: 1.06;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -361,7 +545,7 @@
 
 .home-history-panel h2 {
   margin: 0;
-  font-size: 33px;
+  font-size: 24px;
 }
 
 .home-history-list {
@@ -484,6 +668,16 @@
   margin: 0;
   color: #0f1520;
   font-family: var(--font-heading);
+}
+
+.panel h2 {
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.panel h3 {
+  font-size: 17px;
+  line-height: 1.3;
 }
 
 .label {
@@ -1058,6 +1252,232 @@
   grid-column: span 2;
 }
 
+.card-payments-actions,
+.card-favorites-panel,
+.card-autopay-panel,
+.card-services-panel {
+  grid-column: span 2;
+}
+
+.payments-page {
+  display: grid;
+  gap: 16px;
+}
+
+.payments-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.payments-quick-card {
+  border: 1px solid #dde4ef;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: #223047;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.payments-quick-card:hover {
+  border-color: #cfd9e7;
+  box-shadow: 0 8px 18px rgba(12, 22, 38, 0.08);
+  transform: translateY(-1px);
+}
+
+.payments-quick-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #f1f5fb;
+  color: #1f2a3d;
+  display: grid;
+  place-items: center;
+}
+
+.payments-quick-label {
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.payments-favorites-panel h2,
+.payments-autopay-panel h2,
+.payments-services-panel h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.favorite-payments-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #e5ebf4;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.favorite-payments-list li {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #ebf0f7;
+  background: #ffffff;
+}
+
+.favorite-payments-list li:first-child {
+  border-top: 0;
+}
+
+.favorite-payment-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.favorite-payment-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f2f6fb;
+  color: #243349;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.favorite-payment-content {
+  min-width: 0;
+}
+
+.favorite-payment-content p {
+  margin: 0;
+  color: #1a2333;
+  font-weight: 600;
+}
+
+.favorite-payment-content small {
+  color: #6f7e93;
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-payment-account {
+  font-size: 11px;
+}
+
+.favorite-pay-btn {
+  border: 0;
+  border-radius: 10px;
+  background: #ffdd2d;
+  color: #111923;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.favorite-pay-btn:hover {
+  filter: brightness(0.96);
+}
+
+.mini-notice {
+  border-radius: 999px;
+  background: #e9f7ef;
+  color: #1f7a4e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+}
+
+.autopay-side {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.payments-autopay-panel .card-payments-list {
+  border: 1px solid #e5ebf4;
+  border-radius: 14px;
+  overflow: hidden;
+  gap: 0;
+}
+
+.payments-autopay-panel .card-payments-list li {
+  border: 0;
+  border-top: 1px solid #ebf0f7;
+  border-radius: 0;
+  padding: 12px 14px;
+}
+
+.payments-autopay-panel .card-payments-list li:first-child {
+  border-top: 0;
+}
+
+.services-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.service-pay-btn {
+  border: 1px solid #dce3ee;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #2f3a4d;
+  padding: 12px 13px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.service-pay-btn:hover {
+  border-color: #ced8e7;
+  box-shadow: 0 8px 18px rgba(12, 22, 38, 0.08);
+}
+
+.service-pay-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f1f5fb;
+  color: #223047;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.service-pay-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.service-pay-btn > svg:last-child {
+  color: #8a98ad;
+  flex-shrink: 0;
+}
+
 .card-payments-list {
   margin: 12px 0 0;
   padding: 0;
@@ -1083,6 +1503,35 @@
 
 .card-payments-list small {
   color: #6f7e93;
+}
+
+.favorite-pay-form {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-pay-form label {
+  display: grid;
+  gap: 6px;
+  color: #4b5871;
+  font-size: 13px;
+}
+
+.favorite-pay-form input {
+  border: 1px solid #d8e0eb;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.favorite-pay-form input:focus {
+  outline: 2px solid rgba(255, 221, 45, 0.5);
+  border-color: #f0d350;
+}
+
+.payment-submit-btn {
+  width: 100%;
 }
 
 .clean-list,
@@ -1200,6 +1649,160 @@
 
 .profile-action-grid button:hover {
   background: #eef2f8;
+}
+
+.profile-page {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-page-title {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.15;
+  font-family: var(--font-heading);
+  color: #121a26;
+}
+
+.profile-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.profile-headline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.profile-avatar-big {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #eef2f8;
+  display: grid;
+  place-items: center;
+  color: #74839b;
+}
+
+.profile-name {
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 600;
+  color: #111b28;
+}
+
+.profile-pro-banner {
+  border-radius: 16px;
+  background: linear-gradient(92deg, #4ade80 0%, #fde047 100%);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-pro-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #17212f;
+}
+
+.profile-pro-chip {
+  border-radius: 7px;
+  background: #1a2433;
+  color: #f8fbff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  padding: 3px 6px;
+  margin-left: 6px;
+}
+
+.profile-pro-subtitle {
+  margin: 4px 0 0;
+  color: rgba(24, 33, 48, 0.75);
+  font-size: 12px;
+}
+
+.profile-pro-button {
+  border: 0;
+  border-radius: 9px;
+  background: rgba(24, 33, 48, 0.88);
+  color: #f6fbff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.profile-pro-button:hover {
+  background: #1f2d40;
+}
+
+.profile-settings-card {
+  border: 1px solid #dbe3ee;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: var(--soft-shadow);
+  overflow: hidden;
+}
+
+.profile-settings-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  border-top: 1px solid #e7edf4;
+  background: transparent;
+  padding: 13px 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-settings-row:first-child {
+  border-top: 0;
+}
+
+.profile-settings-row:hover {
+  background: #f6f9fd;
+}
+
+.profile-settings-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.profile-settings-icon.blue {
+  background: #3b82f6;
+}
+
+.profile-settings-icon.purple {
+  background: #a855f7;
+}
+
+.profile-settings-label {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #1a2435;
+}
+
+.profile-settings-chevron {
+  color: #8a98ad;
+  flex-shrink: 0;
 }
 
 .modal-overlay {
@@ -1396,6 +1999,58 @@
   color: #f5f7ff;
 }
 
+:root[data-theme='dark'] .nav-new-chip {
+  background: #ffd94b;
+  color: #1c2330;
+}
+
+:root[data-theme='dark'] .payments-nav-button {
+  color: #94a3ba;
+}
+
+:root[data-theme='dark'] .payments-nav-button:hover,
+:root[data-theme='dark'] .payments-nav-button.active {
+  background: #1c2636;
+  color: #f5f7ff;
+}
+
+:root[data-theme='dark'] .notification-btn {
+  border-color: #334156;
+  background: #1a2434;
+  color: #d6e0f1;
+}
+
+:root[data-theme='dark'] .notification-btn:hover {
+  background: #223046;
+}
+
+:root[data-theme='dark'] .notification-dot {
+  border-color: #1a2434;
+}
+
+:root[data-theme='dark'] .notification-dropdown {
+  border-color: #334157;
+  background: #121c2a;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='dark'] .notification-dropdown > p {
+  color: #9cadca;
+}
+
+:root[data-theme='dark'] .notification-item {
+  border-color: #2f3b52;
+  background: #1a2536;
+}
+
+:root[data-theme='dark'] .notification-item strong {
+  color: #e9eefb;
+}
+
+:root[data-theme='dark'] .notification-item small {
+  color: #91a3bf;
+}
+
 :root[data-theme='dark'] .theme-toggle {
   border-color: #334156;
   background: #1a2434;
@@ -1424,6 +2079,49 @@
 
 :root[data-theme='dark'] .topbar-user:hover {
   background: #222d3f;
+}
+
+:root[data-theme='dark'] .profile-page-title,
+:root[data-theme='dark'] .profile-name {
+  color: #edf2ff;
+}
+
+:root[data-theme='dark'] .profile-avatar-big {
+  background: #202b3f;
+  color: #a9bad7;
+}
+
+:root[data-theme='dark'] .profile-pro-title {
+  color: #1b2535;
+}
+
+:root[data-theme='dark'] .profile-pro-subtitle {
+  color: rgba(27, 37, 53, 0.82);
+}
+
+:root[data-theme='dark'] .profile-pro-button {
+  background: rgba(22, 31, 44, 0.9);
+}
+
+:root[data-theme='dark'] .profile-settings-card {
+  border-color: #2f3a4f;
+  background: #121c2a;
+}
+
+:root[data-theme='dark'] .profile-settings-row {
+  border-top-color: #2b374d;
+}
+
+:root[data-theme='dark'] .profile-settings-row:hover {
+  background: #1a2536;
+}
+
+:root[data-theme='dark'] .profile-settings-label {
+  color: #dce6f7;
+}
+
+:root[data-theme='dark'] .profile-settings-chevron {
+  color: #90a2bf;
 }
 
 :root[data-theme='dark'] .user-avatar {
@@ -1482,6 +2180,30 @@
   background: #111a27;
 }
 
+:root[data-theme='dark'] .home-widget-list li {
+  border-color: #2f3a4f;
+  background: #151f2f;
+}
+
+:root[data-theme='dark'] .home-widget-list p,
+:root[data-theme='dark'] .home-widget-list strong {
+  color: #edf2ff;
+}
+
+:root[data-theme='dark'] .home-widget-list small {
+  color: #94a7c4;
+}
+
+:root[data-theme='dark'] .widget-link-btn {
+  border-color: #324058;
+  background: #1b2739;
+  color: #c9d8ef;
+}
+
+:root[data-theme='dark'] .widget-link-btn:hover {
+  background: #223248;
+}
+
 :root[data-theme='dark'] .wallet-balance-wrap small,
 :root[data-theme='dark'] .history-body small,
 :root[data-theme='dark'] .operation-body small,
@@ -1498,6 +2220,9 @@
 :root[data-theme='dark'] .action-pay,
 :root[data-theme='dark'] .filter-row button,
 :root[data-theme='dark'] .ghost,
+:root[data-theme='dark'] .payments-quick-card,
+:root[data-theme='dark'] .quick-pay-button,
+:root[data-theme='dark'] .service-pay-btn,
 :root[data-theme='dark'] .modal-actions button,
 :root[data-theme='dark'] .profile-action-grid button {
   background: #1a2535;
@@ -1509,8 +2234,62 @@
 :root[data-theme='dark'] .action-pay:hover,
 :root[data-theme='dark'] .filter-row button:hover,
 :root[data-theme='dark'] .ghost:hover,
+:root[data-theme='dark'] .payments-quick-card:hover,
+:root[data-theme='dark'] .quick-pay-button:hover,
+:root[data-theme='dark'] .service-pay-btn:hover,
 :root[data-theme='dark'] .profile-action-grid button:hover {
   background: #223046;
+}
+
+:root[data-theme='dark'] .payments-quick-icon,
+:root[data-theme='dark'] .favorite-payment-icon,
+:root[data-theme='dark'] .service-pay-icon {
+  background: #223046;
+  color: #d9e3f4;
+}
+
+:root[data-theme='dark'] .payments-quick-label,
+:root[data-theme='dark'] .service-pay-label {
+  color: #dce6f7;
+}
+
+:root[data-theme='dark'] .favorite-payments-list {
+  border-color: #2f3a4f;
+}
+
+:root[data-theme='dark'] .favorite-payments-list li {
+  border-top-color: #2f3a4f;
+  background: #151f2f;
+}
+
+:root[data-theme='dark'] .favorite-payment-content small {
+  color: #8b9cb7;
+}
+
+:root[data-theme='dark'] .payments-autopay-panel .card-payments-list {
+  border-color: #2f3a4f;
+}
+
+:root[data-theme='dark'] .payments-autopay-panel .card-payments-list li {
+  border-top-color: #2f3a4f;
+}
+
+:root[data-theme='dark'] .favorite-pay-btn {
+  background: #ffd938;
+  color: #141c29;
+}
+
+:root[data-theme='dark'] .service-pay-btn > svg:last-child {
+  color: #90a2bf;
+}
+
+:root[data-theme='dark'] .mini-notice {
+  background: #1f3a2d;
+  color: #9de1bb;
+}
+
+:root[data-theme='dark'] .favorite-pay-form label {
+  color: #93a4bf;
 }
 
 :root[data-theme='dark'] .action-transfer,
@@ -1598,7 +2377,8 @@
 }
 
 :root[data-theme='dark'] .form-grid input,
-:root[data-theme='dark'] .form-grid select {
+:root[data-theme='dark'] .form-grid select,
+:root[data-theme='dark'] .favorite-pay-form input {
   background: #0f1724;
   border-color: #324158;
   color: #e5ecfb;
@@ -1624,6 +2404,22 @@
 
 :root[data-theme='dark'] .smartdebit-strip-action {
   color: #ffe066;
+}
+
+@media (min-width: 900px) {
+  .profile-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .profile-layout > :first-child {
+    width: 33%;
+    max-width: 360px;
+  }
+
+  .profile-layout > :last-child {
+    flex: 1;
+  }
 }
 
 @media (max-width: 1140px) {
@@ -1652,11 +2448,23 @@
     grid-template-columns: 1fr;
   }
 
+  .payments-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .card-hero,
+  .card-payments-actions,
+  .card-favorites-panel,
+  .card-autopay-panel,
+  .card-services-panel,
   .card-payments-panel,
   .profile-hero,
   .profile-actions {
     grid-column: span 1;
+  }
+
+  .services-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .profile-action-grid {
@@ -1679,6 +2487,15 @@
     order: 3;
   }
 
+  .topbar-actions {
+    margin-left: auto;
+  }
+
+  .notification-dropdown {
+    right: -38px;
+    width: min(300px, calc(100vw - 20px));
+  }
+
   .topbar-user {
     font-size: 13px;
   }
@@ -1687,16 +2504,33 @@
     font-size: 21px;
   }
 
+  .profile-page-title {
+    font-size: 24px;
+  }
+
+  .profile-name {
+    font-size: 22px;
+  }
+
+  .profile-pro-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-pro-button {
+    width: 100%;
+  }
+
   .wallet-balance {
     font-size: 31px;
   }
 
   .home-account-card p {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .home-history-panel h2 {
-    font-size: 25px;
+    font-size: 22px;
   }
 
   .history-body p {
@@ -1705,6 +2539,25 @@
 
   .button-row {
     grid-template-columns: 1fr;
+  }
+
+  .payments-quick-grid,
+  .services-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-payments-list li,
+  .card-payments-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .favorite-payment-main {
+    width: 100%;
+  }
+
+  .favorite-pay-btn {
+    width: 100%;
   }
 
   .payment-item {
