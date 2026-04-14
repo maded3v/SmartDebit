@@ -1,11 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Link,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import { smartDebitApi } from './api'
 import './App.css'
 import type { FormEvent } from 'react'
+import {
+  ArrowLeftRight,
+  Bell,
+  Briefcase,
+  Car,
+  ChevronRight,
+  FileText,
+  GraduationCap,
+  HandCoins,
+  Home,
+  Landmark,
+  Mail,
+  Phone,
+  QrCode,
+  Receipt,
+  RefreshCw,
+  Shield,
+  Smartphone,
+  User,
+  UserCheck,
+  Wifi,
+  Zap,
+} from 'lucide-react'
 import type {
   CreatePaymentPayload,
   DashboardPayload,
+  NotificationItem,
   Payment,
   PaymentStatus,
 } from './types'
@@ -30,6 +63,34 @@ interface HomeHistoryItem {
   icon: string
   iconTone: 'green' | 'dark' | 'gray' | 'red'
   smartTag?: string
+}
+
+interface FavoritePaymentEntry {
+  id: string
+  title: string
+  subtitle: string
+  account: string
+  lastAmount: number
+  icon: typeof Phone
+}
+
+interface PaymentQuickActionEntry {
+  id: string
+  label: string
+  icon: typeof Phone
+}
+
+interface PaymentServiceEntry {
+  id: string
+  label: string
+  icon: typeof Phone
+}
+
+interface ProfileSettingItem {
+  id: string
+  icon: typeof Phone
+  label: string
+  tone: 'blue' | 'purple'
 }
 
 const STATUS_TONE: Record<PaymentStatus, StatusTone> = {
@@ -88,6 +149,77 @@ const PROFILE = {
 }
 
 const PROFILE_INITIAL = PROFILE.fullName.trim().slice(0, 1).toUpperCase()
+
+const PAYMENT_QUICK_ACTIONS: PaymentQuickActionEntry[] = [
+  { id: 'quick-phone', label: 'По номеру телефона', icon: Phone },
+  { id: 'quick-details', label: 'По реквизитам', icon: FileText },
+  { id: 'quick-between', label: 'Между счетами', icon: ArrowLeftRight },
+  { id: 'quick-qr', label: 'QR-код', icon: QrCode },
+]
+
+const FAVORITE_PAYMENTS: FavoritePaymentEntry[] = [
+  {
+    id: 'fav-mts',
+    title: 'МТС',
+    subtitle: 'Мобильная связь',
+    account: '+7 (925) 123-45-67',
+    lastAmount: 600,
+    icon: Smartphone,
+  },
+  {
+    id: 'fav-rostelecom',
+    title: 'Ростелеком',
+    subtitle: 'Интернет',
+    account: 'Договор №847291',
+    lastAmount: 890,
+    icon: Wifi,
+  },
+  {
+    id: 'fav-zhkh',
+    title: 'ЖКХ Квартплата',
+    subtitle: 'УК «Домсервис»',
+    account: 'ЛС 4820193847',
+    lastAmount: 8500,
+    icon: Home,
+  },
+  {
+    id: 'fav-energo',
+    title: 'МосЭнерго',
+    subtitle: 'Электроэнергия',
+    account: 'ЛС 7391028456',
+    lastAmount: 1340,
+    icon: Zap,
+  },
+  {
+    id: 'fav-kindergarten',
+    title: 'Детский сад №42',
+    subtitle: 'Образование',
+    account: 'ИНН 7701234567',
+    lastAmount: 3200,
+    icon: GraduationCap,
+  },
+]
+
+const PAYMENT_SERVICES: PaymentServiceEntry[] = [
+  { id: 'svc-mobile', label: 'Мобильная связь', icon: Smartphone },
+  { id: 'svc-internet', label: 'Интернет и ТВ', icon: Wifi },
+  { id: 'svc-communal', label: 'ЖКХ', icon: Home },
+  { id: 'svc-fines', label: 'Штрафы ГИБДД', icon: Car },
+  { id: 'svc-tax', label: 'Налоги', icon: Receipt },
+  { id: 'svc-education', label: 'Образование', icon: GraduationCap },
+]
+
+const PROFILE_SETTINGS: ProfileSettingItem[] = [
+  { id: 'profile-phone', icon: Phone, label: '+7 123 456-78-90', tone: 'blue' },
+  { id: 'profile-email', icon: Mail, label: 'qwert12345@gmail.com', tone: 'blue' },
+  { id: 'profile-address', icon: Home, label: 'Адреса', tone: 'blue' },
+  { id: 'profile-work', icon: Briefcase, label: 'Работа', tone: 'blue' },
+  { id: 'profile-gos', icon: Shield, label: 'Госуслуги', tone: 'purple' },
+  { id: 'profile-refresh', icon: RefreshCw, label: 'Автообновление данных', tone: 'blue' },
+  { id: 'profile-self', icon: UserCheck, label: 'Самозанятость', tone: 'blue' },
+  { id: 'profile-pension', icon: Landmark, label: 'Пенсия на карту Т-Банка', tone: 'blue' },
+  { id: 'profile-social', icon: HandCoins, label: 'Соцвыплаты', tone: 'blue' },
+]
 
 type ThemeMode = 'light' | 'dark'
 
@@ -166,10 +298,23 @@ function StatusBadge({
 function AppHeader({
   theme,
   onToggleTheme,
+  notifications,
 }: {
   theme: ThemeMode
   onToggleTheme: () => void
+  notifications: NotificationItem[]
 }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isPaymentsActive = location.pathname.startsWith('/payments')
+  const isHomeActive = location.pathname === '/'
+  const isOperationsActive =
+    location.pathname.startsWith('/operations') && !location.pathname.includes('/smartdebit')
+  const isSmartDebitActive = location.pathname.includes('/smartdebit')
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+
+  const unreadNotifications = notifications.slice(0, 4)
+
   return (
     <header className="topbar">
       <Link to="/" className="brand">
@@ -178,21 +323,77 @@ function AppHeader({
       </Link>
 
       <nav className="topbar-nav" aria-label="Основная навигация">
-        <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
+        <NavLink to="/" end className={isHomeActive ? 'active' : ''}>
+          <Home size={17} />
           Главная
         </NavLink>
-        <NavLink
-          to="/operations"
-          end
-          className={({ isActive }) => (isActive ? 'active' : '')}
-        >
+        <NavLink to="/operations" end className={isOperationsActive ? 'active' : ''}>
+          <ArrowLeftRight size={17} />
           Операции
         </NavLink>
+        <NavLink to="/operations/smartdebit" className={isSmartDebitActive ? 'active' : ''}>
+          <Shield size={17} />
+          SmartDebit
+          <span className="nav-new-chip">NEW</span>
+        </NavLink>
+        <button
+          type="button"
+          className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
+          onClick={() => navigate('/payments')}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect width="20" height="14" x="2" y="5" rx="2" />
+            <line x1="2" x2="22" y1="10" y2="10" />
+          </svg>
+          Платежи
+        </button>
       </nav>
 
-      <button type="button" className="theme-toggle" onClick={onToggleTheme}>
-        {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
-      </button>
+      <div className="topbar-actions">
+        <div className="notification-wrap">
+          <button
+            type="button"
+            className="notification-btn"
+            onClick={() => setIsNotificationOpen((value) => !value)}
+            aria-label="Уведомления"
+          >
+            <Bell size={19} />
+            {unreadNotifications.length ? <span className="notification-dot" /> : null}
+          </button>
+
+          {isNotificationOpen ? (
+            <div className="notification-dropdown">
+              <p>Уведомления</p>
+              {unreadNotifications.length ? (
+                unreadNotifications.map((notification) => (
+                  <div key={notification.id} className="notification-item">
+                    <strong>{notification.title}</strong>
+                    <small>{notification.subtitle}</small>
+                  </div>
+                ))
+              ) : (
+                <div className="notification-item">
+                  <strong>Новых уведомлений нет</strong>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <button type="button" className="theme-toggle" onClick={onToggleTheme}>
+          {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
+        </button>
+      </div>
 
       <NavLink to="/profile" className="topbar-user">
         <span className="user-avatar">{PROFILE_INITIAL}</span>
@@ -307,7 +508,7 @@ function HomePage({
               <span className="wallet-chip">601 ₽</span>
             </div>
 
-            <Link to="/card-overview" className="wallet-card-link">
+            <Link to="/payments" className="wallet-card-link">
               <div className="wallet-card-preview">
                 <span className="wallet-card-bank">T-Банк</span>
                 <strong>6584 5161 1743 3803</strong>
@@ -347,138 +548,244 @@ function HomePage({
           </div>
         </aside>
 
-        <article className="panel home-history-panel">
-          <h2>История операций</h2>
+        <div className="home-right-column">
+          <article className="panel home-smartdebit-widget">
+            <div className="row-between">
+              <h2>SmartDebit</h2>
+              <span className={dashboard?.enabled ? 'status-badge green' : 'status-badge gray'}>
+                {dashboard?.enabled ? 'Включен' : 'Выключен'}
+              </span>
+            </div>
 
-          <ul className="home-history-list">
-            {historyItems.map((item) => (
-              <li key={item.id}>
-                <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
-                <div className="history-body">
-                  <p>{item.title}</p>
-                  <small>{item.date}</small>
-                  {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
-                </div>
-                <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
-                  {formatCurrency(item.amount, true)}
-                </strong>
-              </li>
-            ))}
-          </ul>
-        </article>
+            <p className="muted">Ближайшие списания на 7 дней</p>
+
+            <ul className="home-widget-list">
+              {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
+                <li key={payment.id}>
+                  <div>
+                    <p>{payment.title}</p>
+                    <small>{formatDate(payment.nextChargeDate)}</small>
+                  </div>
+                  <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
+                </li>
+              ))}
+            </ul>
+
+            <Link to="/operations/smartdebit" className="widget-link-btn">
+              Открыть SmartDebit
+            </Link>
+          </article>
+
+          <article className="panel home-history-panel">
+            <h2>История операций</h2>
+
+            <ul className="home-history-list">
+              {historyItems.map((item) => (
+                <li key={item.id}>
+                  <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
+                  <div className="history-body">
+                    <p>{item.title}</p>
+                    <small>{item.date}</small>
+                    {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
+                  </div>
+                  <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                    {formatCurrency(item.amount, true)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </div>
       </div>
     </section>
   )
 }
 
 function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null }) {
+  const [selectedFavoritePayment, setSelectedFavoritePayment] =
+    useState<FavoritePaymentEntry | null>(null)
+  const [payAmount, setPayAmount] = useState('')
+  const [paying, setPaying] = useState(false)
+  const [payNotice, setPayNotice] = useState('')
+
+  const mandatoryPayments = useMemo(() => {
+    return (dashboard?.upcoming ?? []).filter((payment) => payment.mandatory)
+  }, [dashboard])
+
+  useEffect(() => {
+    if (!payNotice) {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setPayNotice('')
+    }, 3200)
+
+    return () => clearTimeout(timer)
+  }, [payNotice])
+
+  function openFavoritePayment(payment: FavoritePaymentEntry) {
+    setSelectedFavoritePayment(payment)
+    setPayAmount(String(payment.lastAmount))
+  }
+
+  function closeFavoritePayment() {
+    setSelectedFavoritePayment(null)
+    setPayAmount('')
+    setPaying(false)
+  }
+
+  function handleFavoritePayment() {
+    const amountValue = Number(payAmount)
+    if (!selectedFavoritePayment || !Number.isFinite(amountValue) || amountValue <= 0) {
+      return
+    }
+
+    setPaying(true)
+
+    setTimeout(() => {
+      setPaying(false)
+      setPayNotice(
+        `Оплата ${selectedFavoritePayment.title}: ${numberFormatter.format(amountValue)} ₽`,
+      )
+      closeFavoritePayment()
+    }, 700)
+  }
+
   return (
-    <section className="page-grid card-overview-grid">
-      <article className="panel card-hero">
-        <div className="row-between">
-          <div>
-            <p className="label">Обзор карты</p>
-            <h2>Black Debit</h2>
+    <section className="payments-page">
+      {payNotice ? <p className="notice">{payNotice}</p> : null}
+
+      <div className="payments-quick-grid">
+        {PAYMENT_QUICK_ACTIONS.map((action) => {
+          const Icon = action.icon
+
+          return (
+            <button key={action.id} type="button" className="payments-quick-card">
+              <span className="payments-quick-icon">
+                <Icon size={22} />
+              </span>
+              <span className="payments-quick-label">{action.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <article className="panel card-favorites-panel payments-favorites-panel">
+        <h2>Избранные платежи</h2>
+
+        <ul className="favorite-payments-list">
+          {FAVORITE_PAYMENTS.map((payment) => {
+            const Icon = payment.icon
+
+            return (
+              <li key={payment.id}>
+                <div className="favorite-payment-main">
+                  <span className="favorite-payment-icon">
+                    <Icon size={19} />
+                  </span>
+
+                  <div className="favorite-payment-content">
+                    <p>{payment.title}</p>
+                    <small>{payment.subtitle}</small>
+                    <small className="favorite-payment-account">{payment.account}</small>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="favorite-pay-btn"
+                  onClick={() => openFavoritePayment(payment)}
+                >
+                  Оплатить
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </article>
+
+      {mandatoryPayments.length ? (
+        <article className="panel card-autopay-panel payments-autopay-panel">
+          <h2>Автоплатежи</h2>
+          <ul className="card-payments-list card-autopay-list">
+            {mandatoryPayments.map((payment) => (
+              <li key={payment.id}>
+                <div>
+                  <p>{payment.title}</p>
+                  <small>
+                    {payment.periodLabel} · {numberFormatter.format(payment.amount)} ₽
+                  </small>
+                </div>
+                <StatusBadge status={payment.status} label={payment.statusLabel} />
+              </li>
+            ))}
+          </ul>
+        </article>
+      ) : null}
+
+      <article className="panel card-services-panel payments-services-panel">
+        <h2>Оплата услуг</h2>
+        <div className="services-grid">
+          {PAYMENT_SERVICES.map((service) => {
+            const Icon = service.icon
+
+            return (
+              <button key={service.id} type="button" className="service-pay-btn">
+                <span className="service-pay-icon">
+                  <Icon size={20} />
+                </span>
+                <span className="service-pay-label">{service.label}</span>
+                <ChevronRight size={16} />
+              </button>
+            )
+          })}
+        </div>
+      </article>
+
+      {selectedFavoritePayment ? (
+        <div className="modal-overlay" role="presentation" onClick={closeFavoritePayment}>
+          <div
+            className="modal-window"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Оплата ${selectedFavoritePayment.title}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="close-btn" type="button" onClick={closeFavoritePayment}>
+              x
+            </button>
+
+            <h3>Оплата · {selectedFavoritePayment.title}</h3>
+            <p className="muted">{selectedFavoritePayment.subtitle}</p>
+            <p className="muted">{selectedFavoritePayment.account}</p>
+
+            <div className="favorite-pay-form">
+              <label>
+                Сумма, ₽
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={payAmount}
+                  onChange={(event) => setPayAmount(event.target.value)}
+                />
+              </label>
+
+              <button
+                type="button"
+                className="primary payment-submit-btn"
+                onClick={handleFavoritePayment}
+                disabled={paying || Number(payAmount) <= 0}
+              >
+                {paying
+                  ? 'Проводим оплату...'
+                  : `Оплатить ${numberFormatter.format(Number(payAmount) || 0)} ₽`}
+              </button>
+            </div>
           </div>
-          <span className="status-badge green">Активна</span>
         </div>
-
-        <div className="bank-card-visual">
-          <p>Т-Банк</p>
-          <strong>•••• 2294</strong>
-          <small>{PROFILE.cardNameLatin}</small>
-        </div>
-
-        <div className="button-row">
-          <button type="button">Реквизиты</button>
-          <button type="button">Лимиты</button>
-          <button type="button">Настройки</button>
-        </div>
-      </article>
-
-      <article className="panel">
-        <h2>Баланс и резервы</h2>
-        <ul className="clean-list">
-          <li>
-            <span>Текущий баланс</span>
-            <strong>{formatCurrency(dashboard?.account.balance ?? 116783)}</strong>
-          </li>
-          <li>
-            <span>Зарезервировано SmartDebit</span>
-            <strong>
-              {formatCurrency(
-                (dashboard?.account.balance ?? 116783) -
-                  (dashboard?.account.available ?? 64500),
-              )}
-            </strong>
-          </li>
-          <li>
-            <span>Свободно к тратам</span>
-            <strong>{formatCurrency(dashboard?.account.available ?? 64500)}</strong>
-          </li>
-        </ul>
-      </article>
-
-      <article className="panel card-payments-panel">
-        <div className="row-between">
-          <h2>Платежи по карте</h2>
-          <span className="status-badge gray">{dashboard?.upcoming.length ?? 0}</span>
-        </div>
-
-        <ul className="card-payments-list">
-          {(dashboard?.upcoming ?? []).slice(0, 6).map((payment) => (
-            <li key={payment.id}>
-              <div>
-                <p>{payment.title}</p>
-                <small>{formatDate(payment.nextChargeDate)}</small>
-              </div>
-              <strong>{formatCurrency(payment.amount)}</strong>
-            </li>
-          ))}
-        </ul>
-      </article>
-
-      <article className="panel">
-        <h2>Реквизиты</h2>
-        <ul className="clean-list">
-          <li>
-            <span>Номер карты</span>
-            <strong>5536 91•• •••• 2294</strong>
-          </li>
-          <li>
-            <span>Счет</span>
-            <strong>40817 810 9 0000 1234567</strong>
-          </li>
-          <li>
-            <span>БИК</span>
-            <strong>044525974</strong>
-          </li>
-        </ul>
-      </article>
-
-      <article className="panel">
-        <h2>Контроль расходов</h2>
-        <ul className="bar-list">
-          <li>
-            <span>Покупки</span>
-            <div>
-              <b style={{ width: '72%' }} />
-            </div>
-          </li>
-          <li>
-            <span>Подписки</span>
-            <div>
-              <b style={{ width: '38%' }} />
-            </div>
-          </li>
-          <li>
-            <span>Переводы</span>
-            <div>
-              <b style={{ width: '56%' }} />
-            </div>
-          </li>
-        </ul>
-      </article>
+      ) : null}
     </section>
   )
 }
@@ -1013,83 +1320,54 @@ function SmartDebitDetailsPage({
 
 function ProfilePage() {
   return (
-    <section className="page-grid profile-grid">
-      <article className="panel profile-hero">
-        <div className="avatar">{PROFILE_INITIAL}</div>
+    <section className="profile-page">
+      <h1 className="profile-page-title">Ваши данные</h1>
+
+      <div className="profile-layout">
         <div>
-          <h2>{PROFILE.fullName}</h2>
-          <p className="muted">Премиум клиент · ID {PROFILE.clientId}</p>
+          <div className="profile-headline">
+            <div className="profile-avatar-big">
+              <User size={30} />
+            </div>
+            <span className="profile-name">{PROFILE.fullName}</span>
+          </div>
+
+          <div className="profile-pro-banner">
+            <div>
+              <p className="profile-pro-title">
+                Подписка <span className="profile-pro-chip">PRO</span>
+              </p>
+              <p className="profile-pro-subtitle">Больше кэшбэка и бонусов</p>
+            </div>
+            <button type="button" className="profile-pro-button">
+              Подробнее
+            </button>
+          </div>
         </div>
-        <div className="profile-chip-row">
-          <span className="profile-chip">Premium</span>
-          <span className="profile-chip">SmartDebit активен</span>
-          <span className="profile-chip">Лояльность: 5 лет</span>
+
+        <div className="profile-settings-card">
+          {PROFILE_SETTINGS.map((item) => {
+            const Icon = item.icon
+
+            return (
+              <button key={item.id} type="button" className="profile-settings-row">
+                <span
+                  className={
+                    item.tone === 'purple'
+                      ? 'profile-settings-icon purple'
+                      : 'profile-settings-icon blue'
+                  }
+                >
+                  <Icon size={19} />
+                </span>
+
+                <span className="profile-settings-label">{item.label}</span>
+                <ChevronRight size={16} className="profile-settings-chevron" />
+              </button>
+            )
+          })}
         </div>
-      </article>
-
-      <article className="panel">
-        <h2>Персональные данные</h2>
-        <ul className="clean-list">
-          <li>
-            <span>Телефон</span>
-            <strong>{PROFILE.phone}</strong>
-          </li>
-          <li>
-            <span>Email</span>
-            <strong>{PROFILE.email}</strong>
-          </li>
-          <li>
-            <span>Город</span>
-            <strong>{PROFILE.city}</strong>
-          </li>
-        </ul>
-      </article>
-
-      <article className="panel">
-        <h2>Безопасность</h2>
-        <ul className="clean-list">
-          <li>
-            <span>Вход по Face ID</span>
-            <strong>Включен</strong>
-          </li>
-          <li>
-            <span>Подтверждение переводов</span>
-            <strong>SMS + Push</strong>
-          </li>
-          <li>
-            <span>Последний вход</span>
-            <strong>Сегодня, 08:44</strong>
-          </li>
-        </ul>
-      </article>
-
-      <article className="panel">
-        <h2>Уведомления</h2>
-        <ul className="clean-list">
-          <li>
-            <span>Операции по карте</span>
-            <strong>Мгновенно</strong>
-          </li>
-          <li>
-            <span>Напоминания SmartDebit</span>
-            <strong>За 1 день</strong>
-          </li>
-          <li>
-            <span>Маркетинговые предложения</span>
-            <strong>Отключены</strong>
-          </li>
-        </ul>
-      </article>
-
-      <article className="panel profile-actions">
-        <h2>Быстрые действия</h2>
-        <div className="profile-action-grid">
-          <button type="button">Изменить лимиты</button>
-          <button type="button">Сменить PIN-код</button>
-          <button type="button">Выписка PDF</button>
-          <button type="button">Поддержка</button>
-        </div>
-      </article>
+      </div>
     </section>
   )
 }
@@ -1207,14 +1485,16 @@ function App() {
           onToggleTheme={() => {
             setTheme((current) => (current === 'light' ? 'dark' : 'light'))
           }}
+          notifications={dashboard?.notifications ?? []}
         />
         <main className="content">
           <Routes>
             <Route path="/" element={<HomePage dashboard={dashboard} loading={loading} error={error} />} />
             <Route
-              path="/card-overview"
+              path="/payments"
               element={<CardOverviewPage dashboard={dashboard} />}
             />
+            <Route path="/card-overview" element={<Navigate to="/payments" replace />} />
             <Route
               path="/operations"
               element={
