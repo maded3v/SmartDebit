@@ -150,6 +150,42 @@
   background: #ebf1f8;
 }
 
+.auth-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-button {
+  border: 1px solid #d8e0eb;
+  background: #f4f7fb;
+  color: #344259;
+  border-radius: 10px;
+  padding: 8px 11px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-button:hover {
+  background: #ebf1f8;
+}
+
+.auth-button.register {
+  border-color: #f0d24d;
+  background: #ffdd2d;
+  color: #111720;
+  font-weight: 600;
+}
+
+.auth-button.register:hover {
+  background: #f6d835;
+}
+
+.auth-button.logout {
+  min-width: 74px;
+}
+
 .topbar-nav a {
   text-decoration: none;
   color: #5f6d85;
@@ -1826,6 +1862,27 @@
   animation: modalIn 0.2s ease;
 }
 
+.auth-modal {
+  width: min(440px, 100%);
+}
+
+.auth-modal-subtitle {
+  margin: 6px 0 0;
+  color: #5f6d85;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.auth-form {
+  margin-top: 14px;
+}
+
+.auth-footnote {
+  margin: 0;
+  color: #6f7d93;
+  font-size: 12px;
+}
+
 .close-btn {
   position: absolute;
   top: 10px;
@@ -2061,6 +2118,26 @@
   background: #253247;
 }
 
+:root[data-theme='dark'] .auth-button {
+  border-color: #334156;
+  background: #1a2434;
+  color: #d2ddee;
+}
+
+:root[data-theme='dark'] .auth-button:hover {
+  background: #253247;
+}
+
+:root[data-theme='dark'] .auth-button.register {
+  border-color: #f3d448;
+  background: #f3d448;
+  color: #1b2435;
+}
+
+:root[data-theme='dark'] .auth-button.register:hover {
+  background: #ebce47;
+}
+
 :root[data-theme='dark'] .back-link {
   color: #c5d4eb;
   background: #1a2535;
@@ -2173,6 +2250,14 @@
 :root[data-theme='dark'] .payment-item:hover {
   border-color: #42506a;
   background: #152032;
+}
+
+:root[data-theme='dark'] .auth-modal-subtitle {
+  color: #9dafcc;
+}
+
+:root[data-theme='dark'] .auth-footnote {
+  color: #8ea2bf;
 }
 
 :root[data-theme='dark'] .home-wallet-card,
@@ -2489,6 +2574,12 @@
 
   .topbar-actions {
     margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .auth-buttons {
+    justify-content: flex-end;
   }
 
   .notification-dropdown {
