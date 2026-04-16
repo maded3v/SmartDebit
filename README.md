@@ -1,25 +1,31 @@
-# SmartDebit Mock Service
+# SmartDebit
 
-Учебный прототип фичи SmartDebit для практики интеграции в интерфейс банка.
+Учебный проект с банковским интерфейсом и SmartDebit-флоу.
 
 ## Структура
 
-- `frontend/` - React + TypeScript интерфейс.
-- `mock-api/` - Express мок API с SQLite базой.
-- `backend/db/schema.sql` - рабочая SQL-схема БД по ER-диаграмме проекта.
-- `mock-api/db/bootstrap.js` - инициализация SQLite для dev-стенда.
+- `frontend/` - React + TypeScript + Vite.
+- `api/`, `smartdebit_core/`, `manage.py` - Django backend.
+- `db/schema.sql` - SQL-схема данных.
 
 ## Быстрый старт
 
-1. Запуск мок API:
+### 1) Backend (Django)
 
 ```bash
-cd mock-api
-npm install
-npm run dev
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_data
+python manage.py runserver
 ```
 
-2. Запуск фронтенда (в новом терминале):
+Backend поднимется на `http://127.0.0.1:8000`.
+
+### 2) Frontend
+
+В новом терминале:
 
 ```bash
 cd frontend
@@ -27,16 +33,36 @@ npm install
 npm run dev
 ```
 
-## Основные эндпоинты мок API
+Frontend поднимется на `http://127.0.0.1:5173`.
 
-- `GET /api/v1/smartdebit/dashboard`
-- `POST /api/v1/smartdebit/toggle`
-- `POST /api/v1/smartdebit/payments`
-- `PATCH /api/v1/smartdebit/payments/:paymentId/status`
-- `POST /api/v1/smartdebit/payments/:paymentId/pay-debt`
+Vite уже настроен с proxy `/api` -> `http://127.0.0.1:8000`.
 
-## База данных
+## Конфиг БД
 
-- Движок: SQLite (`backend/data/smartdebit.sqlite`).
-- Инициализация и сидирование выполняются автоматически при запуске `mock-api`.
-- В схему добавлено поле `provider_name` в `SERVICE_DICTIONARY` для корректного отображения провайдера в UI.
+По умолчанию backend использует PostgreSQL:
+
+- `DB_ENGINE=django.db.backends.postgresql`
+- `DB_NAME=smartdebit_db`
+- `DB_USER=smartdebit_user`
+- `DB_PASSWORD=smartdebit_password`
+- `DB_HOST=localhost`
+- `DB_PORT=5432`
+
+Для локального запуска можно переключиться на SQLite:
+
+```bash
+set DB_ENGINE=django.db.backends.sqlite3
+set DB_NAME=db.sqlite3
+python manage.py migrate
+python manage.py runserver
+```
+
+## Основные API endpoints
+
+- `GET /api/v1/smartdebit/services/`
+- `GET /api/v1/smartdebit/dashboard/`
+- `POST /api/v1/smartdebit/toggle/`
+- `GET /api/v1/payments/`
+- `POST /api/v1/payments/`
+- `PATCH /api/v1/payments/:id/`
+- `POST /api/v1/payments/:id/pay`
