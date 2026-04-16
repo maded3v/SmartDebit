@@ -149,8 +149,6 @@ const PROFILE = {
   city: 'Москва',
 }
 
-const PROFILE_INITIAL = PROFILE.fullName.trim().slice(0, 1).toUpperCase()
-
 const PAYMENT_QUICK_ACTIONS: PaymentQuickActionEntry[] = [
   { id: 'quick-phone', label: 'По номеру телефона', icon: Phone },
   { id: 'quick-details', label: 'По реквизитам', icon: FileText },
@@ -223,6 +221,14 @@ const PROFILE_SETTINGS: ProfileSettingItem[] = [
 ]
 
 type ThemeMode = 'light' | 'dark'
+type AuthMode = 'login' | 'register'
+
+interface AuthSession {
+  fullName: string
+  email: string
+}
+
+const AUTH_STORAGE_KEY = 'smartdebit-auth-session'
 
 const numberFormatter = new Intl.NumberFormat('ru-RU')
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
@@ -250,6 +256,63 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback
+}
+
+function getNameInitial(fullName: string) {
+  const normalized = fullName.trim()
+
+  if (!normalized) {
+    return 'U'
+  }
+
+  return normalized.slice(0, 1).toUpperCase()
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function buildDisplayNameFromEmail(email: string) {
+  const localPart = email.split('@')[0] ?? ''
+  const normalized = localPart.replace(/[._-]+/g, ' ').trim()
+
+  if (!normalized) {
+    return 'Клиент банка'
+  }
+
+  return normalized
+    .split(' ')
+    .filter(Boolean)
+    .map((token) => token.slice(0, 1).toUpperCase() + token.slice(1))
+    .join(' ')
+}
+
+function parseAuthSession(rawValue: string | null): AuthSession | null {
+  if (!rawValue) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as Partial<AuthSession>
+
+    if (typeof parsed.fullName !== 'string' || typeof parsed.email !== 'string') {
+      return null
+    }
+
+    const fullName = parsed.fullName.trim()
+    const email = parsed.email.trim().toLowerCase()
+
+    if (!fullName || !isValidEmail(email)) {
+      return null
+    }
+
+    return {
+      fullName,
+      email,
+    }
+  } catch {
+    return null
+  }
 }
 
 function getOperationIcon(title: string) {
@@ -300,10 +363,18 @@ function AppHeader({
   theme,
   onToggleTheme,
   notifications,
+  isAuthenticated,
+  authDisplayName,
+  onOpenAuth,
+  onLogout,
 }: {
   theme: ThemeMode
   onToggleTheme: () => void
   notifications: NotificationItem[]
+  isAuthenticated: boolean
+  authDisplayName: string
+  onOpenAuth: (mode: AuthMode) => void
+  onLogout: () => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -315,6 +386,7 @@ function AppHeader({
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
   const unreadNotifications = notifications.slice(0, 4)
+  const profileInitial = getNameInitial(authDisplayName)
 
   return (
     <header className="topbar">
@@ -361,46 +433,216 @@ function AppHeader({
       </nav>
 
       <div className="topbar-actions">
-        <div className="notification-wrap">
-          <button
-            type="button"
-            className="notification-btn"
-            onClick={() => setIsNotificationOpen((value) => !value)}
-            aria-label="Уведомления"
-          >
-            <Bell size={19} />
-            {unreadNotifications.length ? <span className="notification-dot" /> : null}
-          </button>
+        {isAuthenticated ? (
+          <div className="notification-wrap">
+            <button
+              type="button"
+              className="notification-btn"
+              onClick={() => setIsNotificationOpen((value) => !value)}
+              aria-label="Уведомления"
+            >
+              <Bell size={19} />
+              {unreadNotifications.length ? <span className="notification-dot" /> : null}
+            </button>
 
-          {isNotificationOpen ? (
-            <div className="notification-dropdown">
-              <p>Уведомления</p>
-              {unreadNotifications.length ? (
-                unreadNotifications.map((notification) => (
-                  <div key={notification.id} className="notification-item">
-                    <strong>{notification.title}</strong>
-                    <small>{notification.subtitle}</small>
+            {isNotificationOpen ? (
+              <div className="notification-dropdown">
+                <p>Уведомления</p>
+                {unreadNotifications.length ? (
+                  unreadNotifications.map((notification) => (
+                    <div key={notification.id} className="notification-item">
+                      <strong>{notification.title}</strong>
+                      <small>{notification.subtitle}</small>
+                    </div>
+                  ))
+                ) : (
+                  <div className="notification-item">
+                    <strong>Новых уведомлений нет</strong>
                   </div>
-                ))
-              ) : (
-                <div className="notification-item">
-                  <strong>Новых уведомлений нет</strong>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <button type="button" className="theme-toggle" onClick={onToggleTheme}>
           {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
         </button>
+
+        {isAuthenticated ? (
+          <button type="button" className="auth-button logout" onClick={onLogout}>
+            Выйти
+          </button>
+        ) : (
+          <div className="auth-buttons">
+            <button
+              type="button"
+              className="auth-button"
+              onClick={() => onOpenAuth('login')}
+            >
+              Войти
+            </button>
+            <button
+              type="button"
+              className="auth-button register"
+              onClick={() => onOpenAuth('register')}
+            >
+              Регистрация
+            </button>
+          </div>
+        )}
       </div>
 
-      <NavLink to="/profile" className="topbar-user">
-        <span className="user-avatar">{PROFILE_INITIAL}</span>
-        <span>{PROFILE.fullName}</span>
-      </NavLink>
+      {isAuthenticated ? (
+        <NavLink to="/profile" className="topbar-user">
+          <span className="user-avatar">{profileInitial}</span>
+          <span>{authDisplayName}</span>
+        </NavLink>
+      ) : null}
     </header>
+  )
+}
+
+function AuthModal({
+  mode,
+  onClose,
+  onSubmit,
+}: {
+  mode: AuthMode
+  onClose: () => void
+  onSubmit: (session: AuthSession) => void
+}) {
+  const isRegisterMode = mode === 'register'
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!isValidEmail(normalizedEmail)) {
+      setError('Укажите корректный email')
+      return
+    }
+
+    if (password.trim().length < 6) {
+      setError('Пароль должен быть не короче 6 символов')
+      return
+    }
+
+    if (isRegisterMode) {
+      const normalizedName = fullName.trim()
+      if (!normalizedName) {
+        setError('Укажите имя и фамилию')
+        return
+      }
+
+      if (password !== confirmPassword) {
+        setError('Пароли не совпадают')
+        return
+      }
+
+      setError('')
+      onSubmit({
+        fullName: normalizedName,
+        email: normalizedEmail,
+      })
+      return
+    }
+
+    setError('')
+    onSubmit({
+      fullName: buildDisplayNameFromEmail(normalizedEmail),
+      email: normalizedEmail,
+    })
+  }
+
+  return (
+    <div className="modal-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="modal-window auth-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={isRegisterMode ? 'Регистрация' : 'Авторизация'}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button className="close-btn" type="button" onClick={onClose}>
+          x
+        </button>
+
+        <h3>{isRegisterMode ? 'Регистрация' : 'Вход в аккаунт'}</h3>
+        <p className="auth-modal-subtitle">
+          {isRegisterMode
+            ? 'Создайте учетную запись, чтобы сохранить персональные настройки.'
+            : 'Авторизуйтесь, чтобы продолжить работу в SmartDebit.'}
+        </p>
+
+        <form className="form-grid auth-form" onSubmit={handleSubmit}>
+          {isRegisterMode ? (
+            <label>
+              Имя и фамилия
+              <input
+                type="text"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                placeholder="Иван Иванов"
+                autoComplete="name"
+              />
+            </label>
+          ) : null}
+
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="name@example.com"
+              autoComplete="email"
+            />
+          </label>
+
+          <label>
+            Пароль
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Минимум 6 символов"
+              autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
+            />
+          </label>
+
+          {isRegisterMode ? (
+            <label>
+              Повторите пароль
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Повторите пароль"
+                autoComplete="new-password"
+              />
+            </label>
+          ) : null}
+
+          {error ? <p className="error">{error}</p> : null}
+
+          <button type="submit" className="primary">
+            {isRegisterMode ? 'Зарегистрироваться' : 'Войти'}
+          </button>
+
+          <p className="auth-footnote">
+            {isRegisterMode
+              ? 'После регистрации вы автоматически войдете в аккаунт.'
+              : 'Демо-вход без обращения к серверу авторизации.'}
+          </p>
+        </form>
+      </div>
+    </div>
   )
 }
 
@@ -1319,7 +1561,7 @@ function SmartDebitDetailsPage({
   )
 }
 
-function ProfilePage() {
+function ProfilePage({ fullName }: { fullName: string }) {
   return (
     <section className="profile-page">
       <h1 className="profile-page-title">Ваши данные</h1>
@@ -1330,7 +1572,7 @@ function ProfilePage() {
             <div className="profile-avatar-big">
               <User size={30} />
             </div>
-            <span className="profile-name">{PROFILE.fullName}</span>
+            <span className="profile-name">{fullName}</span>
           </div>
 
           <div className="profile-pro-banner">
@@ -1386,11 +1628,29 @@ function App() {
     const stored = window.localStorage.getItem('smartdebit-theme')
     return stored === 'dark' ? 'dark' : 'light'
   })
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+
+    return parseAuthSession(window.localStorage.getItem(AUTH_STORAGE_KEY))
+  })
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     window.localStorage.setItem('smartdebit-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!authSession) {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      return
+    }
+
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authSession))
+  }, [authSession])
 
   const refreshDashboard = useCallback(async (silent = false) => {
     if (!silent) {
@@ -1478,15 +1738,39 @@ function App() {
     [refreshDashboard],
   )
 
+  const openAuthModal = useCallback((mode: AuthMode) => {
+    setAuthMode(mode)
+    setIsAuthModalOpen(true)
+  }, [])
+
+  const handleAuthSubmit = useCallback((session: AuthSession) => {
+    setAuthSession(session)
+    setIsAuthModalOpen(false)
+    setNotice(`Вы вошли как ${session.fullName}`)
+  }, [])
+
+  const handleLogout = useCallback(() => {
+    setAuthSession(null)
+    setNotice('Вы вышли из аккаунта')
+  }, [])
+
+  const isAuthenticated = Boolean(authSession)
+  const profileName = authSession?.fullName ?? PROFILE.fullName
+
   return (
     <BrowserRouter>
       <div className="shell">
         <AppHeader
+          key={isAuthenticated ? 'authorized' : 'guest'}
           theme={theme}
           onToggleTheme={() => {
             setTheme((current) => (current === 'light' ? 'dark' : 'light'))
           }}
-          notifications={dashboard?.notifications ?? []}
+          notifications={isAuthenticated ? dashboard?.notifications ?? [] : []}
+          isAuthenticated={isAuthenticated}
+          authDisplayName={profileName}
+          onOpenAuth={openAuthModal}
+          onLogout={handleLogout}
         />
         <main className="content">
           <Routes>
@@ -1521,10 +1805,23 @@ function App() {
                 />
               }
             />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/profile"
+              element={
+                isAuthenticated ? <ProfilePage fullName={profileName} /> : <Navigate to="/" replace />
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+
+        {isAuthModalOpen ? (
+          <AuthModal
+            mode={authMode}
+            onClose={() => setIsAuthModalOpen(false)}
+            onSubmit={handleAuthSubmit}
+          />
+        ) : null}
       </div>
     </BrowserRouter>
   )
