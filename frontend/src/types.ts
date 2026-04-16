@@ -7,6 +7,7 @@ export type PaymentStatus =
   | 'cancelled'
   | 'disabled'
   | 'frozen'
+  | 'paid'
 
 export interface Payment {
   id: string

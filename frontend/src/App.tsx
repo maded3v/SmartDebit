@@ -102,6 +102,7 @@ const STATUS_TONE: Record<PaymentStatus, StatusTone> = {
   cancelled: 'gray',
   disabled: 'gray',
   frozen: 'gray',
+  paid: 'green',
 }
 
 const BASE_OPERATIONS: BankOperation[] = [
@@ -852,8 +853,8 @@ function QuickManageModal({
     }
   }
 
-  const toggleLabel = payment.status === 'disabled' ? 'Включить автоплатеж' : 'Отключить автоплатеж'
-  const toggleStatus: PaymentStatus = payment.status === 'disabled' ? 'active' : 'disabled'
+  const toggleLabel = payment.status === 'cancelled' ? 'Включить автоплатеж' : 'Отключить автоплатеж'
+  const toggleStatus: PaymentStatus = payment.status === 'cancelled' ? 'active' : 'cancelled'
 
   return (
     <div className="modal-overlay" role="presentation" onClick={onClose}>
@@ -1053,7 +1054,7 @@ function OperationsPage({
 
   const upcomingTotal = useMemo(() => {
     return upcomingPayments
-      .filter((payment) => !['disabled', 'cancelled'].includes(payment.status))
+      .filter((payment) => !['frozen', 'cancelled', 'paid'].includes(payment.status))
       .reduce((sum, payment) => sum + payment.amount, 0)
   }, [upcomingPayments])
 
