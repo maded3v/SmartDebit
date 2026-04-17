@@ -20,3 +20,14 @@ npm run dev
 
 По умолчанию фронт ожидает API на `http://localhost:4000/api/v1`.
 Если нужно изменить URL, создайте `.env` на базе `.env.example`.
+
+## Авторизация (frontend)
+
+- `VITE_AUTH_PROVIDER=mock` — локальный мок-режим (по умолчанию).
+- `VITE_AUTH_PROVIDER=backend` — вызовы `/auth/session/`, `/auth/login/`, `/auth/register/`, `/auth/logout/`.
+
+## Тесты
+
+```bash
+npm run test
+```
