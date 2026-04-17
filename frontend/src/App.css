@@ -57,6 +57,14 @@
   padding-bottom: 2px;
 }
 
+.topbar-guest-note {
+  margin: 0;
+  font-size: 13px;
+  color: #5f6d85;
+  text-align: center;
+  flex: 1;
+}
+
 .topbar-actions {
   display: inline-flex;
   align-items: center;
@@ -291,6 +299,52 @@
 .home-screen {
   display: grid;
   gap: 14px;
+}
+
+.guest-home {
+  display: grid;
+  align-items: center;
+  min-height: calc(100vh - 180px);
+}
+
+.guest-home-panel {
+  max-width: 620px;
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+
+.guest-home-chip {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid #f0d24d;
+  background: #ffec99;
+  color: #141a24;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.guest-home-panel h1 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 34px;
+  line-height: 1.05;
+  color: #111824;
+}
+
+.guest-home-panel p {
+  margin: 0;
+  max-width: 560px;
+  color: #56647b;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.guest-home-actions {
+  display: inline-flex;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .home-title {
@@ -1877,6 +1931,70 @@
   margin-top: 14px;
 }
 
+.auth-password-field {
+  position: relative;
+  display: grid;
+  align-items: center;
+}
+
+.auth-password-field input {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: #edf2f8;
+  color: #546178;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  background: #e6ecf5;
+}
+
+.password-toggle:disabled,
+.auth-switch-mode:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.field-error {
+  color: #b53a3a;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.auth-switch-row {
+  margin: 0;
+  color: #6a7890;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-switch-mode {
+  border: 0;
+  background: transparent;
+  color: #255589;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.auth-switch-mode:hover {
+  color: #1c4773;
+}
+
 .auth-footnote {
   margin: 0;
   color: #6f7d93;
@@ -2044,6 +2162,10 @@
 
 :root[data-theme='dark'] .brand strong {
   color: #f0f4ff;
+}
+
+:root[data-theme='dark'] .topbar-guest-note {
+  color: #9cadca;
 }
 
 :root[data-theme='dark'] .topbar-nav a {
@@ -2258,6 +2380,41 @@
 
 :root[data-theme='dark'] .auth-footnote {
   color: #8ea2bf;
+}
+
+:root[data-theme='dark'] .password-toggle {
+  background: #1a2536;
+  color: #9eb2cf;
+}
+
+:root[data-theme='dark'] .password-toggle:hover {
+  background: #213149;
+}
+
+:root[data-theme='dark'] .field-error {
+  color: #ff9faf;
+}
+
+:root[data-theme='dark'] .auth-switch-row {
+  color: #8ea2bf;
+}
+
+:root[data-theme='dark'] .auth-switch-mode {
+  color: #97c4ff;
+}
+
+:root[data-theme='dark'] .auth-switch-mode:hover {
+  color: #bedcff;
+}
+
+:root[data-theme='dark'] .guest-home-chip {
+  border-color: #f3d448;
+  background: #f3d448;
+  color: #1b2435;
+}
+
+:root[data-theme='dark'] .guest-home-panel p {
+  color: #96aac8;
 }
 
 :root[data-theme='dark'] .home-wallet-card,
@@ -2578,8 +2735,27 @@
     justify-content: flex-end;
   }
 
+  .topbar-guest-note {
+    order: 3;
+    width: 100%;
+    text-align: left;
+  }
+
   .auth-buttons {
     justify-content: flex-end;
+  }
+
+  .guest-home {
+    min-height: calc(100vh - 220px);
+    align-items: start;
+  }
+
+  .guest-home-panel h1 {
+    font-size: 28px;
+  }
+
+  .guest-home-actions {
+    display: grid;
   }
 
   .notification-dropdown {
