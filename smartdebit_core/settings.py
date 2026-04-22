@@ -12,6 +12,20 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
+
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def env_list(name, default=''):
+    value = os.getenv(name, default)
+    return [item.strip() for item in value.split(',') if item.strip()]
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +35,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-mab9^!x(c)1fw-2cp8ytjrs1zjk8q(8&f_a7sw)0gku!te-sd8'
+SECRET_KEY = os.getenv(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-mab9^!x(c)1fw-2cp8ytjrs1zjk8q(8&f_a7sw)0gku!te-sd8',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost')
+
+CORS_ALLOWED_ORIGINS = env_list(
+    'DJANGO_CORS_ALLOWED_ORIGINS',
+    'http://127.0.0.1:5173,http://localhost:5173',
+)
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = env_list(
+    'DJANGO_CSRF_TRUSTED_ORIGINS',
+    'http://127.0.0.1:5173,http://localhost:5173',
+)
 
 
 # Application definition
@@ -38,6 +66,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',  
     'drf_spectacular',
     'api',
@@ -45,6 +74,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -76,26 +107,40 @@ WSGI_APPLICATION = 'smartdebit_core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.postgresql')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-if DB_ENGINE == 'django.db.backends.sqlite3':
+if DATABASE_URL:
     DATABASES = {
-        'default': {
-            'ENGINE': DB_ENGINE,
-            'NAME': BASE_DIR / os.getenv('DB_NAME', 'db.sqlite3'),
-        },
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=env_bool('DB_SSL_REQUIRE', not DEBUG),
+        )
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': DB_ENGINE,
-            'NAME': os.getenv('DB_NAME', 'smartdebit_db'),
-            'USER': os.getenv('DB_USER', 'smartdebit_user'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'smartdebit_password'),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
-        },
-    }
+    DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.postgresql')
+
+    if DB_ENGINE == 'django.db.backends.sqlite3':
+        sqlite_name = os.getenv('DB_NAME', 'db.sqlite3')
+        sqlite_path = sqlite_name if os.path.isabs(sqlite_name) else BASE_DIR / sqlite_name
+
+        DATABASES = {
+            'default': {
+                'ENGINE': DB_ENGINE,
+                'NAME': sqlite_path,
+            },
+        }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': DB_ENGINE,
+                'NAME': os.getenv('DB_NAME', 'smartdebit_db'),
+                'USER': os.getenv('DB_USER', 'smartdebit_user'),
+                'PASSWORD': os.getenv('DB_PASSWORD', 'smartdebit_password'),
+                'HOST': os.getenv('DB_HOST', 'localhost'),
+                'PORT': os.getenv('DB_PORT', '5432'),
+            },
+        }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -131,7 +176,23 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
