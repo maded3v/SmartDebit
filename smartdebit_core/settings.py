@@ -43,17 +43,17 @@ SECRET_KEY = os.getenv(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost')
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,.onrender.com')
 
 CORS_ALLOWED_ORIGINS = env_list(
     'DJANGO_CORS_ALLOWED_ORIGINS',
-    'http://127.0.0.1:5173,http://localhost:5173',
+    'http://127.0.0.1:5173,http://localhost:5173,https://smartdebit-frontend.vercel.app',
 )
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = env_list(
     'DJANGO_CSRF_TRUSTED_ORIGINS',
-    'http://127.0.0.1:5173,http://localhost:5173',
+    'http://127.0.0.1:5173,http://localhost:5173,https://smartdebit-frontend.vercel.app',
 )
 
 
@@ -118,7 +118,7 @@ if DATABASE_URL:
         )
     }
 else:
-    DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.postgresql')
+    DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.sqlite3')
 
     if DB_ENGINE == 'django.db.backends.sqlite3':
         sqlite_name = os.getenv('DB_NAME', 'db.sqlite3')
