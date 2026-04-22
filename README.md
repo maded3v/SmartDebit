@@ -46,9 +46,14 @@ Vite уже настроен с proxy `/api` -> `http://127.0.0.1:8000`.
 - `DATABASE_URL=postgres://...` (Neon)
 - `DB_SSL_REQUIRE=True` для облачной PostgreSQL
 
-Если `DATABASE_URL` не задан, используется старый конфиг через отдельные переменные.
+Если `DATABASE_URL` не задан, backend использует конфиг через отдельные переменные.
 
-По умолчанию backend использует PostgreSQL:
+По умолчанию используется SQLite (без доп. настройки):
+
+- `DB_ENGINE=django.db.backends.sqlite3`
+- `DB_NAME=db.sqlite3`
+
+Для PostgreSQL задайте:
 
 - `DB_ENGINE=django.db.backends.postgresql`
 - `DB_NAME=smartdebit_db`
@@ -56,15 +61,6 @@ Vite уже настроен с proxy `/api` -> `http://127.0.0.1:8000`.
 - `DB_PASSWORD=smartdebit_password`
 - `DB_HOST=localhost`
 - `DB_PORT=5432`
-
-Для локального запуска можно переключиться на SQLite:
-
-```bash
-set DB_ENGINE=django.db.backends.sqlite3
-set DB_NAME=db.sqlite3
-python manage.py migrate
-python manage.py runserver
-```
 
 ## Deploy: Vercel + Render + Neon
 
@@ -83,6 +79,12 @@ python manage.py runserver
 pip install -r requirements.txt && python manage.py collectstatic --noinput
 ```
 
+- Pre-Deploy Command:
+
+```bash
+python manage.py migrate && python manage.py seed_data
+```
+
 - Start Command:
 
 ```bash
@@ -98,12 +100,7 @@ gunicorn smartdebit_core.wsgi:application
   - `DJANGO_CORS_ALLOWED_ORIGINS=https://<vercel-host>,https://app.<your-domain>`
   - `DJANGO_CSRF_TRUSTED_ORIGINS=https://<vercel-host>,https://app.<your-domain>`
 
-- После первого deploy в Shell Render выполните:
-
-```bash
-python manage.py migrate
-python manage.py seed_data
-```
+- Если используете Neon, обязательно задайте `DATABASE_URL` в Render env.
 
 ### 3) Vercel (Frontend)
 
