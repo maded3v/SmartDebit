@@ -79,16 +79,10 @@ Vite уже настроен с proxy `/api` -> `http://127.0.0.1:8000`.
 pip install -r requirements.txt && python manage.py collectstatic --noinput
 ```
 
-- Pre-Deploy Command:
-
-```bash
-python manage.py migrate && python manage.py seed_data
-```
-
 - Start Command:
 
 ```bash
-gunicorn smartdebit_core.wsgi:application
+python manage.py migrate && python manage.py seed_data && gunicorn smartdebit_core.wsgi:application
 ```
 
 - Добавьте переменные окружения:
@@ -101,6 +95,7 @@ gunicorn smartdebit_core.wsgi:application
   - `DJANGO_CSRF_TRUSTED_ORIGINS=https://<vercel-host>,https://app.<your-domain>`
 
 - Если используете Neon, обязательно задайте `DATABASE_URL` в Render env.
+- Миграции и seed выполняются автоматически на старте сервиса.
 
 ### 3) Vercel (Frontend)
 

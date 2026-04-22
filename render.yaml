@@ -5,8 +5,7 @@ services:
     rootDir: .
     plan: free
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    preDeployCommand: python manage.py migrate && python manage.py seed_data
-    startCommand: gunicorn smartdebit_core.wsgi:application
+    startCommand: python manage.py migrate && python manage.py seed_data && gunicorn smartdebit_core.wsgi:application
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
