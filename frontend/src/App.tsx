@@ -11,15 +11,13 @@ import {
 } from 'react-router-dom'
 import { smartDebitApi } from './api'
 import './App.css'
-import type { FormEvent, ReactNode } from 'react'
+import type { FormEvent } from 'react'
 import {
   ArrowLeftRight,
   Bell,
   Briefcase,
   Car,
   ChevronRight,
-  Eye,
-  EyeOff,
   FileText,
   GraduationCap,
   HandCoins,
@@ -37,8 +35,6 @@ import {
   Wifi,
   Zap,
 } from 'lucide-react'
-import { useAuth } from './auth/useAuth'
-import type { LoginPayload, RegisterPayload } from './auth/types'
 import type {
   CreatePaymentPayload,
   DashboardPayload,
@@ -225,7 +221,6 @@ const PROFILE_SETTINGS: ProfileSettingItem[] = [
 ]
 
 type ThemeMode = 'light' | 'dark'
-type AuthMode = 'login' | 'register'
 
 const numberFormatter = new Intl.NumberFormat('ru-RU')
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
@@ -263,10 +258,6 @@ function getNameInitial(fullName: string) {
   }
 
   return normalized.slice(0, 1).toUpperCase()
-}
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 function getOperationIcon(title: string) {
@@ -317,18 +308,12 @@ function AppHeader({
   theme,
   onToggleTheme,
   notifications,
-  isAuthenticated,
-  authDisplayName,
-  onOpenAuth,
-  onLogout,
+  profileName,
 }: {
   theme: ThemeMode
   onToggleTheme: () => void
   notifications: NotificationItem[]
-  isAuthenticated: boolean
-  authDisplayName: string
-  onOpenAuth: (mode: AuthMode) => void
-  onLogout: () => Promise<void>
+  profileName: string
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -340,7 +325,7 @@ function AppHeader({
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
   const unreadNotifications = notifications.slice(0, 4)
-  const profileInitial = getNameInitial(authDisplayName)
+  const profileInitial = getNameInitial(profileName)
 
   return (
     <header className="topbar">
@@ -349,431 +334,85 @@ function AppHeader({
         <strong>Банк</strong>
       </Link>
 
-      {isAuthenticated ? (
-        <nav className="topbar-nav" aria-label="Основная навигация">
-          <NavLink to="/" end className={isHomeActive ? 'active' : ''}>
-            <Home size={17} />
-            Главная
-          </NavLink>
-          <NavLink to="/operations" end className={isOperationsActive ? 'active' : ''}>
-            <ArrowLeftRight size={17} />
-            Операции
-          </NavLink>
-          <NavLink to="/operations/smartdebit" className={isSmartDebitActive ? 'active' : ''}>
-            <Shield size={17} />
-            SmartDebit
-            <span className="nav-new-chip">NEW</span>
-          </NavLink>
-          <button
-            type="button"
-            className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
-            onClick={() => navigate('/payments')}
+      <nav className="topbar-nav" aria-label="Основная навигация">
+        <NavLink to="/" end className={isHomeActive ? 'active' : ''}>
+          <Home size={17} />
+          Главная
+        </NavLink>
+        <NavLink to="/operations" end className={isOperationsActive ? 'active' : ''}>
+          <ArrowLeftRight size={17} />
+          Операции
+        </NavLink>
+        <NavLink to="/operations/smartdebit" className={isSmartDebitActive ? 'active' : ''}>
+          <Shield size={17} />
+          SmartDebit
+          <span className="nav-new-chip">NEW</span>
+        </NavLink>
+        <button
+          type="button"
+          className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
+          onClick={() => navigate('/payments')}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect width="20" height="14" x="2" y="5" rx="2" />
-              <line x1="2" x2="22" y1="10" y2="10" />
-            </svg>
-            Платежи
-          </button>
-        </nav>
-      ) : (
-        <p className="topbar-guest-note">Войдите в аккаунт, чтобы открыть кабинет SmartDebit</p>
-      )}
+            <rect width="20" height="14" x="2" y="5" rx="2" />
+            <line x1="2" x2="22" y1="10" y2="10" />
+          </svg>
+          Платежи
+        </button>
+      </nav>
 
       <div className="topbar-actions">
-        {isAuthenticated ? (
-          <div className="notification-wrap">
-            <button
-              type="button"
-              className="notification-btn"
-              onClick={() => setIsNotificationOpen((value) => !value)}
-              aria-label="Уведомления"
-            >
-              <Bell size={19} />
-              {unreadNotifications.length ? <span className="notification-dot" /> : null}
-            </button>
+        <div className="notification-wrap">
+          <button
+            type="button"
+            className="notification-btn"
+            onClick={() => setIsNotificationOpen((value) => !value)}
+            aria-label="Уведомления"
+          >
+            <Bell size={19} />
+            {unreadNotifications.length ? <span className="notification-dot" /> : null}
+          </button>
 
-            {isNotificationOpen ? (
-              <div className="notification-dropdown">
-                <p>Уведомления</p>
-                {unreadNotifications.length ? (
-                  unreadNotifications.map((notification) => (
-                    <div key={notification.id} className="notification-item">
-                      <strong>{notification.title}</strong>
-                      <small>{notification.subtitle}</small>
-                    </div>
-                  ))
-                ) : (
-                  <div className="notification-item">
-                    <strong>Новых уведомлений нет</strong>
+          {isNotificationOpen ? (
+            <div className="notification-dropdown">
+              <p>Уведомления</p>
+              {unreadNotifications.length ? (
+                unreadNotifications.map((notification) => (
+                  <div key={notification.id} className="notification-item">
+                    <strong>{notification.title}</strong>
+                    <small>{notification.subtitle}</small>
                   </div>
-                )}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+                ))
+              ) : (
+                <div className="notification-item">
+                  <strong>Новых уведомлений нет</strong>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
 
         <button type="button" className="theme-toggle" onClick={onToggleTheme}>
           {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
         </button>
-
-        {isAuthenticated ? (
-          <button
-            type="button"
-            className="auth-button logout"
-            onClick={() => {
-              void onLogout()
-            }}
-          >
-            Выйти
-          </button>
-        ) : (
-          <div className="auth-buttons">
-            <button
-              type="button"
-              className="auth-button"
-              onClick={() => onOpenAuth('login')}
-            >
-              Войти
-            </button>
-            <button
-              type="button"
-              className="auth-button register"
-              onClick={() => onOpenAuth('register')}
-            >
-              Регистрация
-            </button>
-          </div>
-        )}
       </div>
 
-      {isAuthenticated ? (
-        <NavLink to="/profile" className="topbar-user">
-          <span className="user-avatar">{profileInitial}</span>
-          <span>{authDisplayName}</span>
-        </NavLink>
-      ) : null}
+      <NavLink to="/profile" className="topbar-user">
+        <span className="user-avatar">{profileInitial}</span>
+        <span>{profileName}</span>
+      </NavLink>
     </header>
   )
-}
-
-function GuestLandingPage({ onOpenAuth }: { onOpenAuth: (mode: AuthMode) => void }) {
-  return (
-    <section className="guest-home">
-      <article className="panel guest-home-panel">
-        <span className="guest-home-chip">SmartDebit</span>
-        <h1>Вход в банковский кабинет</h1>
-        <p>
-          Без авторизации данные счета и операций недоступны. Войдите в аккаунт или
-          зарегистрируйтесь, чтобы продолжить.
-        </p>
-
-        <div className="guest-home-actions">
-          <button type="button" className="primary" onClick={() => onOpenAuth('login')}>
-            Войти в аккаунт
-          </button>
-          <button type="button" className="ghost" onClick={() => onOpenAuth('register')}>
-            Создать аккаунт
-          </button>
-        </div>
-      </article>
-    </section>
-  )
-}
-
-function AuthModal({
-  mode,
-  onModeChange,
-  onClose,
-  onLogin,
-  onRegister,
-}: {
-  mode: AuthMode
-  onModeChange: (mode: AuthMode) => void
-  onClose: () => void
-  onLogin: (payload: LoginPayload) => Promise<void>
-  onRegister: (payload: RegisterPayload) => Promise<void>
-}) {
-  type AuthFormErrors = Partial<
-    Record<'fullName' | 'email' | 'password' | 'confirmPassword' | 'form', string>
-  >
-
-  const isRegisterMode = mode === 'register'
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [errors, setErrors] = useState<AuthFormErrors>({})
-
-  useEffect(() => {
-    setErrors({})
-    setShowPassword(false)
-    setShowConfirmPassword(false)
-  }, [mode])
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [onClose])
-
-  function clearError(field: keyof AuthFormErrors) {
-    setErrors((previous) => {
-      if (!previous[field] && !previous.form) {
-        return previous
-      }
-
-      const next = { ...previous }
-      delete next[field]
-      delete next.form
-      return next
-    })
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const nextErrors: AuthFormErrors = {}
-    const normalizedEmail = email.trim().toLowerCase()
-
-    if (!isValidEmail(normalizedEmail)) {
-      nextErrors.email = 'Укажите корректный email'
-    }
-
-    if (password.trim().length < 6) {
-      nextErrors.password = 'Пароль должен быть не короче 6 символов'
-    }
-
-    if (isRegisterMode) {
-      const normalizedName = fullName.trim()
-      if (!normalizedName) {
-        nextErrors.fullName = 'Укажите имя и фамилию'
-      }
-
-      if (password !== confirmPassword) {
-        nextErrors.confirmPassword = 'Пароли не совпадают'
-      }
-    }
-
-    if (Object.keys(nextErrors).length) {
-      setErrors(nextErrors)
-      return
-    }
-
-    setSubmitting(true)
-    setErrors({})
-
-    try {
-      if (isRegisterMode) {
-        await onRegister({
-          fullName: fullName.trim(),
-          email: normalizedEmail,
-          password,
-        })
-      } else {
-        await onLogin({
-          email: normalizedEmail,
-          password,
-        })
-      }
-    } catch (submitError) {
-      setErrors({
-        form: resolveErrorMessage(submitError, 'Не удалось выполнить вход'),
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="modal-overlay" role="presentation" onClick={onClose}>
-      <div
-        className="modal-window auth-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={isRegisterMode ? 'Регистрация' : 'Авторизация'}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button className="close-btn" type="button" onClick={onClose}>
-          x
-        </button>
-
-        <h3>{isRegisterMode ? 'Регистрация' : 'Вход в аккаунт'}</h3>
-        <p className="auth-modal-subtitle">
-          {isRegisterMode
-            ? 'Создайте учетную запись, чтобы сохранить персональные настройки.'
-            : 'Авторизуйтесь, чтобы открыть кабинет SmartDebit.'}
-        </p>
-
-        <form className="form-grid auth-form" onSubmit={handleSubmit}>
-          {isRegisterMode ? (
-            <label>
-              Имя и фамилия
-              <input
-                type="text"
-                value={fullName}
-                onChange={(event) => {
-                  setFullName(event.target.value)
-                  clearError('fullName')
-                }}
-                placeholder="Иван Иванов"
-                autoComplete="name"
-                autoFocus
-                disabled={submitting}
-              />
-              {errors.fullName ? <small className="field-error">{errors.fullName}</small> : null}
-            </label>
-          ) : null}
-
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => {
-                setEmail(event.target.value)
-                clearError('email')
-              }}
-              placeholder="name@example.com"
-              autoComplete="email"
-              autoFocus={!isRegisterMode}
-              disabled={submitting}
-            />
-            {errors.email ? <small className="field-error">{errors.email}</small> : null}
-          </label>
-
-          <label>
-            Пароль
-            <span className="auth-password-field">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value)
-                  clearError('password')
-                }}
-                placeholder="Минимум 6 символов"
-                autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
-                disabled={submitting}
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-                disabled={submitting}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </span>
-            {errors.password ? <small className="field-error">{errors.password}</small> : null}
-          </label>
-
-          {isRegisterMode ? (
-            <label>
-              Повторите пароль
-              <span className="auth-password-field">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(event) => {
-                    setConfirmPassword(event.target.value)
-                    clearError('confirmPassword')
-                  }}
-                  placeholder="Повторите пароль"
-                  autoComplete="new-password"
-                  disabled={submitting}
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowConfirmPassword((value) => !value)}
-                  aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
-                  disabled={submitting}
-                >
-                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </span>
-              {errors.confirmPassword ? (
-                <small className="field-error">{errors.confirmPassword}</small>
-              ) : null}
-            </label>
-          ) : null}
-
-          {errors.form ? <p className="error">{errors.form}</p> : null}
-
-          <button type="submit" className="primary" disabled={submitting}>
-            {submitting
-              ? isRegisterMode
-                ? 'Создаем аккаунт...'
-                : 'Входим...'
-              : isRegisterMode
-                ? 'Зарегистрироваться'
-                : 'Войти'}
-          </button>
-
-          <p className="auth-switch-row">
-            {isRegisterMode ? 'Уже есть аккаунт?' : 'Нет аккаунта?'}
-            <button
-              type="button"
-              className="auth-switch-mode"
-              onClick={() => onModeChange(isRegisterMode ? 'login' : 'register')}
-              disabled={submitting}
-            >
-              {isRegisterMode ? 'Войти' : 'Регистрация'}
-            </button>
-          </p>
-
-          <p className="auth-footnote">
-            {isRegisterMode
-              ? 'После регистрации вы автоматически войдете в аккаунт.'
-              : 'Для демо можно войти с любым новым email.'}
-          </p>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-function ProtectedRoute({
-  isAuthenticated,
-  isReady,
-  children,
-}: {
-  isAuthenticated: boolean
-  isReady: boolean
-  children: ReactNode
-}) {
-  if (!isReady) {
-    return <p className="home-note">Проверяем сессию...</p>
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />
-  }
-
-  return <>{children}</>
 }
 
 function HomePage({
@@ -1758,10 +1397,7 @@ function App() {
     const stored = window.localStorage.getItem('smartdebit-theme')
     return stored === 'dark' ? 'dark' : 'light'
   })
-  const { session: authSession, isAuthenticated, isReady, login, register, logout } = useAuth()
-  const [authMode, setAuthMode] = useState<AuthMode>('login')
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-  const profileName = authSession?.fullName ?? PROFILE.fullName
+  const profileName = PROFILE.fullName
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -1787,12 +1423,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!isReady || !isAuthenticated) {
-      return
-    }
-
     void refreshDashboard()
-  }, [isAuthenticated, isReady, refreshDashboard])
+  }, [refreshDashboard])
 
   useEffect(() => {
     if (!notice) {
@@ -1858,123 +1490,45 @@ function App() {
     [refreshDashboard],
   )
 
-  const openAuthModal = useCallback((mode: AuthMode) => {
-    setAuthMode(mode)
-    setIsAuthModalOpen(true)
-  }, [])
-
-  const handleLogin = useCallback(
-    async (payload: LoginPayload) => {
-      const session = await login(payload)
-      setIsAuthModalOpen(false)
-      setNotice(`Вы вошли как ${session.fullName}`)
-    },
-    [login],
-  )
-
-  const handleRegister = useCallback(
-    async (payload: RegisterPayload) => {
-      const session = await register(payload)
-      setIsAuthModalOpen(false)
-      setNotice(`Аккаунт создан: ${session.fullName}`)
-    },
-    [register],
-  )
-
-  const handleLogout = useCallback(async () => {
-    await logout()
-    setDashboard(null)
-    setError('')
-    setLoading(false)
-    setNotice('Вы вышли из аккаунта')
-  }, [logout])
-
   return (
     <BrowserRouter>
       <div className="shell">
         <AppHeader
-          key={isAuthenticated ? 'authorized' : 'guest'}
           theme={theme}
           onToggleTheme={() => {
             setTheme((current) => (current === 'light' ? 'dark' : 'light'))
           }}
-          notifications={isAuthenticated ? dashboard?.notifications ?? [] : []}
-          isAuthenticated={isAuthenticated}
-          authDisplayName={profileName}
-          onOpenAuth={openAuthModal}
-          onLogout={handleLogout}
+          notifications={dashboard?.notifications ?? []}
+          profileName={profileName}
         />
         <main className="content">
           <Routes>
-            <Route
-              path="/"
-              element={
-                isReady ? (
-                  isAuthenticated ? (
-                    <HomePage dashboard={dashboard} loading={loading} error={error} />
-                  ) : (
-                    <GuestLandingPage onOpenAuth={openAuthModal} />
-                  )
-                ) : (
-                  <p className="home-note">Проверяем сессию...</p>
-                )
-              }
-            />
-            <Route
-              path="/payments"
-              element={
-                <ProtectedRoute isAuthenticated={isAuthenticated} isReady={isReady}>
-                  <CardOverviewPage dashboard={dashboard} />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/" element={<HomePage dashboard={dashboard} loading={loading} error={error} />} />
+            <Route path="/payments" element={<CardOverviewPage dashboard={dashboard} />} />
             <Route path="/card-overview" element={<Navigate to="/payments" replace />} />
             <Route
               path="/operations"
-              element={
-                <ProtectedRoute isAuthenticated={isAuthenticated} isReady={isReady}>
-                  <OperationsPage dashboard={dashboard} loading={loading} error={error} />
-                </ProtectedRoute>
-              }
+              element={<OperationsPage dashboard={dashboard} loading={loading} error={error} />}
             />
             <Route
               path="/operations/smartdebit"
               element={
-                <ProtectedRoute isAuthenticated={isAuthenticated} isReady={isReady}>
-                  <SmartDebitDetailsPage
-                    dashboard={dashboard}
-                    loading={loading}
-                    error={error}
-                    notice={notice}
-                    onToggle={handleToggle}
-                    onPayDebt={handlePayDebt}
-                    onStatusChange={handleChangeStatus}
-                    onAddPayment={handleAddPayment}
-                  />
-                </ProtectedRoute>
+                <SmartDebitDetailsPage
+                  dashboard={dashboard}
+                  loading={loading}
+                  error={error}
+                  notice={notice}
+                  onToggle={handleToggle}
+                  onPayDebt={handlePayDebt}
+                  onStatusChange={handleChangeStatus}
+                  onAddPayment={handleAddPayment}
+                />
               }
             />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute isAuthenticated={isAuthenticated} isReady={isReady}>
-                  <ProfilePage fullName={profileName} />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/profile" element={<ProfilePage fullName={profileName} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-
-        {isAuthModalOpen ? (
-          <AuthModal
-            mode={authMode}
-            onModeChange={(mode) => setAuthMode(mode)}
-            onClose={() => setIsAuthModalOpen(false)}
-            onLogin={handleLogin}
-            onRegister={handleRegister}
-          />
-        ) : null}
       </div>
     </BrowserRouter>
   )
