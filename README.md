@@ -75,6 +75,7 @@ python manage.py runserver
 
 ### 2) Render (Backend)
 
+- В репозитории уже есть `render.yaml`, можно деплоить через Blueprint.
 - Создайте `Web Service` из этого репозитория.
 - Build Command:
 
