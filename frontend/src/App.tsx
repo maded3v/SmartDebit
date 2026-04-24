@@ -93,6 +93,13 @@ interface ProfileSettingItem {
   tone: 'blue' | 'purple'
 }
 
+type PaymentQuickActionId = PaymentQuickActionEntry['id']
+type OperationsFilterId = 'all' | 'income' | 'expense' | 'subscriptions'
+
+interface PaymentsLocationState {
+  quickAction?: string
+}
+
 const STATUS_TONE: Record<PaymentStatus, StatusTone> = {
   active: 'green',
   expected: 'yellow',
@@ -154,6 +161,20 @@ const PAYMENT_QUICK_ACTIONS: PaymentQuickActionEntry[] = [
   { id: 'quick-details', label: 'По реквизитам', icon: FileText },
   { id: 'quick-between', label: 'Между счетами', icon: ArrowLeftRight },
   { id: 'quick-qr', label: 'QR-код', icon: QrCode },
+]
+
+const QUICK_ACTION_NOTICE: Record<PaymentQuickActionId, string> = {
+  'quick-phone': 'Открыт перевод по номеру телефона',
+  'quick-details': 'Открыты платежи по реквизитам',
+  'quick-between': 'Открыт перевод между счетами',
+  'quick-qr': 'Открыта оплата по QR-коду',
+}
+
+const OPERATIONS_FILTERS: Array<{ id: OperationsFilterId; label: string }> = [
+  { id: 'all', label: 'Все' },
+  { id: 'income', label: 'Доходы' },
+  { id: 'expense', label: 'Расходы' },
+  { id: 'subscriptions', label: 'Подписки' },
 ]
 
 const FAVORITE_PAYMENTS: FavoritePaymentEntry[] = [
@@ -267,6 +288,10 @@ function getOperationIcon(title: string) {
   }
 
   return normalized.slice(0, 1).toUpperCase()
+}
+
+function isPaymentQuickActionId(value: string): value is PaymentQuickActionId {
+  return PAYMENT_QUICK_ACTIONS.some((action) => action.id === value)
 }
 
 function buildOperationsFeed(dashboard: DashboardPayload | null): BankOperation[] {
@@ -490,6 +515,8 @@ function HomePage({
   loading: boolean
   error: string
 }) {
+  const navigate = useNavigate()
+
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
     const mortgage = dashboard?.upcoming.find((payment) => payment.id === 'mortgage-sber')
     const kion = dashboard?.upcoming.find((payment) => payment.id === 'kion')
@@ -565,6 +592,17 @@ function HomePage({
     ]
   }, [dashboard])
 
+  const openPaymentsByIntent = useCallback(
+    (quickAction: PaymentQuickActionId) => {
+      navigate('/payments', {
+        state: {
+          quickAction,
+        } satisfies PaymentsLocationState,
+      })
+    },
+    [navigate],
+  )
+
   return (
     <section className="home-screen">
       <h1 className="home-title">Добрый день, Иван</h1>
@@ -594,7 +632,11 @@ function HomePage({
               </div>
             </Link>
 
-            <button type="button" className="wallet-top-up-btn">
+            <button
+              type="button"
+              className="wallet-top-up-btn"
+              onClick={() => openPaymentsByIntent('quick-details')}
+            >
               Пополните из другого банка
             </button>
           </article>
@@ -617,10 +659,18 @@ function HomePage({
           </article>
 
           <div className="home-actions">
-            <button type="button" className="action-transfer">
+            <button
+              type="button"
+              className="action-transfer"
+              onClick={() => openPaymentsByIntent('quick-between')}
+            >
               Перевод
             </button>
-            <button type="button" className="action-pay">
+            <button
+              type="button"
+              className="action-pay"
+              onClick={() => openPaymentsByIntent('quick-phone')}
+            >
               Оплатить
             </button>
           </div>
@@ -680,11 +730,24 @@ function HomePage({
 }
 
 function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null }) {
+  const location = useLocation()
+  const locationState = location.state as PaymentsLocationState | null
+  const initialQuickActionCandidate =
+    typeof locationState?.quickAction === 'string' ? locationState.quickAction : null
+  const initialQuickAction =
+    initialQuickActionCandidate && isPaymentQuickActionId(initialQuickActionCandidate)
+      ? initialQuickActionCandidate
+      : null
   const [selectedFavoritePayment, setSelectedFavoritePayment] =
     useState<FavoritePaymentEntry | null>(null)
+  const [activeQuickAction, setActiveQuickAction] = useState<PaymentQuickActionId | null>(
+    initialQuickAction,
+  )
   const [payAmount, setPayAmount] = useState('')
   const [paying, setPaying] = useState(false)
-  const [payNotice, setPayNotice] = useState('')
+  const [payNotice, setPayNotice] = useState(
+    initialQuickAction ? QUICK_ACTION_NOTICE[initialQuickAction] : '',
+  )
 
   const mandatoryPayments = useMemo(() => {
     return (dashboard?.upcoming ?? []).filter((payment) => payment.mandatory)
@@ -739,7 +802,17 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
           const Icon = action.icon
 
           return (
-            <button key={action.id} type="button" className="payments-quick-card">
+            <button
+              key={action.id}
+              type="button"
+              className={
+                action.id === activeQuickAction ? 'payments-quick-card active' : 'payments-quick-card'
+              }
+              onClick={() => {
+                setActiveQuickAction(action.id)
+                setPayNotice(QUICK_ACTION_NOTICE[action.id])
+              }}
+            >
               <span className="payments-quick-icon">
                 <Icon size={22} />
               </span>
@@ -1121,7 +1194,23 @@ function OperationsPage({
   loading: boolean
   error: string
 }) {
+  const [activeFilter, setActiveFilter] = useState<OperationsFilterId>('all')
   const operations = useMemo(() => buildOperationsFeed(dashboard), [dashboard])
+  const filteredOperations = useMemo(() => {
+    if (activeFilter === 'income') {
+      return operations.filter((operation) => operation.amount > 0)
+    }
+
+    if (activeFilter === 'expense') {
+      return operations.filter((operation) => operation.amount < 0)
+    }
+
+    if (activeFilter === 'subscriptions') {
+      return operations.filter((operation) => Boolean(operation.smartTag))
+    }
+
+    return operations
+  }, [activeFilter, operations])
 
   const upcomingPayments = useMemo(() => {
     return [...(dashboard?.upcoming ?? [])].sort((left, right) => {
@@ -1178,43 +1267,56 @@ function OperationsPage({
           <article className="panel">
             <div className="row-between wrap">
               <h2>Операции</h2>
-              <div className="filter-row">
-                <button type="button" className="active">Все</button>
-                <button type="button">Доходы</button>
-                <button type="button">Расходы</button>
-                <button type="button">Подписки</button>
+              <div className="filter-row" role="group" aria-label="Фильтры операций">
+                {OPERATIONS_FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    className={activeFilter === filter.id ? 'active' : ''}
+                    onClick={() => {
+                      setActiveFilter(filter.id)
+                    }}
+                    aria-pressed={activeFilter === filter.id}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <ul className="operation-list">
-              {operations.map((operation) => (
-                <li key={operation.id}>
-                  <span className={`operation-icon ${operation.tone}`}>
-                    {getOperationIcon(operation.title)}
-                  </span>
-                  <div className="operation-body">
-                    <p>{operation.title}</p>
-                    <small>
-                      {operation.subtitle} · {operation.dateLabel}
-                    </small>
-                    {operation.smartTag ? (
-                      <small
-                        className={
-                          operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
-                        }
-                      >
-                        {operation.smartTag}
+            {filteredOperations.length ? (
+              <ul className="operation-list">
+                {filteredOperations.map((operation) => (
+                  <li key={operation.id}>
+                    <span className={`operation-icon ${operation.tone}`}>
+                      {getOperationIcon(operation.title)}
+                    </span>
+                    <div className="operation-body">
+                      <p>{operation.title}</p>
+                      <small>
+                        {operation.subtitle} · {operation.dateLabel}
                       </small>
-                    ) : null}
-                  </div>
-                  <strong
-                    className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
-                  >
-                    {formatCurrency(operation.amount, true)}
-                  </strong>
-                </li>
-              ))}
-            </ul>
+                      {operation.smartTag ? (
+                        <small
+                          className={
+                            operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
+                          }
+                        >
+                          {operation.smartTag}
+                        </small>
+                      ) : null}
+                    </div>
+                    <strong
+                      className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
+                    >
+                      {formatCurrency(operation.amount, true)}
+                    </strong>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="operations-empty">По выбранному фильтру операций пока нет.</p>
+            )}
           </article>
         </div>
       </div>
@@ -1255,16 +1357,26 @@ function SmartDebitDetailsPage({
 
   return (
     <section className="smartdebit-details-page">
-      <Link to="/operations" className="back-link">
-        Назад к операциям
-      </Link>
+      <header className="smartdebit-head">
+        <Link to="/operations" className="back-link">
+          <span aria-hidden="true">&larr;</span>
+          Назад к операциям
+        </Link>
+
+        <div className="smartdebit-head-copy">
+          <h1 className="smartdebit-head-title">SmartDebit</h1>
+          <p className="smartdebit-head-subtitle">
+            Управляйте автосписаниями и контролируйте будущие платежи
+          </p>
+        </div>
+      </header>
 
       {notice ? <p className="notice">{notice}</p> : null}
       {error ? <p className="error">{error}</p> : null}
 
       <article className="panel smart-panel smart-panel-full">
         <div className="row-between">
-          <h2>SmartDebit</h2>
+          <h2>Состояние сервиса</h2>
           <label className="switch">
             <input
               type="checkbox"
