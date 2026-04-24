@@ -1030,14 +1030,35 @@
 }
 
 .filter-row button {
+  border: 1px solid #d8e1ee;
+  border-radius: 999px;
   background: #f2f5fa;
   color: #57657d;
   padding: 7px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.filter-row button:hover {
+  background: #eaf0f8;
+  color: #2a374d;
 }
 
 .filter-row button.active {
   background: #0f1726;
+  border-color: #0f1726;
   color: #ffffff;
+}
+
+.operations-empty {
+  margin: 12px 0 0;
+  border: 1px dashed #d8e1ee;
+  border-radius: 12px;
+  background: #f9fbff;
+  color: #68788f;
+  font-size: 14px;
+  text-align: center;
+  padding: 14px;
 }
 
 .smart-panel {
@@ -1372,6 +1393,8 @@
 }
 
 .payments-quick-grid {
+  width: min(100%, 920px);
+  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
@@ -1395,6 +1418,18 @@
   border-color: #cfd9e7;
   box-shadow: 0 8px 18px rgba(12, 22, 38, 0.08);
   transform: translateY(-1px);
+}
+
+.payments-quick-card.active {
+  border-color: #f6d24a;
+  background: #fff8d7;
+  box-shadow: 0 10px 22px rgba(16, 27, 44, 0.12);
+  transform: translateY(-1px);
+}
+
+.payments-quick-card.active .payments-quick-icon {
+  background: #ffe88d;
+  color: #1c283f;
 }
 
 .payments-quick-icon {
@@ -2101,20 +2136,64 @@
   gap: 14px;
 }
 
+.smartdebit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid #dce3ee;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  padding: 12px 14px;
+}
+
+.smartdebit-head-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.smartdebit-head-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  line-height: 1.06;
+  color: #121c2c;
+}
+
+.smartdebit-head-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #60708a;
+}
+
 .back-link {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   border-radius: 10px;
   text-decoration: none;
-  color: #425271;
-  background: #edf2f9;
-  border: 1px solid #d7e0ec;
-  padding: 8px 10px;
+  color: #384962;
+  background: #ffffff;
+  border: 1px solid #d7e1ef;
+  padding: 8px 11px;
   width: fit-content;
+  white-space: nowrap;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.back-link span {
+  font-size: 14px;
+  line-height: 1;
 }
 
 .back-link:hover {
-  background: #e6edf6;
+  background: #f2f6fc;
+  border-color: #ccd9eb;
+}
+
+.back-link:focus-visible {
+  outline: 2px solid #2f69ff;
+  outline-offset: 2px;
 }
 
 .operations-grid.with-smartdebit {
@@ -2278,13 +2357,30 @@
 }
 
 :root[data-theme='dark'] .back-link {
-  color: #c5d4eb;
+  color: #d2e0f6;
   background: #1a2535;
   border-color: #334156;
 }
 
 :root[data-theme='dark'] .back-link:hover {
-  background: #223046;
+  background: #22334b;
+}
+
+:root[data-theme='dark'] .back-link:focus-visible {
+  outline-color: #7ea8ff;
+}
+
+:root[data-theme='dark'] .smartdebit-head {
+  border-color: #334157;
+  background: linear-gradient(135deg, #131e2d 0%, #172537 100%);
+}
+
+:root[data-theme='dark'] .smartdebit-head-title {
+  color: #ebf2ff;
+}
+
+:root[data-theme='dark'] .smartdebit-head-subtitle {
+  color: #95a7c3;
 }
 
 :root[data-theme='dark'] .topbar-user {
@@ -2518,6 +2614,29 @@
 :root[data-theme='dark'] .payments-quick-label,
 :root[data-theme='dark'] .service-pay-label {
   color: #dce6f7;
+}
+
+:root[data-theme='dark'] .payments-quick-card.active {
+  border-color: #f3d448;
+  background: #27344b;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.32);
+}
+
+:root[data-theme='dark'] .payments-quick-card.active .payments-quick-icon {
+  background: #354763;
+  color: #ffe27b;
+}
+
+:root[data-theme='dark'] .filter-row button.active {
+  background: #f3d448;
+  border-color: #f3d448;
+  color: #162235;
+}
+
+:root[data-theme='dark'] .operations-empty {
+  border-color: #334156;
+  background: #172335;
+  color: #8ea1be;
 }
 
 :root[data-theme='dark'] .favorite-payments-list {
@@ -2790,6 +2909,15 @@
 
   .topbar-user {
     font-size: 13px;
+  }
+
+  .smartdebit-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .smartdebit-head-title {
+    font-size: 22px;
   }
 
   .home-title {
