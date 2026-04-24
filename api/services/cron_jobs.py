@@ -4,7 +4,6 @@ from django.utils import timezone
 
 
 def daily_alert_generator():
-    '''находит платежи, у которых списание завтра, создаёт уведомления в БД'''
     tomorrow = date.today() + timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=tomorrow,
@@ -32,7 +31,6 @@ def daily_alert_generator():
 
 
 def low_balance_checker():
-    '''сравнивает сумму завтрашних платежей с балансом, помечает low_balance если денег не хватает'''
     tomorrow = date.today() + timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=tomorrow,
@@ -63,7 +61,6 @@ def low_balance_checker():
 
 
 def missed_payment_detector():
-    '''проверяет вчерашние платежи, если транзакции нет - помечает как пропущенный'''
     yesterday = date.today() - timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=yesterday,

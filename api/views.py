@@ -332,7 +332,6 @@ def payment_detail(request, payment_id):
         payment = RecurringPayment.objects.get(id=payment_id)
         
         if request.method == "PATCH":
-            # Task 2.4: Обновляем статус через сериализатор
             serializer = PaymentStatusSerializer(data=json.loads(request.body))
             if not serializer.is_valid():
                 return JsonResponse({"status": "error", "errors": serializer.errors}, status=400)

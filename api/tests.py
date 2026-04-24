@@ -7,8 +7,6 @@ from api.services.cron_jobs import daily_alert_generator, low_balance_checker, m
 from api.serializers import ToggleSmartDebitSerializer, PaymentCreateSerializer, PaymentStatusSerializer
 
 
-# ─── Epik 1: predict_next_charge_date ───────────────────────────────────────
-
 class PredictNextChargeDateTest(TestCase):
     def test_regular_date(self):
         last_date = date(2026, 1, 15)
@@ -34,8 +32,6 @@ class PredictNextChargeDateTest(TestCase):
         result = predict_next_charge_date(date(2026, 1, 1), 30)
         self.assertIsInstance(result, date)
 
-
-# ─── Epik 2: Защита обязательных платежей ───────────────────────────────────
 
 class MandatoryPaymentProtectionTest(TestCase):
     def setUp(self):
@@ -79,8 +75,6 @@ class MandatoryPaymentProtectionTest(TestCase):
         )
         self.assertEqual(payment.status, 'active')
 
-
-# ─── Epik 3: DRF Serializers ─────────────────────────────────────────────────
 
 class ToggleSmartDebitSerializerTest(TestCase):
     def test_valid_data(self):
@@ -179,8 +173,6 @@ class PaymentStatusSerializerTest(TestCase):
         s = PaymentStatusSerializer(data={})
         self.assertFalse(s.is_valid())
 
-
-# ─── Epik 4: Cron-задачи ─────────────────────────────────────────────────────
 
 class DailyAlertGeneratorTest(TestCase):
     def setUp(self):
