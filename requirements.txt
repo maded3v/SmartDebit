@@ -5,4 +5,5 @@ drf-spectacular
 dj-database-url
 django-cors-headers
 whitenoise
+django-crontab
 gunicorn

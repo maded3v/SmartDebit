@@ -1,71 +1,101 @@
-from datetime import datetime, date, timedelta
-from api.models import RecurringPayment, Account, Transaction
-from django.utils import timezone
+from datetime import date, timedelta
+
+from api.models import Account, Notification, RecurringPayment, Transaction
+
 
 def daily_alert_generator():
     tomorrow = date.today() + timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=tomorrow,
-        status='active'
-    )
-    
+        status='active',
+    ).select_related('user', 'service')
+
     alerts = []
     for payment in payments:
-        alerts.append({
-            'user_id': payment.user.id,
-            'payment_id': payment.id,
-            'service_name': payment.service.name if payment.service else payment.custom_name,
-            'amount': payment.amount,
-            'scheduled_date': tomorrow
-        })
-    
+        service_name = payment.service.name if payment.service else payment.custom_name
+        Notification.objects.create(
+            user=payment.user,
+            payment=payment,
+            message=f'Завтра спишется {payment.amount} ₽ за {service_name}',
+            notification_type='upcoming',
+        )
+        alerts.append(
+            {
+                'user_id': payment.user.id,
+                'payment_id': payment.id,
+                'service_name': service_name,
+                'amount': payment.amount,
+                'scheduled_date': tomorrow,
+            }
+        )
+
     return alerts
+
 
 def low_balance_checker():
     tomorrow = date.today() + timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=tomorrow,
-        status='active'
-    )
-    
+        status='active',
+    ).select_related('user', 'service')
+
     low_balance_payments = []
     for payment in payments:
         account = Account.objects.filter(user=payment.user).first()
         if account and account.balance < payment.amount:
             payment.status = 'low_balance'
-            payment.save()
-            low_balance_payments.append({
-                'payment_id': payment.id,
-                'user_id': payment.user.id,
-                'amount': payment.amount,
-                'balance': account.balance
-            })
-    
+            payment.save(update_fields=['status'])
+            service_name = payment.service.name if payment.service else payment.custom_name
+            Notification.objects.create(
+                user=payment.user,
+                payment=payment,
+                message=f'Недостаточно средств для списания {payment.amount} ₽ за {service_name}',
+                notification_type='low_balance',
+            )
+            low_balance_payments.append(
+                {
+                    'payment_id': payment.id,
+                    'user_id': payment.user.id,
+                    'amount': payment.amount,
+                    'balance': account.balance,
+                }
+            )
+
     return low_balance_payments
+
 
 def missed_payment_detector():
     yesterday = date.today() - timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=yesterday,
-        status='active'
-    )
-    
+        status='active',
+    ).select_related('user', 'service')
+
     missed = []
     for payment in payments:
         transaction_exists = Transaction.objects.filter(
             account__user=payment.user,
             amount=payment.amount,
-            transaction_date__date=yesterday
+            transaction_date__date=yesterday,
         ).exists()
-        
+
         if not transaction_exists:
             payment.status = 'low_balance'
-            payment.save()
-            missed.append({
-                'payment_id': payment.id,
-                'user_id': payment.user.id,
-                'service_name': payment.service.name if payment.service else payment.custom_name,
-                'amount': payment.amount
-            })
-    
+            payment.save(update_fields=['status'])
+            service_name = payment.service.name if payment.service else payment.custom_name
+            Notification.objects.create(
+                user=payment.user,
+                payment=payment,
+                message=f'Пропущен платеж {payment.amount} ₽ за {service_name} за {yesterday}',
+                notification_type='missed',
+            )
+            missed.append(
+                {
+                    'payment_id': payment.id,
+                    'user_id': payment.user.id,
+                    'service_name': service_name,
+                    'amount': payment.amount,
+                }
+            )
+
     return missed
