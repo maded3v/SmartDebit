@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 import dj_database_url
 
 
@@ -69,6 +70,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',  
     'drf_spectacular',
+    'django_crontab',
     'api',
 ]
 
@@ -108,8 +110,19 @@ WSGI_APPLICATION = 'smartdebit_core.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASE_URL = os.getenv('DATABASE_URL')
+RUNNING_TESTS = any(
+    arg == 'test' or arg == 'pytest' or arg.endswith('pytest')
+    for arg in sys.argv
+)
 
-if DATABASE_URL:
+if RUNNING_TESTS:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'test_db.sqlite3',
+        }
+    }
+elif DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
@@ -211,3 +224,9 @@ SPECTACULAR_SETTINGS = {
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+CRONJOBS = [
+    ('1 0 * * *', 'api.services.cron_jobs.daily_alert_generator'),
+    ('0 0 * * *', 'api.services.cron_jobs.low_balance_checker'),
+    ('5 0 * * *', 'api.services.cron_jobs.missed_payment_detector'),
+]
