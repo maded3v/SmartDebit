@@ -85,10 +85,12 @@
   display: grid;
   place-items: center;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .notification-btn:hover {
   background: #edf2f8;
+  transform: translateY(-1px);
 }
 
 .notification-dot {
@@ -107,12 +109,15 @@
   right: 0;
   top: 42px;
   width: 300px;
+  max-width: min(300px, calc(100vw - 24px));
   border: 1px solid #dbe2ed;
   border-radius: 14px;
   background: #ffffff;
   box-shadow: 0 12px 34px rgba(15, 24, 39, 0.18);
   padding: 10px;
   z-index: 40;
+  transform-origin: top right;
+  animation: notificationDropdownIn 0.18s ease;
 }
 
 .notification-dropdown > p {
@@ -152,6 +157,7 @@
   padding: 8px 11px;
   font-size: 13px;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .theme-toggle:hover {
@@ -205,6 +211,7 @@
   gap: 6px;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .topbar-nav a svg,
@@ -273,10 +280,20 @@
   padding: 3px 10px 3px 4px;
   background: #f7f9fc;
   text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .topbar-user:hover {
   background: #f0f4fa;
+}
+
+.topbar-nav a:focus-visible,
+.payments-nav-button:focus-visible,
+.notification-btn:focus-visible,
+.theme-toggle:focus-visible,
+.topbar-user:focus-visible {
+  outline: 2px solid #2f69ff;
+  outline-offset: 2px;
 }
 
 .user-avatar {
@@ -2280,6 +2297,14 @@
   background: #222d3f;
 }
 
+:root[data-theme='dark'] .topbar-nav a:focus-visible,
+:root[data-theme='dark'] .payments-nav-button:focus-visible,
+:root[data-theme='dark'] .notification-btn:focus-visible,
+:root[data-theme='dark'] .theme-toggle:focus-visible,
+:root[data-theme='dark'] .topbar-user:focus-visible {
+  outline-color: #7ea8ff;
+}
+
 :root[data-theme='dark'] .profile-page-title,
 :root[data-theme='dark'] .profile-name {
   color: #edf2ff;
@@ -2837,6 +2862,33 @@
 
   .payment-side-info .status-badge {
     min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content,
+  .notification-dropdown {
+    animation: none;
+  }
+
+  .topbar-nav a,
+  .payments-nav-button,
+  .notification-btn,
+  .theme-toggle,
+  .topbar-user {
+    transition: none;
+  }
+}
+
+@keyframes notificationDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
