@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,8 +39,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',  
+    'rest_framework',
     'drf_spectacular',
+    'django_crontab',
     'api',
 ]
 
@@ -76,16 +78,24 @@ WSGI_APPLICATION = 'smartdebit_core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'smartdebit_db',
-        'USER': 'smartdebit_user',
-        'PASSWORD': 'smartdebit_password',
-        'HOST': 'localhost',
-        'PORT': '5432',
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'test_db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'smartdebit_db',
+            'USER': 'smartdebit_user',
+            'PASSWORD': 'smartdebit_password',
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -140,3 +150,10 @@ SPECTACULAR_SETTINGS = {
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+# Расписание фоновых задач (django-crontab)
+CRONJOBS = [
+    ('1 0 * * *', 'api.services.cron_jobs.daily_alert_generator'),   # каждый день в 00:01
+    ('0 0 * * *', 'api.services.cron_jobs.low_balance_checker'),      # каждый день в 00:00
+    ('5 0 * * *', 'api.services.cron_jobs.missed_payment_detector'),  # каждый день в 00:05
+]

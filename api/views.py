@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from api.services.parser import find_recurring_patterns, create_recurring_payments_from_patterns
 from api.services.cron_jobs import daily_alert_generator, low_balance_checker, missed_payment_detector
+from api.serializers import ToggleSmartDebitSerializer, PaymentCreateSerializer, PaymentStatusSerializer
 
 
 def get_mock_dashboard_data(user_id):
@@ -182,9 +183,11 @@ def get_dashboard(request):
 @require_http_methods(["POST"])
 def toggle_smartdebit(request):
     try:
-        data = json.loads(request.body)
-        user_id = data.get('user_id', 1)
-        enabled = data.get('enabled', True)
+        serializer = ToggleSmartDebitSerializer(data=json.loads(request.body))
+        if not serializer.is_valid():
+            return JsonResponse({"status": "error", "errors": serializer.errors}, status=400)
+        user_id = serializer.validated_data['user_id']
+        enabled = serializer.validated_data['enabled']
         
         user, created = User.objects.get_or_create(
             internal_id=f"user_{user_id}",
@@ -267,20 +270,22 @@ def payments_list_create(request):
     elif request.method == "POST":
         # Создаем новый платеж
         try:
-            data = json.loads(request.body)
-            user_id = data.get('user_id', 1)
+            serializer = PaymentCreateSerializer(data=json.loads(request.body))
+            if not serializer.is_valid():
+                return JsonResponse({"status": "error", "errors": serializer.errors}, status=400)
+            user_id = serializer.validated_data.get('user_id', 1)
             user = User.objects.get(internal_id=f"user_{user_id}")
-            
+
             # Определяем сервис или создаем кастомный
-            service_id = data.get('service_id')
+            service_id = serializer.validated_data.get('service_id')
             service = ServiceDictionary.objects.get(id=service_id) if service_id else None
-            
+
             payment = RecurringPayment.objects.create(
                 user=user,
                 service=service,
-                custom_name=data.get('custom_name', ''),
-                amount=data['amount'],
-                next_charge_date=datetime.strptime(data['next_charge_date'], "%Y-%m-%d").date(),
+                custom_name=serializer.validated_data['custom_name'],
+                amount=serializer.validated_data['amount'],
+                next_charge_date=serializer.validated_data['next_charge_date'],
                 status='active'
             )
             
@@ -326,35 +331,27 @@ def payment_detail(request, payment_id):
     try:
         payment = RecurringPayment.objects.get(id=payment_id)
         
-        # Task 2.4: Проверка на обязательный платеж
-        if payment.service and payment.service.is_mandatory:
-            if request.method == "PATCH":
-                data = json.loads(request.body)
-                new_status = data.get('status')
-                if new_status in ['cancelled', 'frozen']:
+        if request.method == "PATCH":
+            # Task 2.4: Обновляем статус через сериализатор
+            serializer = PaymentStatusSerializer(data=json.loads(request.body))
+            if not serializer.is_valid():
+                return JsonResponse({"status": "error", "errors": serializer.errors}, status=400)
+
+            # Проверка на обязательный платеж
+            if payment.service and payment.service.is_mandatory:
+                if serializer.validated_data['status'] in ['cancelled', 'frozen']:
                     return JsonResponse({
                         "status": "error",
                         "message": "Нельзя отключить обязательный платеж",
                         "error_code": "MANDATORY_PAYMENT"
                     }, status=403)
-        
-        if request.method == "PATCH":
-            # Обновляем статус
-            data = json.loads(request.body)
-            new_status = data.get('status')
-            
-            if new_status not in ['active', 'frozen', 'cancelled']:
-                return JsonResponse({
-                    "status": "error",
-                    "message": "Невалидный статус"
-                }, status=400)
-            
-            payment.status = new_status
+
+            payment.status = serializer.validated_data['status']
             payment.save()
-            
+
             return JsonResponse({
                 "status": "success",
-                "message": f"Статус изменен на {new_status}",
+                "message": f"Статус изменен на {serializer.validated_data['status']}",
                 "payment": {
                     "id": payment.id,
                     "status": payment.status
