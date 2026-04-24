@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BrowserRouter,
   Link,
@@ -323,9 +323,42 @@ function AppHeader({
     location.pathname.startsWith('/operations') && !location.pathname.includes('/smartdebit')
   const isSmartDebitActive = location.pathname.includes('/smartdebit')
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const notificationWrapRef = useRef<HTMLDivElement | null>(null)
 
   const unreadNotifications = notifications.slice(0, 4)
   const profileInitial = getNameInitial(profileName)
+
+  useEffect(() => {
+    setIsNotificationOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!isNotificationOpen) {
+      return
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (notificationWrapRef.current?.contains(event.target as Node)) {
+        return
+      }
+
+      setIsNotificationOpen(false)
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsNotificationOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isNotificationOpen])
 
   return (
     <header className="topbar">
@@ -372,19 +405,21 @@ function AppHeader({
       </nav>
 
       <div className="topbar-actions">
-        <div className="notification-wrap">
+        <div className="notification-wrap" ref={notificationWrapRef}>
           <button
             type="button"
             className="notification-btn"
             onClick={() => setIsNotificationOpen((value) => !value)}
             aria-label="Уведомления"
+            aria-expanded={isNotificationOpen}
+            aria-controls="notifications-dropdown"
           >
             <Bell size={19} />
             {unreadNotifications.length ? <span className="notification-dot" /> : null}
           </button>
 
           {isNotificationOpen ? (
-            <div className="notification-dropdown">
+            <div className="notification-dropdown" id="notifications-dropdown">
               <p>Уведомления</p>
               {unreadNotifications.length ? (
                 unreadNotifications.map((notification) => (
