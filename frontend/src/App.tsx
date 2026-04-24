@@ -329,10 +329,6 @@ function AppHeader({
   const profileInitial = getNameInitial(profileName)
 
   useEffect(() => {
-    setIsNotificationOpen(false)
-  }, [location.pathname])
-
-  useEffect(() => {
     if (!isNotificationOpen) {
       return
     }
@@ -362,21 +358,47 @@ function AppHeader({
 
   return (
     <header className="topbar">
-      <Link to="/" className="brand">
+      <Link
+        to="/"
+        className="brand"
+        onClick={() => {
+          setIsNotificationOpen(false)
+        }}
+      >
         <div className="brand-logo">T</div>
         <strong>Банк</strong>
       </Link>
 
       <nav className="topbar-nav" aria-label="Основная навигация">
-        <NavLink to="/" end className={isHomeActive ? 'active' : ''}>
+        <NavLink
+          to="/"
+          end
+          className={isHomeActive ? 'active' : ''}
+          onClick={() => {
+            setIsNotificationOpen(false)
+          }}
+        >
           <Home size={17} />
           Главная
         </NavLink>
-        <NavLink to="/operations" end className={isOperationsActive ? 'active' : ''}>
+        <NavLink
+          to="/operations"
+          end
+          className={isOperationsActive ? 'active' : ''}
+          onClick={() => {
+            setIsNotificationOpen(false)
+          }}
+        >
           <ArrowLeftRight size={17} />
           Операции
         </NavLink>
-        <NavLink to="/operations/smartdebit" className={isSmartDebitActive ? 'active' : ''}>
+        <NavLink
+          to="/operations/smartdebit"
+          className={isSmartDebitActive ? 'active' : ''}
+          onClick={() => {
+            setIsNotificationOpen(false)
+          }}
+        >
           <Shield size={17} />
           SmartDebit
           <span className="nav-new-chip">NEW</span>
@@ -384,7 +406,10 @@ function AppHeader({
         <button
           type="button"
           className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
-          onClick={() => navigate('/payments')}
+          onClick={() => {
+            setIsNotificationOpen(false)
+            navigate('/payments')
+          }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -442,7 +467,13 @@ function AppHeader({
         </button>
       </div>
 
-      <NavLink to="/profile" className="topbar-user">
+      <NavLink
+        to="/profile"
+        className="topbar-user"
+        onClick={() => {
+          setIsNotificationOpen(false)
+        }}
+      >
         <span className="user-avatar">{profileInitial}</span>
         <span>{profileName}</span>
       </NavLink>
