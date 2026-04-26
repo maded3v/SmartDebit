@@ -42,6 +42,7 @@ import type {
   Payment,
   PaymentStatus,
 } from './types'
+import toast from 'react-hot-toast'
 
 type StatusTone = 'green' | 'yellow' | 'red' | 'gray'
 
@@ -259,7 +260,6 @@ function formatDate(value: string) {
   if (Number.isNaN(date.getTime())) {
     return 'Неизвестная дата'
   }
-
   return dateFormatter.format(date)
 }
 
@@ -267,17 +267,14 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) {
     return error.message
   }
-
   return fallback
 }
 
 function getNameInitial(fullName: string) {
   const normalized = fullName.trim()
-
   if (!normalized) {
     return 'U'
   }
-
   return normalized.slice(0, 1).toUpperCase()
 }
 
@@ -286,7 +283,6 @@ function getOperationIcon(title: string) {
   if (!normalized) {
     return 'O'
   }
-
   return normalized.slice(0, 1).toUpperCase()
 }
 
@@ -298,13 +294,9 @@ function buildOperationsFeed(dashboard: DashboardPayload | null): BankOperation[
   if (!dashboard) {
     return BASE_OPERATIONS
   }
-
   const smartOperations: BankOperation[] = dashboard.upcoming.map((payment) => {
     const tone: BankOperation['tone'] =
-      payment.status === 'low_balance' || payment.status === 'overdue'
-        ? 'danger'
-        : 'neutral'
-
+      payment.status === 'low_balance' || payment.status === 'overdue' ? 'danger' : 'neutral'
     return {
       id: `smart-${payment.id}`,
       title: payment.title,
@@ -315,7 +307,6 @@ function buildOperationsFeed(dashboard: DashboardPayload | null): BankOperation[
       tone,
     }
   })
-
   return [...BASE_OPERATIONS, ...smartOperations]
 }
 
@@ -347,9 +338,9 @@ function AppHeader({
   const isOperationsActive =
     location.pathname.startsWith('/operations') && !location.pathname.includes('/smartdebit')
   const isSmartDebitActive = location.pathname.includes('/smartdebit')
+
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const notificationWrapRef = useRef<HTMLDivElement | null>(null)
-
   const unreadNotifications = notifications.slice(0, 4)
   const profileInitial = getNameInitial(profileName)
 
@@ -362,7 +353,6 @@ function AppHeader({
       if (notificationWrapRef.current?.contains(event.target as Node)) {
         return
       }
-
       setIsNotificationOpen(false)
     }
 
@@ -390,7 +380,7 @@ function AppHeader({
           setIsNotificationOpen(false)
         }}
       >
-        <div className="brand-logo">T</div>
+        <span className="brand-logo">Т</span>
         <strong>Банк</strong>
       </Link>
 
@@ -516,11 +506,9 @@ function HomePage({
   error: string
 }) {
   const navigate = useNavigate()
-
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
     const mortgage = dashboard?.upcoming.find((payment) => payment.id === 'mortgage-sber')
     const kion = dashboard?.upcoming.find((payment) => payment.id === 'kion')
-
     return [
       {
         id: 'salary-main',
@@ -606,7 +594,6 @@ function HomePage({
   return (
     <section className="home-screen">
       <h1 className="home-title">Добрый день, Иван</h1>
-
       {loading ? <p className="home-note">Загружаем данные...</p> : null}
       {error ? <p className="home-error">{error}</p> : null}
 
@@ -738,6 +725,7 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
     initialQuickActionCandidate && isPaymentQuickActionId(initialQuickActionCandidate)
       ? initialQuickActionCandidate
       : null
+
   const [selectedFavoritePayment, setSelectedFavoritePayment] =
     useState<FavoritePaymentEntry | null>(null)
   const [activeQuickAction, setActiveQuickAction] = useState<PaymentQuickActionId | null>(
@@ -757,7 +745,6 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
     if (!payNotice) {
       return
     }
-
     const timer = setTimeout(() => {
       setPayNotice('')
     }, 3200)
@@ -781,7 +768,6 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
     if (!selectedFavoritePayment || !Number.isFinite(amountValue) || amountValue <= 0) {
       return
     }
-
     setPaying(true)
 
     setTimeout(() => {
@@ -795,6 +781,8 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
 
   return (
     <section className="payments-page">
+      <h1 className="panel-title">Платежи</h1>
+
       {payNotice ? <p className="notice">{payNotice}</p> : null}
 
       <div className="payments-quick-grid">
@@ -943,12 +931,10 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
 
 function AnalyticsDonut({ slices }: { slices: DashboardPayload['chart'] }) {
   const total = slices.reduce((sum, item) => sum + item.amount, 0)
-
   const gradient = useMemo(() => {
     if (!slices.length || total <= 0) {
       return 'conic-gradient(#d8dde8 0deg 360deg)'
     }
-
     let angle = 0
     const tokens = slices.map((slice) => {
       const start = angle
@@ -968,6 +954,7 @@ function AnalyticsDonut({ slices }: { slices: DashboardPayload['chart'] }) {
           <small>за 7 дней</small>
         </div>
       </div>
+
       <ul className="legend">
         {slices.map((slice) => (
           <li key={slice.category}>
@@ -995,9 +982,9 @@ function QuickManageModal({
 
   async function applyStatus(status: PaymentStatus) {
     setSubmitting(true)
-
     try {
       await onChangeStatus(status)
+      onClose()
     } finally {
       setSubmitting(false)
     }
@@ -1073,9 +1060,8 @@ function AddPaymentModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-
     if (!title.trim()) {
       setError('Укажите название платежа')
       return
@@ -1098,6 +1084,7 @@ function AddPaymentModal({
         category,
         mandatory,
       })
+      onClose()
     } catch (saveError) {
       setSaving(false)
       setError(resolveErrorMessage(saveError, 'Не удалось добавить платеж'))
@@ -1194,13 +1181,13 @@ function OperationsPage({
   loading: boolean
   error: string
 }) {
-  const [activeFilter, setActiveFilter] = useState<OperationsFilterId>('all')
+  const [activeFilter, setActiveFilter] = useState('all')
   const operations = useMemo(() => buildOperationsFeed(dashboard), [dashboard])
+
   const filteredOperations = useMemo(() => {
     if (activeFilter === 'income') {
       return operations.filter((operation) => operation.amount > 0)
     }
-
     if (activeFilter === 'expense') {
       return operations.filter((operation) => operation.amount < 0)
     }
@@ -1228,10 +1215,7 @@ function OperationsPage({
 
   return (
     <section className="operations-screen">
-      <Link
-        to="/operations/smartdebit"
-        className="smartdebit-strip"
-      >
+      <Link to="/operations/smartdebit" className="smartdebit-strip">
         <div className="smartdebit-strip-body">
           <strong>SmartDebit</strong>
           {loading ? (
@@ -1328,7 +1312,6 @@ function SmartDebitDetailsPage({
   dashboard,
   loading,
   error,
-  notice,
   onToggle,
   onPayDebt,
   onStatusChange,
@@ -1337,7 +1320,6 @@ function SmartDebitDetailsPage({
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
-  notice: string
   onToggle: (enabled: boolean) => Promise<void>
   onPayDebt: (paymentId: string) => Promise<void>
   onStatusChange: (paymentId: string, status: PaymentStatus) => Promise<void>
@@ -1350,7 +1332,6 @@ function SmartDebitDetailsPage({
     if (!selectedPayment) {
       return
     }
-
     await onStatusChange(selectedPayment.id, status)
     setSelectedPayment(null)
   }
@@ -1359,10 +1340,9 @@ function SmartDebitDetailsPage({
     <section className="smartdebit-details-page">
       <header className="smartdebit-head">
         <Link to="/operations" className="back-link">
-          <span aria-hidden="true">&larr;</span>
+          <span>←</span>
           Назад к операциям
         </Link>
-
         <div className="smartdebit-head-copy">
           <h1 className="smartdebit-head-title">SmartDebit</h1>
           <p className="smartdebit-head-subtitle">
@@ -1371,7 +1351,6 @@ function SmartDebitDetailsPage({
         </div>
       </header>
 
-      {notice ? <p className="notice">{notice}</p> : null}
       {error ? <p className="error">{error}</p> : null}
 
       <article className="panel smart-panel smart-panel-full">
@@ -1566,12 +1545,10 @@ function App() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [theme, setTheme] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') {
       return 'light'
     }
-
     const stored = window.localStorage.getItem('smartdebit-theme')
     return stored === 'dark' ? 'dark' : 'light'
   })
@@ -1586,7 +1563,6 @@ function App() {
     if (!silent) {
       setLoading(true)
     }
-
     try {
       const payload = await smartDebitApi.getDashboard()
       setDashboard(payload)
@@ -1604,26 +1580,14 @@ function App() {
     void refreshDashboard()
   }, [refreshDashboard])
 
-  useEffect(() => {
-    if (!notice) {
-      return
-    }
-
-    const timer = setTimeout(() => {
-      setNotice('')
-    }, 4000)
-
-    return () => clearTimeout(timer)
-  }, [notice])
-
   const handleToggle = useCallback(
     async (enabled: boolean) => {
       try {
         await smartDebitApi.toggle(enabled)
         await refreshDashboard(true)
-        setNotice(enabled ? 'SmartDebit включен' : 'SmartDebit выключен')
+        toast.success(enabled ? 'SmartDebit включен' : 'SmartDebit выключен')
       } catch (toggleError) {
-        setError(resolveErrorMessage(toggleError, 'Не удалось изменить состояние SmartDebit'))
+        toast.error(resolveErrorMessage(toggleError, 'Не удалось изменить состояние SmartDebit'))
       }
     },
     [refreshDashboard],
@@ -1634,9 +1598,9 @@ function App() {
       try {
         const result = await smartDebitApi.payDebt(paymentId)
         await refreshDashboard(true)
-        setNotice(result.message)
+        toast.success(result.message)
       } catch (debtError) {
-        setError(resolveErrorMessage(debtError, 'Не удалось погасить задолженность'))
+        toast.error(resolveErrorMessage(debtError, 'Не удалось погасить задолженность'))
       }
     },
     [refreshDashboard],
@@ -1647,9 +1611,9 @@ function App() {
       try {
         await smartDebitApi.updateStatus(paymentId, status)
         await refreshDashboard(true)
-        setNotice('Статус платежа обновлен')
+        toast.success('Статус платежа обновлен')
       } catch (statusError) {
-        setError(resolveErrorMessage(statusError, 'Не удалось обновить статус платежа'))
+        toast.error(resolveErrorMessage(statusError, 'Не удалось обновить статус платежа'))
       }
     },
     [refreshDashboard],
@@ -1660,8 +1624,9 @@ function App() {
       try {
         await smartDebitApi.addPayment(payload)
         await refreshDashboard(true)
-        setNotice('Новый платеж добавлен')
+        toast.success('Новый платеж добавлен')
       } catch (paymentError) {
+        toast.error(resolveErrorMessage(paymentError, 'Не удалось добавить платеж'))
         throw new Error(resolveErrorMessage(paymentError, 'Не удалось добавить платеж'))
       }
     },
@@ -1670,16 +1635,17 @@ function App() {
 
   return (
     <BrowserRouter>
+      <AppHeader
+        theme={theme}
+        onToggleTheme={() => {
+          setTheme((current) => (current === 'light' ? 'dark' : 'light'))
+        }}
+        notifications={dashboard?.notifications ?? []}
+        profileName={profileName}
+      />
+
       <div className="shell">
-        <AppHeader
-          theme={theme}
-          onToggleTheme={() => {
-            setTheme((current) => (current === 'light' ? 'dark' : 'light'))
-          }}
-          notifications={dashboard?.notifications ?? []}
-          profileName={profileName}
-        />
-        <main className="content">
+        <div className="content">
           <Routes>
             <Route path="/" element={<HomePage dashboard={dashboard} loading={loading} error={error} />} />
             <Route path="/payments" element={<CardOverviewPage dashboard={dashboard} />} />
@@ -1695,7 +1661,6 @@ function App() {
                   dashboard={dashboard}
                   loading={loading}
                   error={error}
-                  notice={notice}
                   onToggle={handleToggle}
                   onPayDebt={handlePayDebt}
                   onStatusChange={handleChangeStatus}
@@ -1706,7 +1671,7 @@ function App() {
             <Route path="/profile" element={<ProfilePage fullName={profileName} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
+        </div>
       </div>
     </BrowserRouter>
   )
