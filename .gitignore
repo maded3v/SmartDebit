@@ -54,6 +54,10 @@ temp/
 ref/
 about.pdf
 
+# Generated API schema dumps
+schema.yml
+schema.yaml
+
 
 # Vite
 vite.config.ts.timestamp-*

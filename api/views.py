@@ -1,17 +1,23 @@
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-import json
 from datetime import datetime
-from api.models import ServiceDictionary, RecurringPayment, User, Account
+from django.db import connection
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from api.services.parser import find_recurring_patterns, create_recurring_payments_from_patterns
-from api.serializers import PaymentCreateSerializer, PaymentStatusSerializer, ToggleSmartDebitSerializer
-
+from api.models import (
+    ServiceDictionary, RecurringPayment, User, Account,
+    Notification, Transaction
+)
+from api.services.parser import (
+    find_recurring_patterns, create_recurring_payments_from_patterns
+)
+from api.serializers import (
+    PaymentCreateSerializer, PaymentStatusSerializer,
+    ToggleSmartDebitSerializer
+)
 
 def get_mock_dashboard_data(user_id):
-    """Заглушка для дашборда — потом заменим на реальную аналитику"""
     return {
         "balance": 75430.50,
         "currency": "RUB",
@@ -29,9 +35,9 @@ def get_mock_dashboard_data(user_id):
     description="Возвращает все сервисы из справочника SERVICE_DICTIONARY",
     tags=["SmartDebit"],
 )
+@api_view(["GET"])
 def get_services(request):
     services_qs = ServiceDictionary.objects.all()
-    
     data = [
         {
             "id": s.id,
@@ -40,28 +46,31 @@ def get_services(request):
             "is_mandatory": s.is_mandatory
         } for s in services_qs
     ]
-    
-    return JsonResponse({"status": "success", "services": data})
+    return Response({"status": "success", "services": data})
 
 @extend_schema(
     summary="Дашборд SmartDebit",
     description="Возвращает баланс, предстоящие платежи, алерты и аналитику",
     tags=["SmartDebit"],
 )
+@api_view(["GET"])
 def get_dashboard(request):
     user_id = 1
     user = User.objects.filter(internal_id=f"user_{user_id}").first()
     if not user:
-        return JsonResponse({"status": "error", "message": "User not found"}, status=404)
+        return Response(
+            {"status": "error", "message": "User not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
     
     account = Account.objects.filter(user=user).first()
     balance = float(account.balance) if account else 0.0
-    
+
     payments_qs = RecurringPayment.objects.filter(
         user=user, 
         status__in=['active', 'low_balance']
     ).select_related('service').order_by('next_charge_date')[:5]
-    
+
     upcoming = [
         {
             "id": p.id,
@@ -73,7 +82,7 @@ def get_dashboard(request):
             "status": p.status
         } for p in payments_qs
     ]
-    
+
     alerts = []
     for p in payments_qs:
         if p.status == 'low_balance' or (account and account.balance < p.amount):
@@ -84,8 +93,7 @@ def get_dashboard(request):
                 "amount": float(p.amount),
                 "type": "low_balance" if account and account.balance < p.amount else "upcoming"
             })
-    
-    # ИСПРАВЛЕННАЯ АНАЛИТИКА: Маппинг русских категорий на английские ключи
+
     CATEGORY_MAP = {
         "Развлечения": "entertainment",
         "Кино": "entertainment",
@@ -93,15 +101,15 @@ def get_dashboard(request):
         "ЖКХ": "utilities",
         "Кредиты": "finance",
     }
-    
+
     analytics = {"entertainment": 0, "utilities": 0, "finance": 0}
     for p in payments_qs:
         cat = p.service.category if p.service else "Other"
         analytics_key = CATEGORY_MAP.get(cat)
         if analytics_key:
             analytics[analytics_key] += float(p.amount)
-    
-    return JsonResponse({
+
+    return Response({
         "status": "success",
         "data": {
             "is_smartdebit_enabled": user.is_smartdebit_enabled,
@@ -112,7 +120,7 @@ def get_dashboard(request):
             "analytics": analytics
         }
     })
-    
+
 @extend_schema(
     summary="Активация SmartDebit",
     description="Включает или выключает функцию SmartDebit для пользователя",
@@ -127,14 +135,16 @@ def get_dashboard(request):
         }
     },
 )
-@csrf_exempt
-@require_http_methods(["POST"])
+@api_view(["POST"])
 def toggle_smartdebit(request):
     try:
-        serializer = ToggleSmartDebitSerializer(data=json.loads(request.body))
+        serializer = ToggleSmartDebitSerializer(data=request.data)
         if not serializer.is_valid():
-            return JsonResponse({"status": "error", "errors": serializer.errors}, status=400)
-
+            return Response(
+                {"status": "error", "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         user_id = serializer.validated_data['user_id']
         enabled = serializer.validated_data['enabled']
         
@@ -155,7 +165,7 @@ def toggle_smartdebit(request):
             patterns = find_recurring_patterns(user, months=3)
             analyzed_count = create_recurring_payments_from_patterns(user, patterns)
         
-        return JsonResponse({
+        return Response({
             "status": "success",
             "message": f"SmartDebit {'включен' if enabled else 'выключен'}",
             "data": {
@@ -165,8 +175,11 @@ def toggle_smartdebit(request):
             }
         })
     except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    
+        return Response(
+            {"status": "error", "message": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
 @extend_schema(
     summary="Управление платежами",
     description="GET: Список всех платежей пользователя\nPOST: Создание нового регулярного платежа",
@@ -181,24 +194,18 @@ def toggle_smartdebit(request):
         ),
     ],
 )
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
+@api_view(["GET", "POST"])
 def payments_list_create(request):
-    """
-    Task 2.3: Список платежей (GET) и создание нового (POST)
-    GET /api/v1/payments/
-    POST /api/v1/payments/
-    """
     if request.method == "GET":
-        # Возвращаем все платежи пользователя
         user_id = request.GET.get('user_id', 1)
         user = User.objects.filter(internal_id=f"user_{user_id}").first()
-        
         if not user:
-            return JsonResponse({"status": "error", "message": "User not found"}, status=404)
+            return Response(
+                {"status": "error", "message": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         payments = RecurringPayment.objects.filter(user=user)
-        
         data = [
             {
                 "id": p.id,
@@ -210,23 +217,20 @@ def payments_list_create(request):
                 "status": p.status
             } for p in payments
         ]
-        
-        return JsonResponse({
-            "status": "success",
-            "payments": data
-        })
-    
+        return Response({"status": "success", "payments": data})
+
     elif request.method == "POST":
-        # Создаем новый платеж
         try:
-            serializer = PaymentCreateSerializer(data=json.loads(request.body))
+            serializer = PaymentCreateSerializer(data=request.data)
             if not serializer.is_valid():
-                return JsonResponse({"status": "error", "errors": serializer.errors}, status=400)
+                return Response(
+                    {"status": "error", "errors": serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             user_id = serializer.validated_data.get('user_id', 1)
             user = User.objects.get(internal_id=f"user_{user_id}")
             
-            # Определяем сервис или создаем кастомный
             service_id = serializer.validated_data.get('service_id')
             service = ServiceDictionary.objects.get(id=service_id) if service_id else None
             
@@ -239,7 +243,7 @@ def payments_list_create(request):
                 status='active'
             )
             
-            return JsonResponse({
+            return Response({
                 "status": "success",
                 "message": "Платеж создан",
                 "payment": {
@@ -249,13 +253,13 @@ def payments_list_create(request):
                     "next_charge_date": payment.next_charge_date.strftime("%Y-%m-%d"),
                     "status": payment.status
                 }
-            }, status=201)
+            }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            return JsonResponse({
-                "status": "error",
-                "message": str(e)
-            }, status=400)
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 @extend_schema(
     summary="Детали платежа",
@@ -270,36 +274,32 @@ def payments_list_create(request):
         ),
     ],
 )
-@csrf_exempt
-@require_http_methods(["PATCH", "DELETE", "PUT"])
+@api_view(["PATCH", "DELETE", "PUT"])
 def payment_detail(request, payment_id):
-    """
-    Task 2.3 + 2.4: Обновление, удаление платежа и смена статуса
-    PATCH /api/v1/payments/{id}/status
-    DELETE /api/v1/payments/{id}
-    """
     try:
         payment = RecurringPayment.objects.get(id=payment_id)
-
+        
         if request.method == "PATCH":
-            serializer = PaymentStatusSerializer(data=json.loads(request.body))
+            serializer = PaymentStatusSerializer(data=request.data)
             if not serializer.is_valid():
-                return JsonResponse({"status": "error", "errors": serializer.errors}, status=400)
+                return Response(
+                    {"status": "error", "errors": serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             new_status = serializer.validated_data['status']
 
-            # Task 2.4: Проверка на обязательный платеж
             if payment.service and payment.service.is_mandatory and new_status in ['cancelled', 'frozen']:
-                return JsonResponse({
+                return Response({
                     "status": "error",
                     "message": "Нельзя отключить обязательный платеж",
                     "error_code": "MANDATORY_PAYMENT"
-                }, status=403)
+                }, status=status.HTTP_403_FORBIDDEN)
 
             payment.status = new_status
             payment.save()
             
-            return JsonResponse({
+            return Response({
                 "status": "success",
                 "message": f"Статус изменен на {new_status}",
                 "payment": {
@@ -310,14 +310,10 @@ def payment_detail(request, payment_id):
         
         elif request.method == "DELETE":
             payment.delete()
-            return JsonResponse({
-                "status": "success",
-                "message": "Платеж удален"
-            })
+            return Response({"status": "success", "message": "Платеж удален"})
         
         elif request.method == "PUT":
-            # Полное обновление
-            data = json.loads(request.body)
+            data = request.data
             payment.amount = data.get('amount', payment.amount)
             payment.next_charge_date = datetime.strptime(
                 data.get('next_charge_date', payment.next_charge_date.strftime("%Y-%m-%d")),
@@ -325,7 +321,7 @@ def payment_detail(request, payment_id):
             ).date()
             payment.save()
             
-            return JsonResponse({
+            return Response({
                 "status": "success",
                 "message": "Платеж обновлен",
                 "payment": {
@@ -336,15 +332,15 @@ def payment_detail(request, payment_id):
             })
             
     except RecurringPayment.DoesNotExist:
-        return JsonResponse({
-            "status": "error",
-            "message": "Платеж не найден"
-        }, status=404)
+        return Response(
+            {"status": "error", "message": "Платеж не найден"},
+            status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
-        return JsonResponse({
-            "status": "error",
-            "message": str(e)
-        }, status=400)
+        return Response(
+            {"status": "error", "message": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 @extend_schema(
     summary="Оплатить пропущенный платеж",
@@ -364,44 +360,32 @@ def payment_detail(request, payment_id):
         404: {'description': 'Платеж не найден'}
     }
 )
-@csrf_exempt
-@require_http_methods(["POST"])
+@api_view(["POST"])
 def pay_payment(request, payment_id):
-    """
-    Task 2.5: Оплата пропущенного платежа
-    POST /api/v1/payments/{id}/pay
-    Имитация списания средств с счета для погашения задолженности
-    """
     try:
         payment = RecurringPayment.objects.get(id=payment_id)
         user = payment.user
         
-        # Получаем счет пользователя
         account = Account.objects.filter(user=user).first()
         if not account:
-            return JsonResponse({
-                "status": "error",
-                "message": "Счет не найден"
-            }, status=404)
+            return Response(
+                {"status": "error", "message": "Счет не найден"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
-        # Проверяем баланс
         if account.balance < payment.amount:
-            return JsonResponse({
+            return Response({
                 "status": "error",
                 "message": "Недостаточно средств на счете",
                 "error_code": "INSUFFICIENT_FUNDS",
                 "current_balance": float(account.balance),
                 "required_amount": float(payment.amount)
-            }, status=402)  # 402 Payment Required
+            }, status=status.HTTP_402_PAYMENT_REQUIRED)
         
-        # ИМИТАЦИЯ СПИСАНИЯ (в реальности здесь был бы вызов Core Banking API)
-        # Списываем средства со счета
         account.balance -= payment.amount
         account.save()
         
-        # Создаем запись о транзакции
-        from api.models import Transaction
-        Transaction.objects.create(
+        transaction = Transaction.objects.create(
             account=account,
             merchant_name=payment.service.name if payment.service else payment.custom_name,
             amount=payment.amount,
@@ -409,11 +393,10 @@ def pay_payment(request, payment_id):
             status='completed'
         )
         
-        # Обновляем статус платежа
         payment.status = 'paid'
         payment.save()
         
-        return JsonResponse({
+        return Response({
             "status": "success",
             "message": "Платеж успешно оплачен",
             "data": {
@@ -421,34 +404,96 @@ def pay_payment(request, payment_id):
                 "service_name": payment.service.name if payment.service else payment.custom_name,
                 "amount": float(payment.amount),
                 "new_balance": float(account.balance),
-                "transaction_id": 1  # В реальности здесь был бы ID созданной транзакции
+                "transaction_id": transaction.id
             }
         })
         
     except RecurringPayment.DoesNotExist:
-        return JsonResponse({
-            "status": "error",
-            "message": "Платеж не найден"
-        }, status=404)
+        return Response(
+            {"status": "error", "message": "Платеж не найден"},
+            status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
-        return JsonResponse({
-            "status": "error",
-            "message": str(e)
-        }, status=400)
-        
-        
-        
-@csrf_exempt
-@require_http_methods(["POST"])
+        return Response(
+            {"status": "error", "message": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+@extend_schema(
+    summary="Анализ и создание платежей",
+    description="Анализирует транзакции пользователя и создает регулярные платежи",
+    tags=["SmartDebit"],
+)
+@api_view(["POST"])
 def analyze_and_create_payments(request):
     user_id = 1
     user = User.objects.get(internal_id=f"user_{user_id}")
-    
     patterns = find_recurring_patterns(user, months=3)
     created = create_recurring_payments_from_patterns(user, patterns)
-    
-    return JsonResponse({
+    return Response({
         "status": "success",
         "patterns_found": len(patterns),
         "payments_created": created
+    })
+
+@extend_schema(
+    summary="Получить уведомления пользователя",
+    description="Возвращает последние 20 уведомлений",
+    tags=["Notifications"],
+    parameters=[
+        OpenApiParameter(
+            name='user_id',
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.QUERY,
+            description='ID пользователя',
+            default=1
+        ),
+    ],
+)
+@api_view(["GET"])
+def get_notifications(request):
+    user_id = request.GET.get('user_id', 1)
+    user = User.objects.filter(internal_id=f"user_{user_id}").first()
+    if not user:
+        return Response(
+            {"status": "error", "message": "User not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    notifications = Notification.objects.filter(
+        user=user
+    ).select_related('payment__service').order_by('-created_at')[:20]
+    
+    data = [
+        {
+            "id": n.id,
+            "message": n.message,
+            "type": n.notification_type,
+            "is_read": n.is_read,
+            "created_at": n.created_at.strftime("%Y-%m-%d %H:%M"),
+            "payment_id": n.payment.id if n.payment else None
+        } for n in notifications
+    ]
+    
+    return Response({"status": "success", "notifications": data})
+
+@extend_schema(
+    summary="Health Check",
+    description="Проверка здоровья сервиса",
+    tags=["System"],
+)
+@api_view(["GET"])
+def health_check(request):
+    try:
+        connection.ensure_connection()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"disconnected: {str(e)}"
+    
+    return Response({
+        "status": "ok",
+        "service": "smartdebit-backend",
+        "database": db_status,
+        "version": "1.0.0",
+        "timestamp": datetime.now().isoformat()
     })
