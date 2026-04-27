@@ -18,6 +18,7 @@ import {
   Briefcase,
   Car,
   ChevronRight,
+  Crown,
   FileText,
   GraduationCap,
   HandCoins,
@@ -32,7 +33,6 @@ import {
   Shield,
   Smartphone,
   Sparkles,
-  TrendingUp,
   User,
   UserCheck,
   Wifi,
@@ -273,20 +273,26 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
-function getNameInitial(fullName: string) {
-  const normalized = fullName.trim()
-  if (!normalized) {
-    return 'U'
-  }
-  return normalized.slice(0, 1).toUpperCase()
-}
-
 function getOperationIcon(title: string) {
   const normalized = title.trim()
   if (!normalized) {
     return 'O'
   }
   return normalized.slice(0, 1).toUpperCase()
+}
+
+function formatPaymentTitle(title: string) {
+  const normalized = title.trim()
+  if (!normalized) {
+    return 'Без названия'
+  }
+
+  const lowered = normalized.toLowerCase()
+  if (lowered === 'кредит на помидры' || lowered === 'кредит на помидоры') {
+    return 'Кредит на помидоры'
+  }
+
+  return normalized.slice(0, 1).toUpperCase() + normalized.slice(1)
 }
 
 function isPaymentQuickActionId(value: string): value is PaymentQuickActionId {
@@ -302,7 +308,7 @@ function buildOperationsFeed(dashboard: DashboardPayload | null): BankOperation[
       payment.status === 'low_balance' || payment.status === 'overdue' ? 'danger' : 'neutral'
     return {
       id: `smart-${payment.id}`,
-      title: payment.title,
+      title: formatPaymentTitle(payment.title),
       subtitle: payment.provider,
       dateLabel: `Списание: ${formatDate(payment.nextChargeDate)}`,
       amount: -payment.amount,
@@ -345,7 +351,6 @@ function AppHeader({
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const notificationWrapRef = useRef<HTMLDivElement | null>(null)
   const unreadNotifications = notifications.slice(0, 4)
-  const profileInitial = getNameInitial(profileName)
 
   useEffect(() => {
     if (!isNotificationOpen) {
@@ -475,7 +480,9 @@ function AppHeader({
           setIsNotificationOpen(false)
         }}
       >
-        <span className="user-avatar">{profileInitial}</span>
+        <span className="user-avatar" aria-hidden="true">
+          <User size={13} strokeWidth={2.3} />
+        </span>
         <span>{profileName}</span>
       </NavLink>
     </header>
@@ -579,122 +586,126 @@ function HomePage({
 
   return (
     <section className="home-screen">
-      <h1 className="home-title">Добрый день, Иван</h1>
-      {loading ? <p className="home-note">Загружаем данные...</p> : null}
-      {error ? <p className="home-error">{error}</p> : null}
+      <div className="home-main-block">
+        <h1 className="home-title">Добрый день, Иван</h1>
+        {loading ? <p className="home-note">Загружаем данные...</p> : null}
+        {error ? <p className="home-error">{error}</p> : null}
 
-      <div className="home-layout">
-        <aside className="home-left-column">
-          <article className="home-wallet-card">
-            <div className="wallet-row">
-              <span className="wallet-currency">₽</span>
-              <div className="wallet-balance-wrap">
-                <p className="wallet-balance">
-                  {formatCurrency(dashboard?.account.balance ?? 116783)}
-                </p>
-                <small>Black</small>
+        <div className="home-layout">
+          <aside className="home-left-column">
+            <article className="home-wallet-card">
+              <div className="wallet-row">
+                <span className="wallet-currency">₽</span>
+                <div className="wallet-balance-wrap">
+                  <p className="wallet-balance">
+                    {formatCurrency(dashboard?.account.balance ?? 116783)}
+                  </p>
+                  <small>Black</small>
+                </div>
+                <span className="wallet-chip">
+                  <Crown size={11} strokeWidth={2.5} />
+                  <span>601 ₽</span>
+                </span>
               </div>
-              <span className="wallet-chip">601 ₽</span>
-            </div>
 
-            <Link to="/payments" className="wallet-card-link">
-              <div className="wallet-card-preview">
-                <span className="wallet-card-bank">T-Банк</span>
-                <strong>6584 5161 1743 3803</strong>
-                <small>Открыть карту и платежи</small>
-              </div>
-            </Link>
-          </article>
+              <Link to="/payments" className="wallet-card-link">
+                <div className="wallet-card-preview">
+                  <span className="wallet-card-bank">T-Банк</span>
+                  <strong>6584 5161 1743 3803</strong>
+                  <small>Открыть карту и платежи</small>
+                </div>
+              </Link>
+            </article>
 
-          <article className="home-account-card">
-            <span className="account-icon savings">
-              <Lock size={14} strokeWidth={2.4} />
-            </span>
-            <div>
-              <p>9 009,42 ₽</p>
-              <small>Накопительный счет</small>
-            </div>
-            <span className="trend-badge">
-              <TrendingUp size={12} strokeWidth={2.4} />
-              <strong>+7,72 ₽</strong>
-            </span>
-          </article>
-
-          <article className="home-account-card">
-            <span className="account-icon invest">
-              <Sparkles size={14} strokeWidth={2.3} />
-            </span>
-            <div>
-              <p>350 000 ₽</p>
-              <small>Вклад «Стабильный»</small>
-            </div>
-          </article>
-
-          <div className="home-actions">
-            <button
-              type="button"
-              className="action-transfer"
-              onClick={() => openPaymentsByIntent('quick-between')}
-            >
-              Перевод
-            </button>
-            <button
-              type="button"
-              className="action-top-up"
-              onClick={() => openPaymentsByIntent('quick-details')}
-            >
-              Пополнить с другого банка
-            </button>
-          </div>
-        </aside>
-
-        <div className="home-right-column">
-          <article className="panel home-smartdebit-widget">
-            <div className="row-between">
-              <h2>SmartDebit</h2>
-              <span className={dashboard?.enabled ? 'status-badge green' : 'status-badge gray'}>
-                {dashboard?.enabled ? 'Включен' : 'Выключен'}
+            <article className="home-account-card">
+              <span className="account-icon savings">
+                <Lock size={14} strokeWidth={2.4} />
               </span>
+              <div>
+                <p>9 009,42 ₽</p>
+                <small>Накопительный счет</small>
+              </div>
+              <span className="trend-badge">
+                <strong>+7,72 ₽</strong>
+              </span>
+            </article>
+
+            <article className="home-account-card">
+              <span className="account-icon invest">
+                <Sparkles size={14} strokeWidth={2.3} />
+              </span>
+              <div>
+                <p>350 000 ₽</p>
+                <small>Вклад «Стабильный»</small>
+              </div>
+            </article>
+
+            <div className="home-actions">
+              <button
+                type="button"
+                className="action-transfer"
+                onClick={() => openPaymentsByIntent('quick-between')}
+              >
+                Перевод
+              </button>
+              <button
+                type="button"
+                className="action-top-up"
+                onClick={() => openPaymentsByIntent('quick-details')}
+              >
+                Пополнить с другого банка
+              </button>
             </div>
+          </aside>
 
-            <p className="muted">Ближайшие списания на 7 дней</p>
+          <div className="home-right-column">
+            <article className="panel home-smartdebit-widget">
+              <div className="row-between">
+                <h2>SmartDebit</h2>
+                <span className={dashboard?.enabled ? 'status-badge green' : 'status-badge gray'}>
+                  {dashboard?.enabled ? 'Включен' : 'Выключен'}
+                </span>
+              </div>
 
-            <ul className="home-widget-list">
-              {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
-                <li key={payment.id}>
-                  <div>
-                    <p>{payment.title}</p>
-                    <small>{formatDate(payment.nextChargeDate)}</small>
-                  </div>
-                  <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
-                </li>
-              ))}
-            </ul>
+              <p className="muted">Ближайшие списания на 7 дней</p>
 
-            <Link to="/operations/smartdebit" className="widget-link-btn">
-              Открыть SmartDebit
-            </Link>
-          </article>
+              <ul className="home-widget-list">
+                {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
+                  <li key={payment.id}>
+                    <div>
+                      <p>{formatPaymentTitle(payment.title)}</p>
+                      <small>{formatDate(payment.nextChargeDate)}</small>
+                    </div>
+                    <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
+                  </li>
+                ))}
+              </ul>
 
-          <article className="panel home-history-panel">
-            <h2>История операций</h2>
+              <Link to="/operations/smartdebit" className="widget-link-btn">
+                Открыть SmartDebit
+              </Link>
+            </article>
 
-            <ul className="home-history-list">
-              {historyItems.map((item) => (
-                <li key={item.id}>
-                  <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
-                  <div className="history-body">
-                    <p>{item.title}</p>
-                    <small>{item.date}</small>
-                    {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
-                  </div>
-                  <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
-                    {formatCurrency(item.amount, true)}
-                  </strong>
-                </li>
-              ))}
-            </ul>
-          </article>
+            <article className="panel home-history-panel">
+              <h2>История операций</h2>
+
+              <ul className="home-history-list">
+                {historyItems.map((item) => (
+                  <li key={item.id}>
+                    <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
+                    <div className="history-body">
+                      <p>{item.title}</p>
+                      <small>{item.date}</small>
+                      {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
+                    </div>
+                    <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                      {formatCurrency(item.amount, true)}
+                    </strong>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </div>
         </div>
       </div>
     </section>
@@ -1413,7 +1424,7 @@ function SmartDebitDetailsPage({
                     onClick={() => setSelectedPayment(payment)}
                   >
                     <div>
-                      <p>{payment.title}</p>
+                      <p>{formatPaymentTitle(payment.title)}</p>
                       <small>
                         {payment.provider} · {formatDate(payment.nextChargeDate)}
                       </small>
