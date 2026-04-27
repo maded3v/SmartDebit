@@ -245,8 +245,6 @@ const PROFILE_SETTINGS: ProfileSettingItem[] = [
   { id: 'profile-social', icon: HandCoins, label: 'Соцвыплаты', tone: 'blue' },
 ]
 
-type ThemeMode = 'light' | 'dark'
-
 const numberFormatter = new Intl.NumberFormat('ru-RU')
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
@@ -330,13 +328,9 @@ function StatusBadge({
 }
 
 function AppHeader({
-  theme,
-  onToggleTheme,
   notifications,
   profileName,
 }: {
-  theme: ThemeMode
-  onToggleTheme: () => void
   notifications: NotificationItem[]
   profileName: string
 }) {
@@ -468,9 +462,6 @@ function AppHeader({
           ) : null}
         </div>
 
-        <button type="button" className="theme-toggle" onClick={onToggleTheme}>
-          {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
-        </button>
       </div>
 
       <NavLink
@@ -1576,19 +1567,7 @@ function App() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') {
-      return 'light'
-    }
-    const stored = window.localStorage.getItem('smartdebit-theme')
-    return stored === 'dark' ? 'dark' : 'light'
-  })
   const profileName = PROFILE.fullName
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    window.localStorage.setItem('smartdebit-theme', theme)
-  }, [theme])
 
   const refreshDashboard = useCallback(async (silent = false) => {
     if (!silent) {
@@ -1666,14 +1645,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AppHeader
-        theme={theme}
-        onToggleTheme={() => {
-          setTheme((current) => (current === 'light' ? 'dark' : 'light'))
-        }}
-        notifications={dashboard?.notifications ?? []}
-        profileName={profileName}
-      />
+      <AppHeader notifications={dashboard?.notifications ?? []} profileName={profileName} />
 
       <div className="shell">
         <div className="content">
