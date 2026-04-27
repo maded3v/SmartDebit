@@ -14,15 +14,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 18px;
+  flex-wrap: nowrap;
+  gap: 14px;
   border: 0;
   border-bottom: 1px solid #dfe5ee;
   border-radius: 0;
   background: #f6f8fb;
   box-shadow: none;
-  min-height: 0;
-  padding: 6px 18px 0;
+  min-height: 62px;
+  padding: 0 18px;
   margin-bottom: 12px;
 }
 
@@ -52,12 +52,12 @@
   align-items: center;
   gap: 18px;
   overflow-x: auto;
-  order: 4;
-  width: calc(100% + 36px);
-  margin: 6px -18px 0;
-  padding: 0 18px;
-  border-top: 1px solid #dfe5ee;
-  background: #eef3fa;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
 }
 
 .topbar-guest-note {
@@ -71,12 +71,7 @@
 .topbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid #d4ddeb;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #f8fbff 0%, #edf3fb 100%);
-  box-shadow: 0 4px 10px rgba(18, 30, 49, 0.06);
-  padding: 3px;
+  gap: 8px;
 }
 
 .notification-wrap {
@@ -93,14 +88,13 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .notification-btn:hover {
   background: linear-gradient(180deg, #f7fbff 0%, #e7effb 100%);
   border-color: #bcccdf;
   color: #202e42;
-  transform: translateY(-1px);
 }
 
 .notification-dot {
@@ -117,7 +111,7 @@
 .notification-dropdown {
   position: absolute;
   right: 0;
-  top: 42px;
+  top: calc(100% + 8px);
   width: 300px;
   max-width: min(300px, calc(100vw - 24px));
   border: 1px solid #dbe2ed;
@@ -127,7 +121,8 @@
   padding: 10px;
   z-index: 40;
   transform-origin: top right;
-  animation: notificationDropdownIn 0.18s ease;
+  will-change: opacity, transform;
+  animation: notificationDropdownIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .notification-dropdown > p {
@@ -288,16 +283,18 @@
   color: #243147;
   font-size: 14px;
   white-space: nowrap;
-  border: 0;
+  border: 1px solid #d2dbe8;
   border-radius: 999px;
-  padding: 3px 0 3px 4px;
-  background: transparent;
+  padding: 3px 10px 3px 4px;
+  background: linear-gradient(180deg, #ffffff 0%, #edf3fc 100%);
   text-decoration: none;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .topbar-user:hover {
   color: #111720;
+  border-color: #bcccdf;
+  background: linear-gradient(180deg, #f7fbff 0%, #e7effb 100%);
 }
 
 .topbar-nav a:focus-visible,
@@ -2393,15 +2390,9 @@
   box-shadow: none;
 }
 
-:root[data-theme='dark'] .topbar-actions {
-  border-color: #2c3a51;
-  background: linear-gradient(180deg, #162233 0%, #131e2d 100%);
-  box-shadow: none;
-}
-
 :root[data-theme='dark'] .topbar-nav {
-  border-top: 1px solid #273347;
-  background: #131c2a;
+  border-top: 0;
+  background: transparent;
 }
 
 :root[data-theme='dark'] .brand strong {
@@ -2491,18 +2482,6 @@
   color: #91a3bf;
 }
 
-:root[data-theme='dark'] .theme-toggle {
-  border-color: #445875;
-  background: linear-gradient(180deg, #233349 0%, #1b2a3e 100%);
-  color: #d7e1f2;
-}
-
-:root[data-theme='dark'] .theme-toggle:hover {
-  background: linear-gradient(180deg, #2a3d57 0%, #22334b 100%);
-  border-color: #5a7090;
-  color: #edf3ff;
-}
-
 :root[data-theme='dark'] .auth-button {
   border-color: #334156;
   background: #1a2434;
@@ -2552,12 +2531,13 @@
 
 :root[data-theme='dark'] .topbar-user {
   color: #e7edf9;
-  border-color: transparent;
-  background: transparent;
+  border-color: #445875;
+  background: linear-gradient(180deg, #233349 0%, #1b2a3e 100%);
 }
 
 :root[data-theme='dark'] .topbar-user:hover {
-  background: transparent;
+  border-color: #5a7090;
+  background: linear-gradient(180deg, #2a3d57 0%, #22334b 100%);
 }
 
 :root[data-theme='dark'] .topbar-nav a:focus-visible,
@@ -3192,12 +3172,12 @@
 @keyframes notificationDropdownIn {
   from {
     opacity: 0;
-    transform: translateY(-6px) scale(0.98);
+    transform: translateY(-4px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
