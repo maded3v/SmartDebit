@@ -23,6 +23,7 @@ import {
   HandCoins,
   Home,
   Landmark,
+  Lock,
   Mail,
   Phone,
   QrCode,
@@ -30,6 +31,8 @@ import {
   RefreshCw,
   Shield,
   Smartphone,
+  Sparkles,
+  TrendingUp,
   User,
   UserCheck,
   Wifi,
@@ -380,7 +383,7 @@ function AppHeader({
           setIsNotificationOpen(false)
         }}
       >
-        <span className="brand-logo">Т</span>
+        <img src="/favicon-32x32.png" alt="" className="brand-logo" />
         <strong>Банк</strong>
       </Link>
 
@@ -393,7 +396,6 @@ function AppHeader({
             setIsNotificationOpen(false)
           }}
         >
-          <Home size={17} />
           Главная
         </NavLink>
         <NavLink
@@ -404,7 +406,6 @@ function AppHeader({
             setIsNotificationOpen(false)
           }}
         >
-          <ArrowLeftRight size={17} />
           Операции
         </NavLink>
         <NavLink
@@ -414,7 +415,6 @@ function AppHeader({
             setIsNotificationOpen(false)
           }}
         >
-          <Shield size={17} />
           SmartDebit
           <span className="nav-new-chip">NEW</span>
         </NavLink>
@@ -426,20 +426,6 @@ function AppHeader({
             navigate('/payments')
           }}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect width="20" height="14" x="2" y="5" rx="2" />
-            <line x1="2" x2="22" y1="10" y2="10" />
-          </svg>
           Платежи
         </button>
       </nav>
@@ -618,27 +604,26 @@ function HomePage({
                 <small>Открыть карту и платежи</small>
               </div>
             </Link>
-
-            <button
-              type="button"
-              className="wallet-top-up-btn"
-              onClick={() => openPaymentsByIntent('quick-details')}
-            >
-              Пополните из другого банка
-            </button>
           </article>
 
           <article className="home-account-card">
-            <span className="account-icon savings">⌂</span>
+            <span className="account-icon savings">
+              <Lock size={14} strokeWidth={2.4} />
+            </span>
             <div>
               <p>9 009,42 ₽</p>
               <small>Накопительный счет</small>
             </div>
-            <strong className="trend">+7,72 ₽</strong>
+            <span className="trend-badge">
+              <TrendingUp size={12} strokeWidth={2.4} />
+              <strong>+7,72 ₽</strong>
+            </span>
           </article>
 
           <article className="home-account-card">
-            <span className="account-icon invest">✧</span>
+            <span className="account-icon invest">
+              <Sparkles size={14} strokeWidth={2.3} />
+            </span>
             <div>
               <p>350 000 ₽</p>
               <small>Вклад «Стабильный»</small>
@@ -655,10 +640,10 @@ function HomePage({
             </button>
             <button
               type="button"
-              className="action-pay"
-              onClick={() => openPaymentsByIntent('quick-phone')}
+              className="action-top-up"
+              onClick={() => openPaymentsByIntent('quick-details')}
             >
-              Оплатить
+              Пополнить с другого банка
             </button>
           </div>
         </aside>
