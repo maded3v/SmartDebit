@@ -99,8 +99,8 @@
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  border: 1px solid #cad5e6;
-  background: linear-gradient(180deg, #ffffff 0%, #edf3fc 100%);
+  border: 0;
+  background: transparent;
   color: #344359;
   display: grid;
   place-items: center;
@@ -109,8 +109,7 @@
 }
 
 .notification-btn:hover {
-  background: linear-gradient(180deg, #f7fbff 0%, #e7effb 100%);
-  border-color: #bcccdf;
+  background: #e8eef7;
   color: #202e42;
 }
 
@@ -300,18 +299,17 @@
   color: #243147;
   font-size: 14px;
   white-space: nowrap;
-  border: 1px solid #d2dbe8;
+  border: 0;
   border-radius: 999px;
-  padding: 3px 10px 3px 4px;
-  background: linear-gradient(180deg, #ffffff 0%, #edf3fc 100%);
+  padding: 3px 2px 3px 4px;
+  background: transparent;
   text-decoration: none;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .topbar-user:hover {
   color: #111720;
-  border-color: #bcccdf;
-  background: linear-gradient(180deg, #f7fbff 0%, #e7effb 100%);
+  background: #e8eef7;
 }
 
 .topbar-nav a:focus-visible,
@@ -716,13 +714,13 @@
 }
 
 .account-icon.savings {
-  background: #fff2c2;
-  color: #a77d09;
+  background: #66e583;
+  color: #0b7b3d;
 }
 
 .account-icon.invest {
-  background: #d7f6e7;
-  color: #14905d;
+  background: #eceef3;
+  color: #6f7480;
 }
 
 .home-account-card p {
@@ -765,6 +763,10 @@
   border: 0;
   border-radius: 13px;
   padding: 12px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-size: 15px;
   line-height: 1.15;
   font-weight: 600;
@@ -777,14 +779,35 @@
 }
 
 .home-actions .action-top-up {
-  border: 1px solid #c4d0e2;
-  background: linear-gradient(180deg, #edf3fc 0%, #dce6f3 100%);
-  color: #21324c;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  border: 0;
+  background: #e7e9ee;
+  color: #2e3748;
+  box-shadow: none;
 }
 
 .home-actions .action-top-up:hover {
-  background: linear-gradient(180deg, #e6eefb 0%, #d4e0f0 100%);
+  background: #dce1ea;
+}
+
+.home-open-product-btn {
+  border: 1px dashed #d8dee7;
+  border-radius: 14px;
+  background: #fbfcff;
+  color: #59657a;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.home-open-product-btn:hover {
+  border-color: #c8d1df;
+  background: #f4f7fc;
+  color: #3c4b64;
 }
 
 .home-history-panel {
@@ -2466,14 +2489,13 @@
 }
 
 :root[data-theme='dark'] .notification-btn {
-  border-color: #445875;
-  background: linear-gradient(180deg, #233349 0%, #1b2a3e 100%);
+  border: 0;
+  background: transparent;
   color: #d6e0f1;
 }
 
 :root[data-theme='dark'] .notification-btn:hover {
-  background: linear-gradient(180deg, #2a3d57 0%, #22334b 100%);
-  border-color: #5a7090;
+  background: #24364e;
 }
 
 :root[data-theme='dark'] .notification-dot {
@@ -2552,13 +2574,12 @@
 
 :root[data-theme='dark'] .topbar-user {
   color: #e7edf9;
-  border-color: #445875;
-  background: linear-gradient(180deg, #233349 0%, #1b2a3e 100%);
+  border-color: transparent;
+  background: transparent;
 }
 
 :root[data-theme='dark'] .topbar-user:hover {
-  border-color: #5a7090;
-  background: linear-gradient(180deg, #2a3d57 0%, #22334b 100%);
+  background: #24364e;
 }
 
 :root[data-theme='dark'] .topbar-nav a:focus-visible,
@@ -2760,6 +2781,12 @@
   border: 1px solid #314056;
 }
 
+:root[data-theme='dark'] .home-actions .action-top-up {
+  border: 0;
+  background: #2a3444;
+  color: #d6deeb;
+}
+
 :root[data-theme='dark'] .home-actions .action-top-up:hover,
 :root[data-theme='dark'] .filter-row button:hover,
 :root[data-theme='dark'] .ghost:hover,
@@ -2768,6 +2795,22 @@
 :root[data-theme='dark'] .service-pay-btn:hover,
 :root[data-theme='dark'] .profile-action-grid button:hover {
   background: #223046;
+}
+
+:root[data-theme='dark'] .home-actions .action-top-up:hover {
+  background: #344155;
+}
+
+:root[data-theme='dark'] .home-open-product-btn {
+  border-color: #36445b;
+  background: #161f2f;
+  color: #9eb0ca;
+}
+
+:root[data-theme='dark'] .home-open-product-btn:hover {
+  border-color: #4a5b77;
+  background: #1d2a3d;
+  color: #c2d2ea;
 }
 
 :root[data-theme='dark'] .payments-quick-icon,

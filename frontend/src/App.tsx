@@ -17,6 +17,7 @@ import {
   Bell,
   Briefcase,
   Car,
+  CirclePlus,
   ChevronRight,
   Crown,
   FileText,
@@ -24,15 +25,15 @@ import {
   HandCoins,
   Home,
   Landmark,
-  Lock,
   Mail,
+  PiggyBank,
   Phone,
+  Plus,
   QrCode,
   Receipt,
   RefreshCw,
   Shield,
   Smartphone,
-  Sparkles,
   User,
   UserCheck,
   Wifi,
@@ -633,9 +634,28 @@ function HomePage({
             </div>
           </article>
 
+          <div className="home-actions">
+            <button
+              type="button"
+              className="action-transfer"
+              onClick={() => openPaymentsByIntent('quick-between')}
+            >
+              <ArrowLeftRight size={17} />
+              <span>Перевод</span>
+            </button>
+            <button
+              type="button"
+              className="action-top-up"
+              onClick={() => openPaymentsByIntent('quick-details')}
+            >
+              <CirclePlus size={17} />
+              <span>Пополнить</span>
+            </button>
+          </div>
+
           <article className="home-account-card">
             <span className="account-icon savings">
-              <Lock size={14} strokeWidth={2.4} />
+              <PiggyBank size={15} strokeWidth={2.2} />
             </span>
             <div>
               <p>9 009,42 ₽</p>
@@ -648,7 +668,7 @@ function HomePage({
 
           <article className="home-account-card">
             <span className="account-icon invest">
-              <Sparkles size={14} strokeWidth={2.3} />
+              <Landmark size={15} strokeWidth={2.2} />
             </span>
             <div>
               <p>350 000 ₽</p>
@@ -656,22 +676,14 @@ function HomePage({
             </div>
           </article>
 
-          <div className="home-actions">
-            <button
-              type="button"
-              className="action-transfer"
-              onClick={() => openPaymentsByIntent('quick-between')}
-            >
-              Перевод
-            </button>
-            <button
-              type="button"
-              className="action-top-up"
-              onClick={() => openPaymentsByIntent('quick-details')}
-            >
-              Пополнить с другого банка
-            </button>
-          </div>
+          <button
+            type="button"
+            className="home-open-product-btn"
+            onClick={() => toast('У вас уже открыто все, что нужно')}
+          >
+            <Plus size={18} />
+            <span>Открыть новый продукт</span>
+          </button>
         </aside>
 
         <div className="home-right-column">
