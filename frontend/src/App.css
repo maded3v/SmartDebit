@@ -11,7 +11,9 @@
 }
 
 .topbar {
-  width: calc(100% - 32px);
+  position: relative;
+  isolation: isolate;
+  width: 100%;
   max-width: 1160px;
   margin: 0 auto 12px;
   display: flex;
@@ -20,13 +22,25 @@
   flex-wrap: nowrap;
   gap: 14px;
   border: 0;
-  border-bottom: 1px solid #dfe5ee;
   border-radius: 0;
-  background: #f6f8fb;
+  background: transparent;
   box-shadow: none;
   min-height: 62px;
-  padding: 0 18px;
+  padding: 0 16px;
   margin-bottom: 12px;
+}
+
+.topbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  border-bottom: 1px solid #dfe5ee;
+  background: #f6f8fb;
+  z-index: -1;
 }
 
 .brand {
@@ -2388,9 +2402,13 @@
 }
 
 :root[data-theme='dark'] .topbar {
-  border-bottom: 1px solid #273347;
-  background: #0f1622;
+  background: transparent;
   box-shadow: none;
+}
+
+:root[data-theme='dark'] .topbar::before {
+  border-bottom-color: #273347;
+  background: #0f1622;
 }
 
 :root[data-theme='dark'] .topbar-nav {
@@ -3029,7 +3047,8 @@
   }
 
   .topbar {
-    width: calc(100% - 20px);
+    width: 100%;
+    padding: 0 10px;
     flex-wrap: wrap;
   }
 
