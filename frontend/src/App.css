@@ -11,6 +11,9 @@
 }
 
 .topbar {
+  width: calc(100% - 32px);
+  max-width: 1160px;
+  margin: 0 auto 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3026,6 +3029,7 @@
   }
 
   .topbar {
+    width: calc(100% - 20px);
     flex-wrap: wrap;
   }
 
