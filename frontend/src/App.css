@@ -14,14 +14,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 22px;
+  flex-wrap: wrap;
+  gap: 8px 18px;
   border: 0;
   border-bottom: 1px solid #dfe5ee;
   border-radius: 0;
   background: #f6f8fb;
   box-shadow: none;
-  min-height: 62px;
-  padding: 0 18px;
+  min-height: 0;
+  padding: 6px 18px 0;
   margin-bottom: 12px;
 }
 
@@ -51,7 +52,12 @@
   align-items: center;
   gap: 18px;
   overflow-x: auto;
-  padding-bottom: 0;
+  order: 4;
+  width: calc(100% + 36px);
+  margin: 6px -18px 0;
+  padding: 0 18px;
+  border-top: 1px solid #dfe5ee;
+  background: #eef3fa;
 }
 
 .topbar-guest-note {
@@ -66,6 +72,11 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  border: 1px solid #d4ddeb;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fbff 0%, #edf3fb 100%);
+  box-shadow: 0 4px 10px rgba(18, 30, 49, 0.06);
+  padding: 3px;
 }
 
 .notification-wrap {
@@ -73,11 +84,11 @@
 }
 
 .notification-btn {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 9px;
-  border: 1px solid #d2dbe8;
-  background: #f2f5fa;
+  border: 1px solid #cad5e6;
+  background: linear-gradient(180deg, #ffffff 0%, #edf3fc 100%);
   color: #344359;
   display: grid;
   place-items: center;
@@ -86,8 +97,8 @@
 }
 
 .notification-btn:hover {
-  background: #e8eef7;
-  border-color: #c6d2e4;
+  background: linear-gradient(180deg, #f7fbff 0%, #e7effb 100%);
+  border-color: #bcccdf;
   color: #202e42;
   transform: translateY(-1px);
 }
@@ -149,10 +160,10 @@
 }
 
 .theme-toggle {
-  min-height: 32px;
-  border: 1px solid #d2dbe8;
-  background: #f2f5fa;
-  color: #3d4c63;
+  min-height: 30px;
+  border: 1px solid #cad5e6;
+  background: linear-gradient(180deg, #ffffff 0%, #edf3fc 100%);
+  color: #30425c;
   border-radius: 9px;
   padding: 6px 11px;
   font-size: 12px;
@@ -162,8 +173,8 @@
 }
 
 .theme-toggle:hover {
-  background: #e8eef7;
-  border-color: #c6d2e4;
+  background: linear-gradient(180deg, #f7fbff 0%, #e7effb 100%);
+  border-color: #bcccdf;
   color: #202e42;
 }
 
@@ -207,8 +218,8 @@
   text-decoration: none;
   color: #5f6d85;
   border-radius: 0;
-  padding: 20px 0 16px;
-  font-size: 15px;
+  padding: 12px 0 10px;
+  font-size: 14px;
   display: inline-flex;
   align-items: center;
   gap: 0;
@@ -235,6 +246,7 @@
 
 .topbar-nav a:hover {
   color: #111720;
+  border-bottom-color: #b6c1d1;
 }
 
 .topbar-nav a.active {
@@ -247,8 +259,8 @@
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 20px 0 16px;
-  font-size: 15px;
+  padding: 12px 0 10px;
+  font-size: 14px;
   font-weight: 500;
   color: #5f6d85;
   background: transparent;
@@ -261,6 +273,7 @@
 
 .payments-nav-button:hover {
   color: #111720;
+  border-bottom-color: #b6c1d1;
 }
 
 .payments-nav-button.active {
@@ -314,15 +327,6 @@
 }
 
 .home-screen {
-  display: grid;
-  gap: 12px;
-}
-
-.home-top-block {
-  border-radius: 18px;
-  background: linear-gradient(180deg, #e8edf4 0%, #e5ebf3 100%);
-  box-shadow: inset 0 0 0 1px rgba(223, 230, 239, 0.7);
-  padding: 16px;
   display: grid;
   gap: 12px;
 }
@@ -406,6 +410,7 @@
   grid-template-columns: 360px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
+  background: transparent;
 }
 
 .home-left-column {
@@ -567,7 +572,7 @@
   inset: 0;
   border-radius: 13px;
   color: #f3f6ff;
-  padding: 12px 120px 12px 12px;
+  padding: 12px 58px 12px 12px;
   backface-visibility: hidden;
   display: grid;
   align-content: space-between;
@@ -642,22 +647,31 @@
 .wallet-flip-btn {
   position: absolute;
   right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 10px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
   z-index: 3;
   border: 1px solid rgba(210, 220, 236, 0.28);
-  border-radius: 999px;
+  border-radius: 50%;
   background: rgba(12, 17, 25, 0.78);
   color: #d6e3f6;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 6px 10px;
   cursor: pointer;
   backdrop-filter: blur(2px);
 }
 
 .wallet-flip-btn:hover {
   background: rgba(19, 27, 40, 0.9);
+}
+
+.wallet-flip-btn svg {
+  transition: transform 0.25s ease;
+}
+
+.wallet-flip-btn.active svg {
+  transform: rotate(180deg);
 }
 
 .home-account-card {
@@ -748,14 +762,14 @@
   color: #101621;
 }
 
-.action-top-up {
+.home-actions .action-top-up {
   border: 1px solid #c4d0e2;
   background: linear-gradient(180deg, #edf3fc 0%, #dce6f3 100%);
   color: #21324c;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.action-top-up:hover {
+.home-actions .action-top-up:hover {
   background: linear-gradient(180deg, #e6eefb 0%, #d4e0f0 100%);
 }
 
@@ -1503,6 +1517,10 @@
 .payments-page {
   display: grid;
   gap: 16px;
+}
+
+.payments-notice-panel .notice {
+  margin: 0;
 }
 
 .payments-quick-grid {
@@ -2304,6 +2322,12 @@
   border-color: #ccd9eb;
 }
 
+.back-link-button {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .back-link:focus-visible {
   outline: 2px solid #2f69ff;
   outline-offset: 2px;
@@ -2369,6 +2393,17 @@
   box-shadow: none;
 }
 
+:root[data-theme='dark'] .topbar-actions {
+  border-color: #2c3a51;
+  background: linear-gradient(180deg, #162233 0%, #131e2d 100%);
+  box-shadow: none;
+}
+
+:root[data-theme='dark'] .topbar-nav {
+  border-top: 1px solid #273347;
+  background: #131c2a;
+}
+
 :root[data-theme='dark'] .brand strong {
   color: #f0f4ff;
 }
@@ -2385,6 +2420,10 @@
 :root[data-theme='dark'] .topbar-nav a.active {
   background: transparent;
   color: #f5f7ff;
+}
+
+:root[data-theme='dark'] .topbar-nav a:hover {
+  border-bottom-color: #54637b;
 }
 
 :root[data-theme='dark'] .topbar-nav a.active {
@@ -2406,18 +2445,23 @@
   color: #f5f7ff;
 }
 
+:root[data-theme='dark'] .payments-nav-button:hover {
+  border-bottom-color: #54637b;
+}
+
 :root[data-theme='dark'] .payments-nav-button.active {
   border-bottom-color: #f3d448;
 }
 
 :root[data-theme='dark'] .notification-btn {
-  border-color: #334156;
-  background: #1a2434;
+  border-color: #445875;
+  background: linear-gradient(180deg, #233349 0%, #1b2a3e 100%);
   color: #d6e0f1;
 }
 
 :root[data-theme='dark'] .notification-btn:hover {
-  background: #223046;
+  background: linear-gradient(180deg, #2a3d57 0%, #22334b 100%);
+  border-color: #5a7090;
 }
 
 :root[data-theme='dark'] .notification-dot {
@@ -2448,14 +2492,14 @@
 }
 
 :root[data-theme='dark'] .theme-toggle {
-  border-color: #37465d;
-  background: #1a2638;
+  border-color: #445875;
+  background: linear-gradient(180deg, #233349 0%, #1b2a3e 100%);
   color: #d7e1f2;
 }
 
 :root[data-theme='dark'] .theme-toggle:hover {
-  background: #24354d;
-  border-color: #465a76;
+  background: linear-gradient(180deg, #2a3d57 0%, #22334b 100%);
+  border-color: #5a7090;
   color: #edf3ff;
 }
 
@@ -2571,11 +2615,6 @@
   border-color: #3c4b66;
   background: linear-gradient(180deg, #2a3951 0%, #1e2a3d 100%);
   color: #f1d75f;
-}
-
-:root[data-theme='dark'] .home-top-block {
-  background: linear-gradient(180deg, #101826 0%, #0f1723 100%);
-  box-shadow: inset 0 0 0 1px rgba(46, 60, 82, 0.75);
 }
 
 :root[data-theme='dark'] .home-title,
@@ -2707,7 +2746,7 @@
   color: #8e9eb7;
 }
 
-:root[data-theme='dark'] .action-top-up,
+:root[data-theme='dark'] .home-actions .action-top-up,
 :root[data-theme='dark'] .filter-row button,
 :root[data-theme='dark'] .ghost,
 :root[data-theme='dark'] .payments-quick-card,
@@ -2720,7 +2759,7 @@
   border: 1px solid #314056;
 }
 
-:root[data-theme='dark'] .action-top-up:hover,
+:root[data-theme='dark'] .home-actions .action-top-up:hover,
 :root[data-theme='dark'] .filter-row button:hover,
 :root[data-theme='dark'] .ghost:hover,
 :root[data-theme='dark'] .payments-quick-card:hover,
@@ -3004,11 +3043,6 @@
   .shell {
     margin-top: 10px;
     padding: 0 10px;
-  }
-
-  .home-top-block {
-    border-radius: 14px;
-    padding: 12px;
   }
 
   .topbar {
