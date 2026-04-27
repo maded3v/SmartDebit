@@ -583,10 +583,11 @@ function HomePage({
     },
     [navigate],
   )
+  const [isCardBackVisible, setCardBackVisible] = useState(false)
 
   return (
     <section className="home-screen">
-      <div className="home-main-block">
+      <div className="home-top-block">
         <h1 className="home-title">Добрый день, Иван</h1>
         {loading ? <p className="home-note">Загружаем данные...</p> : null}
         {error ? <p className="home-error">{error}</p> : null}
@@ -608,13 +609,35 @@ function HomePage({
                 </span>
               </div>
 
-              <Link to="/payments" className="wallet-card-link">
-                <div className="wallet-card-preview">
-                  <span className="wallet-card-bank">T-Банк</span>
-                  <strong>6584 5161 1743 3803</strong>
-                  <small>Открыть карту и платежи</small>
+              <div className={isCardBackVisible ? 'wallet-card-preview flipped' : 'wallet-card-preview'}>
+                <div className="wallet-card-inner">
+                  <div className="wallet-card-face wallet-card-front">
+                    <span className="wallet-card-bank">T-Банк</span>
+                    <strong>6584 5161 1743 3803</strong>
+                    <Link to="/payments" className="wallet-card-open-link">
+                      Открыть карту и платежи
+                    </Link>
+                  </div>
+
+                  <div className="wallet-card-face wallet-card-back" aria-hidden={!isCardBackVisible}>
+                    <span className="wallet-card-magnetic" />
+                    <div className="wallet-card-back-grid">
+                      <small>Действует до</small>
+                      <small>CVV</small>
+                      <strong>12/28</strong>
+                      <strong>482</strong>
+                    </div>
+                  </div>
                 </div>
-              </Link>
+
+                <button
+                  type="button"
+                  className="wallet-flip-btn"
+                  onClick={() => setCardBackVisible((value) => !value)}
+                >
+                  {isCardBackVisible ? 'Лицевая' : 'Показать CVV'}
+                </button>
+              </div>
             </article>
 
             <article className="home-account-card">
@@ -658,56 +681,54 @@ function HomePage({
             </div>
           </aside>
 
-          <div className="home-right-column">
-            <article className="panel home-smartdebit-widget">
-              <div className="row-between">
-                <h2>SmartDebit</h2>
-                <span className={dashboard?.enabled ? 'status-badge green' : 'status-badge gray'}>
-                  {dashboard?.enabled ? 'Включен' : 'Выключен'}
-                </span>
-              </div>
+          <article className="panel home-smartdebit-widget">
+            <div className="row-between">
+              <h2>SmartDebit</h2>
+              <span className={dashboard?.enabled ? 'status-badge green' : 'status-badge gray'}>
+                {dashboard?.enabled ? 'Включен' : 'Выключен'}
+              </span>
+            </div>
 
-              <p className="muted">Ближайшие списания на 7 дней</p>
+            <p className="muted">Ближайшие списания на 7 дней</p>
 
-              <ul className="home-widget-list">
-                {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
-                  <li key={payment.id}>
-                    <div>
-                      <p>{formatPaymentTitle(payment.title)}</p>
-                      <small>{formatDate(payment.nextChargeDate)}</small>
-                    </div>
-                    <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
-                  </li>
-                ))}
-              </ul>
+            <ul className="home-widget-list">
+              {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
+                <li key={payment.id}>
+                  <div>
+                    <p>{formatPaymentTitle(payment.title)}</p>
+                    <small>{formatDate(payment.nextChargeDate)}</small>
+                  </div>
+                  <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
+                </li>
+              ))}
+            </ul>
 
-              <Link to="/operations/smartdebit" className="widget-link-btn">
-                Открыть SmartDebit
-              </Link>
-            </article>
-
-            <article className="panel home-history-panel">
-              <h2>История операций</h2>
-
-              <ul className="home-history-list">
-                {historyItems.map((item) => (
-                  <li key={item.id}>
-                    <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
-                    <div className="history-body">
-                      <p>{item.title}</p>
-                      <small>{item.date}</small>
-                      {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
-                    </div>
-                    <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
-                      {formatCurrency(item.amount, true)}
-                    </strong>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          </div>
+            <Link to="/operations/smartdebit" className="widget-link-btn">
+              Открыть SmartDebit
+            </Link>
+          </article>
         </div>
       </div>
+
+      <article className="panel home-history-panel">
+        <h2>История операций</h2>
+
+        <ul className="home-history-list">
+          {historyItems.map((item) => (
+            <li key={item.id}>
+              <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
+              <div className="history-body">
+                <p>{item.title}</p>
+                <small>{item.date}</small>
+                {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
+              </div>
+              <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                {formatCurrency(item.amount, true)}
+              </strong>
+            </li>
+          ))}
+        </ul>
+      </article>
     </section>
   )
 }
