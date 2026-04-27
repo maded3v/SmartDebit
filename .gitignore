@@ -53,6 +53,7 @@ temp/
 .agents/
 ref/
 about.pdf
+IDEAS.md
 
 # Generated API schema dumps
 schema.yml
