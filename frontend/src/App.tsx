@@ -413,16 +413,6 @@ function AppHeader({
         >
           Операции
         </NavLink>
-        <NavLink
-          to="/operations/smartdebit"
-          className={isSmartDebitActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          SmartDebit
-          <span className="nav-new-chip">NEW</span>
-        </NavLink>
         <button
           type="button"
           className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
@@ -433,6 +423,16 @@ function AppHeader({
         >
           Платежи
         </button>
+        <NavLink
+          to="/operations/smartdebit"
+          className={isSmartDebitActive ? 'active' : ''}
+          onClick={() => {
+            setIsNotificationOpen(false)
+          }}
+        >
+          SmartDebit
+          <span className="nav-new-chip">NEW</span>
+        </NavLink>
       </nav>
 
       <div className="topbar-actions">
@@ -587,100 +587,103 @@ function HomePage({
 
   return (
     <section className="home-screen">
-      <div className="home-top-block">
-        <h1 className="home-title">Добрый день, Иван</h1>
-        {loading ? <p className="home-note">Загружаем данные...</p> : null}
-        {error ? <p className="home-error">{error}</p> : null}
+      <h1 className="home-title">Добрый день, Иван</h1>
+      {loading ? <p className="home-note">Загружаем данные...</p> : null}
+      {error ? <p className="home-error">{error}</p> : null}
 
-        <div className="home-layout">
-          <aside className="home-left-column">
-            <article className="home-wallet-card">
-              <div className="wallet-row">
-                <span className="wallet-currency">₽</span>
-                <div className="wallet-balance-wrap">
-                  <p className="wallet-balance">
-                    {formatCurrency(dashboard?.account.balance ?? 116783)}
-                  </p>
-                  <small>Black</small>
-                </div>
-                <span className="wallet-chip">
-                  <Crown size={11} strokeWidth={2.5} />
-                  <span>601 ₽</span>
-                </span>
+      <div className="home-layout">
+        <aside className="home-left-column">
+          <article className="home-wallet-card">
+            <div className="wallet-row">
+              <span className="wallet-currency">₽</span>
+              <div className="wallet-balance-wrap">
+                <p className="wallet-balance">
+                  {formatCurrency(dashboard?.account.balance ?? 116783)}
+                </p>
+                <small>Black</small>
               </div>
+              <span className="wallet-chip">
+                <Crown size={11} strokeWidth={2.5} />
+                <span>601 ₽</span>
+              </span>
+            </div>
 
-              <div className={isCardBackVisible ? 'wallet-card-preview flipped' : 'wallet-card-preview'}>
-                <div className="wallet-card-inner">
-                  <div className="wallet-card-face wallet-card-front">
-                    <span className="wallet-card-bank">T-Банк</span>
-                    <strong>6584 5161 1743 3803</strong>
-                    <Link to="/payments" className="wallet-card-open-link">
-                      Открыть карту и платежи
-                    </Link>
-                  </div>
-
-                  <div className="wallet-card-face wallet-card-back" aria-hidden={!isCardBackVisible}>
-                    <span className="wallet-card-magnetic" />
-                    <div className="wallet-card-back-grid">
-                      <small>Действует до</small>
-                      <small>CVV</small>
-                      <strong>12/28</strong>
-                      <strong>482</strong>
-                    </div>
-                  </div>
+            <div className={isCardBackVisible ? 'wallet-card-preview flipped' : 'wallet-card-preview'}>
+              <div className="wallet-card-inner">
+                <div className="wallet-card-face wallet-card-front">
+                  <span className="wallet-card-bank">T-Банк</span>
+                  <strong>6584 5161 1743 3803</strong>
+                  <Link to="/payments" className="wallet-card-open-link">
+                    Открыть карту и платежи
+                  </Link>
                 </div>
 
-                <button
-                  type="button"
-                  className="wallet-flip-btn"
-                  onClick={() => setCardBackVisible((value) => !value)}
-                >
-                  {isCardBackVisible ? 'Лицевая' : 'Показать CVV'}
-                </button>
+                <div className="wallet-card-face wallet-card-back" aria-hidden={!isCardBackVisible}>
+                  <span className="wallet-card-magnetic" />
+                  <div className="wallet-card-back-grid">
+                    <small>Действует до</small>
+                    <small>CVV</small>
+                    <strong>12/28</strong>
+                    <strong>482</strong>
+                  </div>
+                </div>
               </div>
-            </article>
 
-            <article className="home-account-card">
-              <span className="account-icon savings">
-                <Lock size={14} strokeWidth={2.4} />
-              </span>
-              <div>
-                <p>9 009,42 ₽</p>
-                <small>Накопительный счет</small>
-              </div>
-              <span className="trend-badge">
-                <strong>+7,72 ₽</strong>
-              </span>
-            </article>
-
-            <article className="home-account-card">
-              <span className="account-icon invest">
-                <Sparkles size={14} strokeWidth={2.3} />
-              </span>
-              <div>
-                <p>350 000 ₽</p>
-                <small>Вклад «Стабильный»</small>
-              </div>
-            </article>
-
-            <div className="home-actions">
               <button
                 type="button"
-                className="action-transfer"
-                onClick={() => openPaymentsByIntent('quick-between')}
+                className={isCardBackVisible ? 'wallet-flip-btn active' : 'wallet-flip-btn'}
+                onClick={() => setCardBackVisible((value) => !value)}
+                aria-label={
+                  isCardBackVisible ? 'Показать лицевую сторону карты' : 'Показать оборот карты с CVV'
+                }
               >
-                Перевод
-              </button>
-              <button
-                type="button"
-                className="action-top-up"
-                onClick={() => openPaymentsByIntent('quick-details')}
-              >
-                Пополнить с другого банка
+                <RefreshCw size={14} strokeWidth={2.35} />
               </button>
             </div>
-          </aside>
+          </article>
 
+          <article className="home-account-card">
+            <span className="account-icon savings">
+              <Lock size={14} strokeWidth={2.4} />
+            </span>
+            <div>
+              <p>9 009,42 ₽</p>
+              <small>Накопительный счет</small>
+            </div>
+            <span className="trend-badge">
+              <strong>+7,72 ₽</strong>
+            </span>
+          </article>
+
+          <article className="home-account-card">
+            <span className="account-icon invest">
+              <Sparkles size={14} strokeWidth={2.3} />
+            </span>
+            <div>
+              <p>350 000 ₽</p>
+              <small>Вклад «Стабильный»</small>
+            </div>
+          </article>
+
+          <div className="home-actions">
+            <button
+              type="button"
+              className="action-transfer"
+              onClick={() => openPaymentsByIntent('quick-between')}
+            >
+              Перевод
+            </button>
+            <button
+              type="button"
+              className="action-top-up"
+              onClick={() => openPaymentsByIntent('quick-details')}
+            >
+              Пополнить с другого банка
+            </button>
+          </div>
+        </aside>
+
+        <div className="home-right-column">
           <article className="panel home-smartdebit-widget">
             <div className="row-between">
               <h2>SmartDebit</h2>
@@ -707,28 +710,28 @@ function HomePage({
               Открыть SmartDebit
             </Link>
           </article>
+
+          <article className="panel home-history-panel">
+            <h2>История операций</h2>
+
+            <ul className="home-history-list">
+              {historyItems.map((item) => (
+                <li key={item.id}>
+                  <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
+                  <div className="history-body">
+                    <p>{item.title}</p>
+                    <small>{item.date}</small>
+                    {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
+                  </div>
+                  <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                    {formatCurrency(item.amount, true)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </article>
         </div>
       </div>
-
-      <article className="panel home-history-panel">
-        <h2>История операций</h2>
-
-        <ul className="home-history-list">
-          {historyItems.map((item) => (
-            <li key={item.id}>
-              <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
-              <div className="history-body">
-                <p>{item.title}</p>
-                <small>{item.date}</small>
-                {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
-              </div>
-              <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
-                {formatCurrency(item.amount, true)}
-              </strong>
-            </li>
-          ))}
-        </ul>
-      </article>
     </section>
   )
 }
@@ -798,10 +801,6 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
 
   return (
     <section className="payments-page">
-      <h1 className="panel-title">Платежи</h1>
-
-      {payNotice ? <p className="notice">{payNotice}</p> : null}
-
       <div className="payments-quick-grid">
         {PAYMENT_QUICK_ACTIONS.map((action) => {
           const Icon = action.icon
@@ -898,6 +897,12 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
           })}
         </div>
       </article>
+
+      {payNotice ? (
+        <article className="panel card-payments-actions payments-notice-panel">
+          <p className="notice">{payNotice}</p>
+        </article>
+      ) : null}
 
       {selectedFavoritePayment ? (
         <div className="modal-overlay" role="presentation" onClick={closeFavoritePayment}>
@@ -1342,8 +1347,17 @@ function SmartDebitDetailsPage({
   onStatusChange: (paymentId: string, status: PaymentStatus) => Promise<void>
   onAddPayment: (payload: CreatePaymentPayload) => Promise<void>
 }) {
+  const navigate = useNavigate()
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+
+  function handleBackNavigation() {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate('/')
+  }
 
   async function handleChangeStatus(status: PaymentStatus) {
     if (!selectedPayment) {
@@ -1356,10 +1370,10 @@ function SmartDebitDetailsPage({
   return (
     <section className="smartdebit-details-page">
       <header className="smartdebit-head">
-        <Link to="/operations" className="back-link">
+        <button type="button" className="back-link back-link-button" onClick={handleBackNavigation}>
           <span>←</span>
-          Назад к операциям
-        </Link>
+          Назад
+        </button>
         <div className="smartdebit-head-copy">
           <h1 className="smartdebit-head-title">SmartDebit</h1>
           <p className="smartdebit-head-subtitle">
