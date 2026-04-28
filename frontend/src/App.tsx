@@ -582,10 +582,10 @@ function HomePage({
   )
   const [isCardBackVisible, setCardBackVisible] = useState(false)
 
-  async function copyCardData(value: string, label: string) {
+  async function copyCardData(value: string) {
     try {
       await navigator.clipboard.writeText(value)
-      toast.success(`${label} скопирован`)
+      toast.success('Скопировано')
     } catch {
       toast.error('Не удалось скопировать')
     }
@@ -618,19 +618,48 @@ function HomePage({
               <div className="wallet-card-inner">
                 <div className="wallet-card-face wallet-card-front">
                   <span className="wallet-card-bank">T-Банк</span>
-                  <strong>6584 5161 1743 3803</strong>
+                  <button
+                    type="button"
+                    className="wallet-copy-value"
+                    onClick={() => {
+                      void copyCardData('6584516117433803')
+                    }}
+                    aria-label="Скопировать номер карты"
+                  >
+                    <strong>6584 5161 1743 3803</strong>
+                    <Copy size={15} />
+                  </button>
                   <Link to="/payments" className="wallet-card-open-link">
                     Открыть карту и платежи
                   </Link>
                 </div>
 
                 <div className="wallet-card-face wallet-card-back" aria-hidden={!isCardBackVisible}>
-                  <span className="wallet-card-magnetic" />
                   <div className="wallet-card-back-grid">
                     <small>Действует до</small>
                     <small>CVV</small>
-                    <strong>12/28</strong>
-                    <strong>482</strong>
+                    <button
+                      type="button"
+                      className="wallet-copy-value compact"
+                      onClick={() => {
+                        void copyCardData('12/28')
+                      }}
+                      aria-label="Скопировать срок действия"
+                    >
+                      <strong>12/28</strong>
+                      <Copy size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="wallet-copy-value compact"
+                      onClick={() => {
+                        void copyCardData('482')
+                      }}
+                      aria-label="Скопировать CVV"
+                    >
+                      <strong>482</strong>
+                      <Copy size={13} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -698,47 +727,6 @@ function HomePage({
             <Plus size={18} />
             <span>Открыть новый продукт</span>
           </button>
-
-          <article className="home-requisites-card">
-            <div className="row-between">
-              <h3>Реквизиты</h3>
-            </div>
-
-            <div className="requisites-grid">
-              <button
-                type="button"
-                className="requisite-row wide"
-                onClick={() => {
-                  void copyCardData('6584516117433803', 'Номер')
-                }}
-              >
-                <span>6584 5161 1743 3803</span>
-                <Copy size={16} />
-              </button>
-
-              <button
-                type="button"
-                className="requisite-row"
-                onClick={() => {
-                  void copyCardData('12/28', 'Срок')
-                }}
-              >
-                <span>12 / 28</span>
-                <Copy size={15} />
-              </button>
-
-              <button
-                type="button"
-                className="requisite-row"
-                onClick={() => {
-                  void copyCardData('482', 'CVV')
-                }}
-              >
-                <span>482</span>
-                <Copy size={15} />
-              </button>
-            </div>
-          </article>
         </aside>
 
         <div className="home-right-column">
