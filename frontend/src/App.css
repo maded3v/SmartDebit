@@ -93,6 +93,27 @@
 
 .notification-wrap {
   position: relative;
+  padding-bottom: 2px;
+}
+
+.notification-wrap::after,
+.topbar-user::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.notification-wrap:hover::after,
+.notification-wrap.active::after,
+.topbar-user:hover::after,
+.topbar-user.active::after {
+  background: #ffdd2d;
 }
 
 .notification-btn {
@@ -293,6 +314,7 @@
 }
 
 .topbar-user {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -328,8 +350,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #d0d9e8;
-  background: linear-gradient(180deg, #eff3fa 0%, #dce5f3 100%);
+  border: 0;
+  background: transparent;
   color: #42526a;
 }
 
@@ -595,13 +617,15 @@
 
 .wallet-card-front {
   background:
-    radial-gradient(circle at 78% 20%, rgba(116, 140, 188, 0.16), transparent 44%),
-    linear-gradient(135deg, #050608 0%, #0c1016 58%, #171d28 100%);
+    linear-gradient(135deg, rgba(5, 8, 12, 0.72) 0%, rgba(8, 12, 19, 0.58) 100%),
+    url('/icons/card.png') center / cover no-repeat;
 }
 
 .wallet-card-back {
   transform: rotateY(180deg);
-  background: linear-gradient(145deg, #040508 0%, #0d1118 60%, #181f2b 100%);
+  background:
+    linear-gradient(145deg, rgba(5, 8, 12, 0.78) 0%, rgba(10, 15, 24, 0.62) 100%),
+    url('/icons/card_back.png') center / cover no-repeat;
 }
 
 .wallet-card-bank {
@@ -808,6 +832,50 @@
   border-color: #c8d1df;
   background: #f4f7fc;
   color: #3c4b64;
+}
+
+.home-requisites-card {
+  border: 0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 6px 15px rgba(18, 27, 44, 0.05);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.home-requisites-card h3 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.requisites-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.requisite-row {
+  border: 0;
+  border-radius: 10px;
+  background: #f3f6fb;
+  color: #3d4d67;
+  min-height: 48px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.requisite-row.wide {
+  grid-column: span 2;
+}
+
+.requisite-row:hover {
+  background: #eaf0f8;
 }
 
 .home-history-panel {
