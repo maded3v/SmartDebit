@@ -881,6 +881,11 @@
   font-weight: 700;
 }
 
+.history-icon.has-logo {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #e0e7f2;
+}
+
 .history-icon.green {
   background: #d8f6e7;
   color: #128654;
@@ -1242,6 +1247,18 @@
   background: #0f1726;
   border-color: #0f1726;
   color: #ffffff;
+}
+
+.operation-icon.has-logo {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #dbe3ef;
+}
+
+.merchant-logo {
+  width: 20px;
+  height: 20px;
+  display: block;
+  object-fit: contain;
 }
 
 .operations-empty {
