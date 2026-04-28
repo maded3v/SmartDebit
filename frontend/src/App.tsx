@@ -342,6 +342,7 @@ function AppHeader({
   const isOperationsActive =
     location.pathname.startsWith('/operations') && !location.pathname.includes('/smartdebit')
   const isSmartDebitActive = location.pathname.includes('/smartdebit')
+  const isProfileActive = location.pathname.startsWith('/profile')
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const notificationWrapRef = useRef<HTMLDivElement | null>(null)
@@ -431,7 +432,10 @@ function AppHeader({
       </nav>
 
       <div className="topbar-actions">
-        <div className="notification-wrap" ref={notificationWrapRef}>
+        <div
+          className={isNotificationOpen ? 'notification-wrap active' : 'notification-wrap'}
+          ref={notificationWrapRef}
+        >
           <button
             type="button"
             className="notification-btn"
@@ -467,7 +471,7 @@ function AppHeader({
 
       <NavLink
         to="/profile"
-        className="topbar-user"
+        className={isProfileActive ? 'topbar-user active' : 'topbar-user'}
         onClick={() => {
           setIsNotificationOpen(false)
         }}
