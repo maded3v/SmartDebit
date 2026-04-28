@@ -162,6 +162,18 @@ const PROFILE = {
   city: 'Москва',
 }
 
+const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
+  { match: /зарплат|salary|acme/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
+  { match: /самокат|samokat/i, src: '/icons/brands/samokat.svg', alt: 'Самокат' },
+  { match: /wildberries/i, src: '/icons/brands/wildberries.svg', alt: 'Wildberries' },
+  { match: /ozon/i, src: '/icons/brands/ozon.svg', alt: 'Ozon' },
+  { match: /яндекс|yandex/i, src: '/icons/brands/yandex.svg', alt: 'Яндекс' },
+  { match: /kion/i, src: '/icons/brands/kion.svg', alt: 'KION' },
+  { match: /start/i, src: '/icons/brands/start.svg', alt: 'START' },
+  { match: /магнит|magnit/i, src: '/icons/brands/magnit.svg', alt: 'Магнит' },
+  { match: /сбер|sber|ипотек/i, src: '/icons/brands/sber.svg', alt: 'Сбербанк' },
+]
+
 const PAYMENT_QUICK_ACTIONS: PaymentQuickActionEntry[] = [
   { id: 'quick-phone', label: 'По номеру телефона', icon: Phone },
   { id: 'quick-details', label: 'По реквизитам', icon: FileText },
@@ -279,6 +291,15 @@ function getOperationIcon(title: string) {
     return 'O'
   }
   return normalized.slice(0, 1).toUpperCase()
+}
+
+function resolveMerchantLogo(...parts: string[]) {
+  const value = parts.join(' ').trim()
+  if (!value) {
+    return null
+  }
+
+  return MERCHANT_LOGOS.find((merchant) => merchant.match.test(value)) ?? null
 }
 
 function formatPaymentTitle(title: string) {
@@ -761,19 +782,29 @@ function HomePage({
             <h2>История операций</h2>
 
             <ul className="home-history-list">
-              {historyItems.map((item) => (
-                <li key={item.id}>
-                  <span className={`history-icon ${item.iconTone}`}>{item.icon}</span>
-                  <div className="history-body">
-                    <p>{item.title}</p>
-                    <small>{item.date}</small>
-                    {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
-                  </div>
-                  <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
-                    {formatCurrency(item.amount, true)}
-                  </strong>
-                </li>
-              ))}
+              {historyItems.map((item) => {
+                const merchantLogo = resolveMerchantLogo(item.title)
+
+                return (
+                  <li key={item.id}>
+                    <span className={`history-icon ${item.iconTone}${merchantLogo ? ' has-logo' : ''}`}>
+                      {merchantLogo ? (
+                        <img src={merchantLogo.src} alt={merchantLogo.alt} className="merchant-logo" />
+                      ) : (
+                        item.icon
+                      )}
+                    </span>
+                    <div className="history-body">
+                      <p>{item.title}</p>
+                      <small>{item.date}</small>
+                      {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
+                    </div>
+                    <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                      {formatCurrency(item.amount, true)}
+                    </strong>
+                  </li>
+                )
+              })}
             </ul>
           </article>
         </div>
@@ -1338,33 +1369,41 @@ function OperationsPage({
 
             {filteredOperations.length ? (
               <ul className="operation-list">
-                {filteredOperations.map((operation) => (
-                  <li key={operation.id}>
-                    <span className={`operation-icon ${operation.tone}`}>
-                      {getOperationIcon(operation.title)}
-                    </span>
-                    <div className="operation-body">
-                      <p>{operation.title}</p>
-                      <small>
-                        {operation.subtitle} · {operation.dateLabel}
-                      </small>
-                      {operation.smartTag ? (
-                        <small
-                          className={
-                            operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
-                          }
-                        >
-                          {operation.smartTag}
+                {filteredOperations.map((operation) => {
+                  const merchantLogo = resolveMerchantLogo(operation.title, operation.subtitle)
+
+                  return (
+                    <li key={operation.id}>
+                      <span className={`operation-icon ${operation.tone}${merchantLogo ? ' has-logo' : ''}`}>
+                        {merchantLogo ? (
+                          <img src={merchantLogo.src} alt={merchantLogo.alt} className="merchant-logo" />
+                        ) : (
+                          getOperationIcon(operation.title)
+                        )}
+                      </span>
+                      <div className="operation-body">
+                        <p>{operation.title}</p>
+                        <small>
+                          {operation.subtitle} · {operation.dateLabel}
                         </small>
-                      ) : null}
-                    </div>
-                    <strong
-                      className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
-                    >
-                      {formatCurrency(operation.amount, true)}
-                    </strong>
-                  </li>
-                ))}
+                        {operation.smartTag ? (
+                          <small
+                            className={
+                              operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
+                            }
+                          >
+                            {operation.smartTag}
+                          </small>
+                        ) : null}
+                      </div>
+                      <strong
+                        className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
+                      >
+                        {formatCurrency(operation.amount, true)}
+                      </strong>
+                    </li>
+                  )
+                })}
               </ul>
             ) : (
               <p className="operations-empty">По выбранному фильтру операций пока нет.</p>
