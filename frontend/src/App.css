@@ -3056,6 +3056,361 @@
   color: #ffe066;
 }
 
+/* Premium UI redesign: global consistency across all pages */
+:root {
+  --ui-surface-1: #ffffff;
+  --ui-surface-2: #f7f9fc;
+  --ui-surface-3: #f1f5fa;
+  --ui-stroke-soft: #e2e8f1;
+  --ui-stroke-strong: #d3dce8;
+  --ui-text-1: #0f1726;
+  --ui-text-2: #5f6f86;
+  --ui-accent: #ffdd2d;
+  --ui-accent-soft: #fff4bd;
+  --ui-shadow-soft: 0 10px 26px rgba(15, 23, 37, 0.06);
+  --ui-shadow-hover: 0 14px 30px rgba(15, 23, 37, 0.1);
+}
+
+:root[data-theme='dark'] {
+  --ui-surface-1: #111b2a;
+  --ui-surface-2: #172335;
+  --ui-surface-3: #1b2a3f;
+  --ui-stroke-soft: #2f3f56;
+  --ui-stroke-strong: #3a4d68;
+  --ui-text-1: #edf2ff;
+  --ui-text-2: #97a8c3;
+  --ui-accent: #f3d448;
+  --ui-accent-soft: #2d3442;
+  --ui-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.34);
+  --ui-shadow-hover: 0 16px 34px rgba(0, 0, 0, 0.42);
+}
+
+.content {
+  gap: 18px;
+}
+
+.panel,
+.home-wallet-card,
+.home-account-card,
+.home-history-panel {
+  border: 1px solid var(--ui-stroke-soft);
+  background: linear-gradient(180deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+  box-shadow: var(--ui-shadow-soft);
+}
+
+.panel:hover,
+.payment-item:hover,
+.service-pay-btn:hover,
+.payments-quick-card:hover {
+  box-shadow: var(--ui-shadow-hover);
+}
+
+.panel h2,
+.panel h3,
+.home-title,
+.profile-page-title,
+.profile-name {
+  color: var(--ui-text-1);
+}
+
+.muted,
+.subtitle,
+.wallet-balance-wrap small,
+.history-body small,
+.operation-body small,
+.payment-item small,
+.favorite-payment-content small,
+.smartdebit-strip-body small,
+.smartdebit-head-subtitle {
+  color: var(--ui-text-2);
+}
+
+.home-layout {
+  gap: 18px;
+}
+
+.home-right-column {
+  gap: 16px;
+}
+
+.home-smartdebit-widget,
+.home-history-panel {
+  padding: 18px;
+}
+
+.home-smartdebit-widget .row-between h2,
+.home-history-panel h2 {
+  font-size: 23px;
+  letter-spacing: -0.015em;
+}
+
+.home-widget-list {
+  margin-top: 2px;
+  gap: 9px;
+}
+
+.home-widget-list li {
+  border: 1px solid var(--ui-stroke-soft);
+  background: var(--ui-surface-3);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.home-widget-list p {
+  font-size: 15px;
+}
+
+.widget-link-btn {
+  border: 1px solid var(--ui-stroke-soft);
+  background: var(--ui-surface-1);
+  color: #263550;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.widget-link-btn:hover {
+  border-color: var(--ui-stroke-strong);
+  background: var(--ui-surface-3);
+}
+
+.home-history-list {
+  margin-top: 14px;
+}
+
+.home-history-list li {
+  gap: 12px;
+  border-bottom-color: var(--ui-stroke-soft);
+  padding: 11px 0;
+}
+
+.history-body p {
+  font-size: 15px;
+  letter-spacing: -0.005em;
+}
+
+.history-icon.has-logo,
+.operation-icon.has-logo {
+  border: 1px solid var(--ui-stroke-soft);
+}
+
+.merchant-logo {
+  width: 21px;
+  height: 21px;
+}
+
+.operation-list li {
+  border-bottom-color: var(--ui-stroke-soft);
+  padding-bottom: 12px;
+}
+
+.operation-body p {
+  font-size: 15px;
+}
+
+.payments-page {
+  gap: 18px;
+}
+
+.payments-quick-grid {
+  gap: 12px;
+}
+
+.payments-quick-card {
+  border-color: var(--ui-stroke-soft);
+  background: linear-gradient(180deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+  border-radius: 18px;
+  padding: 15px 11px;
+}
+
+.payments-quick-card.active {
+  border-color: #f4d55f;
+  background: linear-gradient(180deg, #fffbe4 0%, #fff4bd 100%);
+  transform: translateY(-2px);
+}
+
+.payments-quick-icon,
+.favorite-payment-icon,
+.service-pay-icon {
+  background: var(--ui-surface-3);
+  border: 1px solid var(--ui-stroke-soft);
+}
+
+.favorite-payments-list,
+.payments-autopay-panel .card-payments-list {
+  border-color: var(--ui-stroke-soft);
+  border-radius: 16px;
+}
+
+.favorite-payments-list li,
+.payments-autopay-panel .card-payments-list li {
+  border-top-color: var(--ui-stroke-soft);
+  background: transparent;
+}
+
+.favorite-pay-btn,
+.primary {
+  border-radius: 12px;
+  border: 1px solid #f0cf4d;
+}
+
+.service-pay-btn,
+.payment-item,
+.card-payments-list li,
+.profile-action-grid button,
+.profile-settings-card,
+.profile-settings-row,
+.smartdebit-head,
+.smartdebit-strip,
+.back-link {
+  border-color: var(--ui-stroke-soft);
+}
+
+.service-pay-btn,
+.payment-item,
+.profile-action-grid button,
+.back-link {
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+}
+
+.service-pay-btn > svg:last-child,
+.profile-settings-chevron {
+  color: #8a9ab0;
+}
+
+.smartdebit-head,
+.smartdebit-strip {
+  background: linear-gradient(120deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+  border-radius: 16px;
+}
+
+.smartdebit-head {
+  padding: 14px 16px;
+}
+
+.smartdebit-head-title {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.smartdebit-strip {
+  padding: 14px 16px;
+}
+
+.smartdebit-strip-body strong {
+  font-size: 16px;
+}
+
+.smartdebit-strip-body p {
+  color: var(--ui-text-2);
+}
+
+.smartdebit-strip-action {
+  color: #2b3850;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.profile-pro-banner {
+  border: 1px solid #e6d58a;
+  border-radius: 18px;
+  background: linear-gradient(106deg, #fff7c8 0%, #ffe67b 42%, #ffd948 100%);
+}
+
+.profile-pro-button {
+  border-radius: 11px;
+  border: 1px solid rgba(19, 27, 39, 0.14);
+}
+
+.profile-settings-card {
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+}
+
+.profile-settings-row {
+  border-top-color: var(--ui-stroke-soft);
+  min-height: 60px;
+}
+
+.profile-settings-row:hover {
+  background: var(--ui-surface-3);
+}
+
+.form-grid input,
+.form-grid select,
+.favorite-pay-form input {
+  border-color: var(--ui-stroke-strong);
+  border-radius: 11px;
+  background: var(--ui-surface-1);
+}
+
+:root[data-theme='dark'] .panel,
+:root[data-theme='dark'] .home-wallet-card,
+:root[data-theme='dark'] .home-account-card,
+:root[data-theme='dark'] .home-history-panel,
+:root[data-theme='dark'] .payment-item,
+:root[data-theme='dark'] .mini-panel,
+:root[data-theme='dark'] .onboard-box,
+:root[data-theme='dark'] .danger-box,
+:root[data-theme='dark'] .modal-window {
+  border: 1px solid var(--ui-stroke-soft);
+  background: linear-gradient(180deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+  box-shadow: var(--ui-shadow-soft);
+}
+
+:root[data-theme='dark'] .panel:hover,
+:root[data-theme='dark'] .payment-item:hover,
+:root[data-theme='dark'] .service-pay-btn:hover,
+:root[data-theme='dark'] .payments-quick-card:hover {
+  background: linear-gradient(180deg, #152135 0%, #1a2940 100%);
+}
+
+:root[data-theme='dark'] .widget-link-btn,
+:root[data-theme='dark'] .service-pay-btn,
+:root[data-theme='dark'] .payment-item,
+:root[data-theme='dark'] .profile-action-grid button,
+:root[data-theme='dark'] .back-link,
+:root[data-theme='dark'] .smartdebit-head,
+:root[data-theme='dark'] .smartdebit-strip {
+  border-color: var(--ui-stroke-soft);
+  background: linear-gradient(180deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+}
+
+:root[data-theme='dark'] .payments-quick-card {
+  border-color: var(--ui-stroke-soft);
+  background: linear-gradient(180deg, var(--ui-surface-1) 0%, var(--ui-surface-2) 100%);
+}
+
+:root[data-theme='dark'] .payments-quick-card.active {
+  border-color: var(--ui-accent);
+  background: linear-gradient(180deg, #2a364a 0%, #303f56 100%);
+}
+
+:root[data-theme='dark'] .payments-quick-card.active .payments-quick-icon {
+  background: #3a4a61;
+  color: #ffe481;
+}
+
+:root[data-theme='dark'] .smartdebit-strip-action {
+  color: #ffe481;
+}
+
+:root[data-theme='dark'] .profile-pro-banner {
+  border-color: #6b6036;
+  background: linear-gradient(105deg, #584c22 0%, #8a7424 44%, #b8952f 100%);
+}
+
+:root[data-theme='dark'] .profile-pro-title,
+:root[data-theme='dark'] .profile-pro-subtitle {
+  color: #fef8e8;
+}
+
+:root[data-theme='dark'] .history-icon.has-logo,
+:root[data-theme='dark'] .operation-icon.has-logo {
+  border-color: var(--ui-stroke-strong);
+}
+
 @media (min-width: 900px) {
   .profile-layout {
     flex-direction: row;
