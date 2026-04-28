@@ -126,12 +126,7 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.notification-btn:hover {
-  background: #e8eef7;
-  color: #202e42;
+  transition: color 0.2s ease;
 }
 
 .notification-dot {
@@ -326,12 +321,7 @@
   padding: 3px 2px 3px 4px;
   background: transparent;
   text-decoration: none;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.topbar-user:hover {
-  color: #111720;
-  background: #e8eef7;
+  transition: color 0.2s ease;
 }
 
 .topbar-nav a:focus-visible,
@@ -587,7 +577,7 @@
   overflow: hidden;
   border-radius: 13px;
   perspective: 1200px;
-  min-height: 108px;
+  min-height: 122px;
 }
 
 .wallet-card-inner {
@@ -606,7 +596,7 @@
   inset: 0;
   border-radius: 13px;
   color: #f3f6ff;
-  padding: 12px 58px 12px 12px;
+  padding: 14px 58px 14px 12px;
   backface-visibility: hidden;
   display: grid;
   align-content: space-between;
@@ -649,15 +639,6 @@
   color: #d6e3f6;
 }
 
-.wallet-card-magnetic {
-  display: block;
-  width: 100%;
-  height: 24px;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #202835 0%, #151b26 100%);
-  margin-top: 2px;
-}
-
 .wallet-card-back-grid {
   margin-top: auto;
   display: grid;
@@ -678,6 +659,31 @@
   color: #ecf3ff;
   font-size: 13px;
   font-weight: 700;
+}
+
+.wallet-copy-value {
+  width: fit-content;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.wallet-copy-value.compact {
+  justify-self: start;
+}
+
+.wallet-copy-value svg {
+  color: #c8d3e6;
+}
+
+.wallet-copy-value:hover svg {
+  color: #eff5ff;
 }
 
 .wallet-flip-btn {
@@ -832,50 +838,6 @@
   border-color: #c8d1df;
   background: #f4f7fc;
   color: #3c4b64;
-}
-
-.home-requisites-card {
-  border: 0;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 6px 15px rgba(18, 27, 44, 0.05);
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.home-requisites-card h3 {
-  margin: 0;
-  font-size: 32px;
-}
-
-.requisites-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.requisite-row {
-  border: 0;
-  border-radius: 10px;
-  background: #f3f6fb;
-  color: #3d4d67;
-  min-height: 48px;
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 19px;
-  cursor: pointer;
-}
-
-.requisite-row.wide {
-  grid-column: span 2;
-}
-
-.requisite-row:hover {
-  background: #eaf0f8;
 }
 
 .home-history-panel {
@@ -2562,10 +2524,6 @@
   color: #d6e0f1;
 }
 
-:root[data-theme='dark'] .notification-btn:hover {
-  background: #24364e;
-}
-
 :root[data-theme='dark'] .notification-dot {
   border-color: #1a2434;
 }
@@ -2644,10 +2602,6 @@
   color: #e7edf9;
   border-color: transparent;
   background: transparent;
-}
-
-:root[data-theme='dark'] .topbar-user:hover {
-  background: #24364e;
 }
 
 :root[data-theme='dark'] .topbar-nav a:focus-visible,
