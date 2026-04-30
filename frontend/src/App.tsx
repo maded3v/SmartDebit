@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   BrowserRouter,
   Link,
-  NavLink,
   Navigate,
   Route,
   Routes,
@@ -14,7 +13,6 @@ import './App.css'
 import type { FormEvent } from 'react'
 import {
   ArrowLeftRight,
-  Bell,
   Briefcase,
   Car,
   Copy,
@@ -43,11 +41,11 @@ import {
 import type {
   CreatePaymentPayload,
   DashboardPayload,
-  NotificationItem,
   Payment,
   PaymentStatus,
 } from './types'
 import toast from 'react-hot-toast'
+import { AppHeader } from './components/AppHeader'
 
 type StatusTone = 'green' | 'yellow' | 'red' | 'gray'
 
@@ -348,163 +346,6 @@ function StatusBadge({
   label: string
 }) {
   return <span className={`status-badge ${STATUS_TONE[status]}`}>{label}</span>
-}
-
-function AppHeader({
-  notifications,
-  profileName,
-}: {
-  notifications: NotificationItem[]
-  profileName: string
-}) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const isPaymentsActive = location.pathname.startsWith('/payments')
-  const isHomeActive = location.pathname === '/'
-  const isOperationsActive =
-    location.pathname.startsWith('/operations') && !location.pathname.includes('/smartdebit')
-  const isSmartDebitActive = location.pathname.includes('/smartdebit')
-  const isProfileActive = location.pathname.startsWith('/profile')
-
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
-  const notificationWrapRef = useRef<HTMLDivElement | null>(null)
-  const unreadNotifications = notifications.slice(0, 4)
-
-  useEffect(() => {
-    if (!isNotificationOpen) {
-      return
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      if (notificationWrapRef.current?.contains(event.target as Node)) {
-        return
-      }
-      setIsNotificationOpen(false)
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsNotificationOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isNotificationOpen])
-
-  return (
-    <header className="topbar">
-      <Link
-        to="/"
-        className="brand"
-        onClick={() => {
-          setIsNotificationOpen(false)
-        }}
-      >
-        <img src="/favicon-32x32.png" alt="" className="brand-logo" />
-        <strong>Банк</strong>
-      </Link>
-
-      <nav className="topbar-nav" aria-label="Основная навигация">
-        <NavLink
-          to="/"
-          end
-          className={isHomeActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          Главная
-        </NavLink>
-        <NavLink
-          to="/operations"
-          end
-          className={isOperationsActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          Операции
-        </NavLink>
-        <button
-          type="button"
-          className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
-          onClick={() => {
-            setIsNotificationOpen(false)
-            navigate('/payments')
-          }}
-        >
-          Платежи
-        </button>
-        <NavLink
-          to="/operations/smartdebit"
-          className={isSmartDebitActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          SmartDebit
-          <span className="nav-new-chip">NEW</span>
-        </NavLink>
-      </nav>
-
-      <div className="topbar-actions">
-        <div
-          className={isNotificationOpen ? 'notification-wrap active' : 'notification-wrap'}
-          ref={notificationWrapRef}
-        >
-          <button
-            type="button"
-            className="notification-btn"
-            onClick={() => setIsNotificationOpen((value) => !value)}
-            aria-label="Уведомления"
-            aria-expanded={isNotificationOpen}
-            aria-controls="notifications-dropdown"
-          >
-            <Bell size={19} />
-            {unreadNotifications.length ? <span className="notification-dot" /> : null}
-          </button>
-
-          {isNotificationOpen ? (
-            <div className="notification-dropdown" id="notifications-dropdown">
-              <p>Уведомления</p>
-              {unreadNotifications.length ? (
-                unreadNotifications.map((notification) => (
-                  <div key={notification.id} className="notification-item">
-                    <strong>{notification.title}</strong>
-                    <small>{notification.subtitle}</small>
-                  </div>
-                ))
-              ) : (
-                <div className="notification-item">
-                  <strong>Новых уведомлений нет</strong>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
-
-      </div>
-
-      <NavLink
-        to="/profile"
-        className={isProfileActive ? 'topbar-user active' : 'topbar-user'}
-        onClick={() => {
-          setIsNotificationOpen(false)
-        }}
-      >
-        <span className="user-avatar" aria-hidden="true">
-          <User size={13} strokeWidth={2.3} />
-        </span>
-        <span>{profileName}</span>
-      </NavLink>
-    </header>
-  )
 }
 
 function HomePage({

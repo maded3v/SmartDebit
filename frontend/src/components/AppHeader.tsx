@@ -1,14 +1,60 @@
-import { useRef, useState, useEffect } from 'react'
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Bell, Home, Shield, ArrowLeftRight } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import {
+  ArrowLeftRight,
+  Bell,
+  BellOff,
+  Check,
+  CreditCard,
+  Home,
+  Menu,
+  Shield,
+  User,
+  X,
+} from 'lucide-react'
 import type { NotificationItem } from '../types'
 
 interface AppHeaderProps {
-  theme: 'light' | 'dark'
-  onToggleTheme: () => void
   notifications: NotificationItem[]
   profileName: string
 }
+
+interface NavEntry {
+  to: string
+  label: string
+  icon: typeof Home
+  match: (pathname: string) => boolean
+  newChip?: boolean
+}
+
+const NAV_ITEMS: NavEntry[] = [
+  {
+    to: '/',
+    label: 'Главная',
+    icon: Home,
+    match: (pathname) => pathname === '/',
+  },
+  {
+    to: '/operations',
+    label: 'Операции',
+    icon: ArrowLeftRight,
+    match: (pathname) =>
+      pathname.startsWith('/operations') && !pathname.includes('/smartdebit'),
+  },
+  {
+    to: '/payments',
+    label: 'Платежи',
+    icon: CreditCard,
+    match: (pathname) => pathname.startsWith('/payments'),
+  },
+  {
+    to: '/operations/smartdebit',
+    label: 'SmartDebit',
+    icon: Shield,
+    match: (pathname) => pathname.includes('/smartdebit'),
+    newChip: true,
+  },
+]
 
 function getNameInitial(fullName: string) {
   const normalized = fullName.trim()
@@ -18,24 +64,23 @@ function getNameInitial(fullName: string) {
   return normalized.slice(0, 1).toUpperCase()
 }
 
-export function AppHeader({
-  theme,
-  onToggleTheme,
-  notifications,
-  profileName,
-}: AppHeaderProps) {
+export function AppHeader({ notifications, profileName }: AppHeaderProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const isPaymentsActive = location.pathname.startsWith('/payments')
-  const isHomeActive = location.pathname === '/'
-  const isOperationsActive =
-    location.pathname.startsWith('/operations') && !location.pathname.includes('/smartdebit')
-  const isSmartDebitActive = location.pathname.includes('/smartdebit')
+  const isProfileActive = location.pathname.startsWith('/profile')
+  const profileInitial = getNameInitial(profileName)
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [readIds, setReadIds] = useState<Set<string>>(() => new Set())
+
   const notificationWrapRef = useRef<HTMLDivElement | null>(null)
-  const unreadNotifications = notifications.slice(0, 4)
-  const profileInitial = getNameInitial(profileName)
+
+  const visibleNotifications = useMemo(() => notifications.slice(0, 6), [notifications])
+  const unreadCount = useMemo(
+    () => visibleNotifications.filter((item) => !readIds.has(item.id)).length,
+    [visibleNotifications, readIds],
+  )
 
   useEffect(() => {
     if (!isNotificationOpen) {
@@ -64,127 +109,252 @@ export function AppHeader({
     }
   }, [isNotificationOpen])
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false)
+      }
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isMobileMenuOpen])
+
+  function handleMarkAllAsRead() {
+    setReadIds(new Set(visibleNotifications.map((item) => item.id)))
+  }
+
+  function handleMarkAsRead(id: string) {
+    setReadIds((current) => {
+      if (current.has(id)) {
+        return current
+      }
+      const next = new Set(current)
+      next.add(id)
+      return next
+    })
+  }
+
   return (
     <header className="topbar">
-      <Link
-        to="/"
-        className="brand"
-        onClick={() => {
-          setIsNotificationOpen(false)
-        }}
+      <button
+        type="button"
+        className="topbar-burger"
+        onClick={() => setIsMobileMenuOpen(true)}
+        aria-label="Открыть меню"
+        aria-expanded={isMobileMenuOpen}
       >
-        <span className="brand-logo">Т</span>
+        <Menu size={20} />
+      </button>
+
+      <Link to="/" className="brand">
+        <img src="/favicon-32x32.png" alt="" className="brand-logo" />
         <strong>Банк</strong>
       </Link>
 
       <nav className="topbar-nav" aria-label="Основная навигация">
-        <NavLink
-          to="/"
-          end
-          className={isHomeActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          <Home size={17} />
-          Главная
-        </NavLink>
-        <NavLink
-          to="/operations"
-          end
-          className={isOperationsActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          <ArrowLeftRight size={17} />
-          Операции
-        </NavLink>
-        <NavLink
-          to="/operations/smartdebit"
-          className={isSmartDebitActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          <Shield size={17} />
-          SmartDebit
-          <span className="nav-new-chip">NEW</span>
-        </NavLink>
-        <button
-          type="button"
-          className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
-          onClick={() => {
-            setIsNotificationOpen(false)
-            navigate('/payments')
-          }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect width="20" height="14" x="2" y="5" rx="2" />
-            <line x1="2" x2="22" y1="10" y2="10" />
-          </svg>
-          Платежи
-        </button>
+        {NAV_ITEMS.map((item) => {
+          const isActive = item.match(location.pathname)
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/' || item.to === '/operations'}
+              className={isActive ? 'active' : ''}
+              onClick={() => setIsNotificationOpen(false)}
+            >
+              {item.label}
+              {item.newChip ? <span className="nav-new-chip">NEW</span> : null}
+            </NavLink>
+          )
+        })}
       </nav>
 
       <div className="topbar-actions">
-        <div className="notification-wrap" ref={notificationWrapRef}>
+        <div
+          className={isNotificationOpen ? 'notification-wrap active' : 'notification-wrap'}
+          ref={notificationWrapRef}
+        >
           <button
             type="button"
             className="notification-btn"
             onClick={() => setIsNotificationOpen((value) => !value)}
-            aria-label="Уведомления"
+            aria-label={
+              unreadCount
+                ? `Уведомления, ${unreadCount} новых`
+                : 'Уведомления'
+            }
             aria-expanded={isNotificationOpen}
             aria-controls="notifications-dropdown"
           >
-            <Bell size={19} />
-            {unreadNotifications.length ? <span className="notification-dot" /> : null}
+            <Bell size={20} />
+            {unreadCount ? (
+              <span className="notification-badge" aria-hidden="true">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            ) : null}
           </button>
 
           {isNotificationOpen ? (
-            <div className="notification-dropdown" id="notifications-dropdown">
-              <p>Уведомления</p>
-              {unreadNotifications.length ? (
-                unreadNotifications.map((notification) => (
-                  <div key={notification.id} className="notification-item">
-                    <strong>{notification.title}</strong>
-                    <small>{notification.subtitle}</small>
+            <>
+              <div
+                className="notification-backdrop"
+                onClick={() => setIsNotificationOpen(false)}
+                aria-hidden="true"
+              />
+              <div
+                className="notification-dropdown"
+                id="notifications-dropdown"
+                role="dialog"
+                aria-label="Уведомления"
+              >
+                <div className="notification-dropdown-head">
+                  <div className="notification-dropdown-title">
+                    <span>Уведомления</span>
+                    {unreadCount ? (
+                      <span className="notification-count-chip">{unreadCount}</span>
+                    ) : null}
                   </div>
-                ))
-              ) : (
-                <div className="notification-item">
-                  <strong>Новых уведомлений нет</strong>
+                  <button
+                    type="button"
+                    className="notification-mark-all"
+                    onClick={handleMarkAllAsRead}
+                    disabled={unreadCount === 0}
+                  >
+                    <Check size={14} />
+                    Прочитать всё
+                  </button>
                 </div>
-              )}
-            </div>
+
+                {visibleNotifications.length ? (
+                  <ul className="notification-list">
+                    {visibleNotifications.map((notification) => {
+                      const isRead = readIds.has(notification.id)
+                      const className = [
+                        'notification-item',
+                        notification.level === 'critical' ? 'critical' : '',
+                        isRead ? 'read' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')
+
+                      return (
+                        <li key={notification.id}>
+                          <button
+                            type="button"
+                            className={className}
+                            onClick={() => handleMarkAsRead(notification.id)}
+                          >
+                            <span className="notification-item-dot" aria-hidden="true" />
+                            <span className="notification-item-body">
+                              <strong>{notification.title}</strong>
+                              <small>{notification.subtitle}</small>
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <div className="notification-empty">
+                    <BellOff size={22} />
+                    <strong>Уведомлений пока нет</strong>
+                    <small>Здесь появятся напоминания о платежах и переводах</small>
+                  </div>
+                )}
+              </div>
+            </>
           ) : null}
         </div>
 
-        <button type="button" className="theme-toggle" onClick={onToggleTheme}>
-          {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
-        </button>
+        <NavLink
+          to="/profile"
+          className={isProfileActive ? 'topbar-user active' : 'topbar-user'}
+          aria-label="Профиль"
+        >
+          <span className="user-avatar" aria-hidden="true">
+            <User size={13} strokeWidth={2.3} />
+          </span>
+          <span className="topbar-user-name">{profileName}</span>
+          <span className="topbar-user-initial" aria-hidden="true">
+            {profileInitial}
+          </span>
+        </NavLink>
       </div>
 
-      <NavLink
-        to="/profile"
-        className="topbar-user"
-        onClick={() => {
-          setIsNotificationOpen(false)
-        }}
-      >
-        <span className="user-avatar">{profileInitial}</span>
-        <span>{profileName}</span>
-      </NavLink>
+      {isMobileMenuOpen ? (
+        <div className="mobile-menu" role="dialog" aria-modal="true" aria-label="Меню">
+          <div
+            className="mobile-menu-backdrop"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <aside className="mobile-menu-panel">
+            <div className="mobile-menu-head">
+              <Link to="/" className="brand" onClick={() => setIsMobileMenuOpen(false)}>
+                <img src="/favicon-32x32.png" alt="" className="brand-logo" />
+                <strong>Банк</strong>
+              </Link>
+              <button
+                type="button"
+                className="mobile-menu-close"
+                onClick={() => setIsMobileMenuOpen(false)}
+                aria-label="Закрыть меню"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <nav className="mobile-menu-nav" aria-label="Мобильное меню">
+              {NAV_ITEMS.map((item) => {
+                const isActive = item.match(location.pathname)
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.to}
+                    type="button"
+                    className={isActive ? 'mobile-menu-link active' : 'mobile-menu-link'}
+                    onClick={() => {
+                      setIsMobileMenuOpen(false)
+                      navigate(item.to)
+                    }}
+                  >
+                    <span className="mobile-menu-link-icon">
+                      <Icon size={18} />
+                    </span>
+                    <span className="mobile-menu-link-label">{item.label}</span>
+                    {item.newChip ? <span className="nav-new-chip">NEW</span> : null}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                className={
+                  isProfileActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+                }
+                onClick={() => {
+                  setIsMobileMenuOpen(false)
+                  navigate('/profile')
+                }}
+              >
+                <span className="mobile-menu-link-icon">
+                  <User size={18} />
+                </span>
+                <span className="mobile-menu-link-label">Профиль</span>
+              </button>
+            </nav>
+          </aside>
+        </div>
+      ) : null}
     </header>
   )
 }
