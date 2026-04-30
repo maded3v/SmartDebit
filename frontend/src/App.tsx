@@ -9,7 +9,6 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom'
-import { smartDebitApi } from './api'
 import './App.css'
 import type { FormEvent } from 'react'
 import {
@@ -47,6 +46,19 @@ import type {
   Payment,
   PaymentStatus,
 } from './types'
+import {
+  addActiveProfileManualPayment,
+  adjustActiveProfileBalance,
+  advanceSimulationDays,
+  createInitialSimulationState,
+  getProfileOptions,
+  loadSimulationState,
+  payActiveProfileDebt,
+  saveSimulationState,
+  switchActiveProfile,
+  toggleActiveProfileSmartDebit,
+  updateActiveProfilePaymentStatus,
+} from './demoSimulation'
 import toast from 'react-hot-toast'
 
 type StatusTone = 'green' | 'yellow' | 'red' | 'gray'
@@ -507,101 +519,113 @@ function AppHeader({
   )
 }
 
+function DemoControlBar({
+  profileName,
+  profileTier,
+  profileOptions,
+  activeProfileId,
+  currentDate,
+  onProfileChange,
+  onAdvanceTime,
+  onResetSimulation,
+}: {
+  profileName: string
+  profileTier: string
+  profileOptions: Array<{ id: string; fullName: string; tierLabel: string }>
+  activeProfileId: string
+  currentDate: string
+  onProfileChange: (profileId: string) => void
+  onAdvanceTime: (days: number) => void
+  onResetSimulation: () => void
+}) {
+  return (
+    <section className="demo-control-bar" aria-label="Панель демо-сценария">
+      <div className="demo-control-profile">
+        <label htmlFor="demo-profile-select">Профиль</label>
+        <select
+          id="demo-profile-select"
+          value={activeProfileId}
+          onChange={(event) => onProfileChange(event.target.value)}
+        >
+          {profileOptions.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.fullName} · {profile.tierLabel}
+            </option>
+          ))}
+        </select>
+        <small>
+          {profileName} · {profileTier}
+        </small>
+      </div>
+
+      <div className="demo-control-time">
+        <p>Дата симуляции: {formatDate(currentDate)}</p>
+        <div className="demo-control-actions">
+          <button type="button" onClick={() => onAdvanceTime(1)}>
+            +1 день
+          </button>
+          <button type="button" onClick={() => onAdvanceTime(7)}>
+            +7 дней
+          </button>
+          <button type="button" onClick={() => onAdvanceTime(30)}>
+            +30 дней
+          </button>
+          <button type="button" className="reset" onClick={onResetSimulation}>
+            Сброс
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function HomePage({
   dashboard,
   loading,
   error,
+  profileName,
+  profileTier,
+  currentDate,
+  historyItems,
+  onTopUp,
+  onSpend,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
+  profileName: string
+  profileTier: string
+  currentDate: string
+  historyItems: HomeHistoryItem[]
+  onTopUp: (amount: number) => void
+  onSpend: (amount: number) => void
 }) {
-  const navigate = useNavigate()
-  const historyItems = useMemo<HomeHistoryItem[]>(() => {
-    const mortgage = dashboard?.upcoming.find((payment) => payment.id === 'mortgage-sber')
-    const kion = dashboard?.upcoming.find((payment) => payment.id === 'kion')
-    return [
-      {
-        id: 'salary-main',
-        title: 'Зарплата',
-        date: '1 мар',
-        amount: 95000,
-        icon: '↙',
-        iconTone: 'green',
-      },
-      {
-        id: 'mortgage-main',
-        title: 'Ипотека (Сбербанк)',
-        date: '28 фев',
-        amount: -(mortgage?.amount ?? 45000),
-        icon: 'Б',
-        iconTone: 'dark',
-        smartTag: 'SmartDebit · Ежемесячный платеж',
-      },
-      {
-        id: 'samokat-main',
-        title: 'Самокат',
-        date: '27 фев',
-        amount: -1250,
-        icon: 'С',
-        iconTone: 'green',
-      },
-      {
-        id: 'plus-main',
-        title: 'Яндекс Плюс',
-        date: '27 фев',
-        amount: -299,
-        icon: '↻',
-        iconTone: 'gray',
-        smartTag: 'SmartDebit · Оплата за расчетный период: Март 2026',
-      },
-      {
-        id: 'eda-main',
-        title: 'Яндекс Еда',
-        date: '26 фев',
-        amount: -890,
-        icon: 'Я',
-        iconTone: 'dark',
-      },
-      {
-        id: 'start-main',
-        title: 'START Подписка',
-        date: '26 фев',
-        amount: -399,
-        icon: '↻',
-        iconTone: 'gray',
-        smartTag: 'SmartDebit · Оплата за расчетный период: Март 2026',
-      },
-      {
-        id: 'magnit-main',
-        title: 'Магнит',
-        date: '25 фев',
-        amount: -2340,
-        icon: 'М',
-        iconTone: 'red',
-      },
-      {
-        id: 'kion-main',
-        title: 'KION',
-        date: '24 фев',
-        amount: -(kion?.amount ?? 249),
-        icon: 'К',
-        iconTone: 'gray',
-      },
-    ]
-  }, [dashboard])
-
-  const openPaymentsByIntent = useCallback(
-    (quickAction: PaymentQuickActionId) => {
-      navigate('/payments', {
-        state: {
-          quickAction,
-        } satisfies PaymentsLocationState,
-      })
-    },
-    [navigate],
-  )
   const [isCardBackVisible, setCardBackVisible] = useState(false)
+
+  const firstName = useMemo(() => {
+    const normalized = profileName.trim()
+    if (!normalized) {
+      return 'Клиент'
+    }
+    return normalized.split(' ')[0]
+  }, [profileName])
+
+  function askAmount(label: string) {
+    const rawValue = window.prompt(label, '1500')
+    if (!rawValue) {
+      return null
+    }
+
+    const normalized = rawValue.replace(/\s+/g, '').replace(',', '.')
+    const amount = Number(normalized)
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Введите корректную сумму')
+      return null
+    }
+
+    return Math.round(amount)
+  }
 
   async function copyCardData(value: string) {
     try {
@@ -614,7 +638,10 @@ function HomePage({
 
   return (
     <section className="home-screen">
-      <h1 className="home-title">Добрый день, Иван</h1>
+      <div className="home-title-row">
+        <h1 className="home-title">Добрый день, {firstName}</h1>
+        <span className="home-date-chip">Симуляция: {formatDate(currentDate)}</span>
+      </div>
       {loading ? <p className="home-note">Загружаем данные...</p> : null}
       {error ? <p className="home-error">{error}</p> : null}
 
@@ -627,7 +654,7 @@ function HomePage({
                 <p className="wallet-balance">
                   {formatCurrency(dashboard?.account.balance ?? 116783)}
                 </p>
-                <small>Black</small>
+                <small>{profileTier}</small>
               </div>
               <span className="wallet-chip">
                 <Crown size={11} strokeWidth={2.5} />
@@ -702,15 +729,27 @@ function HomePage({
             <button
               type="button"
               className="action-transfer"
-              onClick={() => openPaymentsByIntent('quick-between')}
+              onClick={() => {
+                const amount = askAmount('Введите сумму списания, ₽')
+                if (!amount) {
+                  return
+                }
+                onSpend(amount)
+              }}
             >
               <ArrowLeftRight size={17} />
-              <span>Перевод</span>
+              <span>Списать</span>
             </button>
             <button
               type="button"
               className="action-top-up"
-              onClick={() => openPaymentsByIntent('quick-details')}
+              onClick={() => {
+                const amount = askAmount('Введите сумму пополнения, ₽')
+                if (!amount) {
+                  return
+                }
+                onTopUp(amount)
+              }}
             >
               <CirclePlus size={17} />
               <span>Пополнить</span>
@@ -782,7 +821,7 @@ function HomePage({
             <h2>История операций</h2>
 
             <ul className="home-history-list">
-              {historyItems.map((item) => {
+              {historyItems.length ? historyItems.map((item) => {
                 const merchantLogo = resolveMerchantLogo(item.title)
 
                 return (
@@ -804,7 +843,9 @@ function HomePage({
                     </strong>
                   </li>
                 )
-              })}
+              }) : (
+                <li className="home-history-empty">Операций пока нет</li>
+              )}
             </ul>
           </article>
         </div>
@@ -1658,83 +1699,138 @@ function ProfilePage({ fullName }: { fullName: string }) {
 }
 
 function App() {
-  const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [simulation, setSimulation] = useState(() => loadSimulationState())
   const [error, setError] = useState('')
-  const profileName = PROFILE.fullName
+  const loading = false
 
-  const refreshDashboard = useCallback(async (silent = false) => {
-    if (!silent) {
-      setLoading(true)
-    }
-    try {
-      const payload = await smartDebitApi.getDashboard()
-      setDashboard(payload)
-      setError('')
-    } catch (loadError) {
-      setError(resolveErrorMessage(loadError, 'Не удалось загрузить данные SmartDebit'))
-    } finally {
-      if (!silent) {
-        setLoading(false)
-      }
-    }
-  }, [])
+  const activeProfile = simulation.profiles[simulation.activeProfileId]
+  const dashboard = activeProfile?.dashboard ?? null
+  const profileName = activeProfile?.fullName ?? PROFILE.fullName
+  const profileTier = activeProfile?.tierLabel ?? 'Black'
+  const historyItems = activeProfile?.history ?? []
+
+  const profileOptions = useMemo(() => {
+    return getProfileOptions(simulation)
+  }, [simulation])
 
   useEffect(() => {
-    void refreshDashboard()
-  }, [refreshDashboard])
+    saveSimulationState(simulation)
+  }, [simulation])
+
+  const applySimulationResult = useCallback(
+    (
+      result: {
+        state: typeof simulation
+        message?: string
+        error?: string
+      },
+      successFallback: string,
+    ) => {
+      if (result.error) {
+        setError(result.error)
+        toast.error(result.error)
+        return false
+      }
+
+      setSimulation(result.state)
+      setError('')
+      toast.success(result.message ?? successFallback)
+      return true
+    },
+    [simulation],
+  )
+
+  const handleProfileChange = useCallback(
+    (profileId: string) => {
+      const result = switchActiveProfile(simulation, profileId)
+      if (result.error) {
+        setError(result.error)
+        toast.error(result.error)
+        return
+      }
+      setSimulation(result.state)
+      setError('')
+    },
+    [simulation],
+  )
+
+  const handleAdvanceTime = useCallback(
+    (days: number) => {
+      const result = advanceSimulationDays(simulation, days)
+      void applySimulationResult(result, `Время перемотано на ${days} дн.`)
+    },
+    [applySimulationResult, simulation],
+  )
+
+  const handleResetSimulation = useCallback(() => {
+    setSimulation(createInitialSimulationState())
+    setError('')
+    toast.success('Демо-сценарий сброшен')
+  }, [])
+
+  const handleManualTopUp = useCallback(
+    (amount: number) => {
+      const result = adjustActiveProfileBalance(simulation, amount, 'topup')
+      void applySimulationResult(result, 'Баланс пополнен')
+    },
+    [applySimulationResult, simulation],
+  )
+
+  const handleManualSpend = useCallback(
+    (amount: number) => {
+      const currentBalance = activeProfile?.dashboard.account.balance ?? 0
+      if (amount > currentBalance) {
+        const message = 'Недостаточно средств для ручного списания'
+        setError(message)
+        toast.error(message)
+        return
+      }
+
+      const result = adjustActiveProfileBalance(simulation, amount, 'spend')
+      void applySimulationResult(result, 'Списание выполнено')
+    },
+    [activeProfile, applySimulationResult, simulation],
+  )
 
   const handleToggle = useCallback(
     async (enabled: boolean) => {
-      try {
-        await smartDebitApi.toggle(enabled)
-        await refreshDashboard(true)
-        toast.success(enabled ? 'SmartDebit включен' : 'SmartDebit выключен')
-      } catch (toggleError) {
-        toast.error(resolveErrorMessage(toggleError, 'Не удалось изменить состояние SmartDebit'))
-      }
+      const result = toggleActiveProfileSmartDebit(simulation, enabled)
+      void applySimulationResult(result, enabled ? 'SmartDebit включен' : 'SmartDebit выключен')
     },
-    [refreshDashboard],
+    [applySimulationResult, simulation],
   )
 
   const handlePayDebt = useCallback(
     async (paymentId: string) => {
-      try {
-        const result = await smartDebitApi.payDebt(paymentId)
-        await refreshDashboard(true)
-        toast.success(result.message)
-      } catch (debtError) {
-        toast.error(resolveErrorMessage(debtError, 'Не удалось погасить задолженность'))
-      }
+      const result = payActiveProfileDebt(simulation, paymentId)
+      void applySimulationResult(result, 'Задолженность погашена')
     },
-    [refreshDashboard],
+    [applySimulationResult, simulation],
   )
 
   const handleChangeStatus = useCallback(
     async (paymentId: string, status: PaymentStatus) => {
-      try {
-        await smartDebitApi.updateStatus(paymentId, status)
-        await refreshDashboard(true)
-        toast.success('Статус платежа обновлен')
-      } catch (statusError) {
-        toast.error(resolveErrorMessage(statusError, 'Не удалось обновить статус платежа'))
-      }
+      const result = updateActiveProfilePaymentStatus(simulation, paymentId, status)
+      void applySimulationResult(result, 'Статус платежа обновлен')
     },
-    [refreshDashboard],
+    [applySimulationResult, simulation],
   )
 
   const handleAddPayment = useCallback(
     async (payload: CreatePaymentPayload) => {
-      try {
-        await smartDebitApi.addPayment(payload)
-        await refreshDashboard(true)
-        toast.success('Новый платеж добавлен')
-      } catch (paymentError) {
-        toast.error(resolveErrorMessage(paymentError, 'Не удалось добавить платеж'))
-        throw new Error(resolveErrorMessage(paymentError, 'Не удалось добавить платеж'))
+      const result = addActiveProfileManualPayment(simulation, payload)
+      if (!result.error) {
+        setSimulation(result.state)
+        setError('')
+        toast.success(result.message ?? 'Новый платеж добавлен')
+        return
       }
+
+      setError(result.error)
+      toast.error(result.error)
+      throw new Error(result.error)
     },
-    [refreshDashboard],
+    [simulation],
   )
 
   return (
@@ -1742,9 +1838,35 @@ function App() {
       <AppHeader notifications={dashboard?.notifications ?? []} profileName={profileName} />
 
       <div className="shell">
+        <DemoControlBar
+          profileName={profileName}
+          profileTier={profileTier}
+          profileOptions={profileOptions}
+          activeProfileId={simulation.activeProfileId}
+          currentDate={simulation.currentDate}
+          onProfileChange={handleProfileChange}
+          onAdvanceTime={handleAdvanceTime}
+          onResetSimulation={handleResetSimulation}
+        />
+
         <div className="content">
           <Routes>
-            <Route path="/" element={<HomePage dashboard={dashboard} loading={loading} error={error} />} />
+            <Route
+              path="/"
+              element={
+                <HomePage
+                  dashboard={dashboard}
+                  loading={loading}
+                  error={error}
+                  profileName={profileName}
+                  profileTier={profileTier}
+                  currentDate={simulation.currentDate}
+                  historyItems={historyItems}
+                  onTopUp={handleManualTopUp}
+                  onSpend={handleManualSpend}
+                />
+              }
+            />
             <Route path="/payments" element={<CardOverviewPage dashboard={dashboard} />} />
             <Route path="/card-overview" element={<Navigate to="/payments" replace />} />
             <Route
