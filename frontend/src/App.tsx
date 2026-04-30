@@ -58,6 +58,7 @@ import {
   switchActiveProfile,
   toggleActiveProfileSmartDebit,
   updateActiveProfilePaymentStatus,
+  type DemoSimulationState,
 } from './demoSimulation'
 import toast from 'react-hot-toast'
 
@@ -1720,7 +1721,7 @@ function App() {
   const applySimulationResult = useCallback(
     (
       result: {
-        state: typeof simulation
+        state: DemoSimulationState
         message?: string
         error?: string
       },
@@ -1737,7 +1738,7 @@ function App() {
       toast.success(result.message ?? successFallback)
       return true
     },
-    [simulation],
+    [],
   )
 
   const handleProfileChange = useCallback(
