@@ -855,7 +855,13 @@ function HomePage({
   )
 }
 
-function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null }) {
+function CardOverviewPage({
+  dashboard,
+  onFavoritePayment,
+}: {
+  dashboard: DashboardPayload | null
+  onFavoritePayment?: (amount: number, title: string) => boolean
+}) {
   const location = useLocation()
   const locationState = location.state as PaymentsLocationState | null
   const initialQuickActionCandidate =
@@ -910,12 +916,34 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
     setPaying(true)
 
     setTimeout(() => {
+      const isPaid = onFavoritePayment
+        ? onFavoritePayment(amountValue, selectedFavoritePayment.title)
+        : true
+
       setPaying(false)
+
+      if (!isPaid) {
+        return
+      }
+
       setPayNotice(
         `Оплата ${selectedFavoritePayment.title}: ${numberFormatter.format(amountValue)} ₽`,
       )
       closeFavoritePayment()
     }, 700)
+  }
+
+  function normalizeAmountInput(value: string) {
+    const normalized = value.replace(',', '.').replace(/[^\d.]/g, '')
+    const [wholeRaw, ...fractionParts] = normalized.split('.')
+    const whole = wholeRaw.slice(0, 9)
+    const fraction = fractionParts.join('').slice(0, 2)
+
+    if (!whole && fraction) {
+      return `0.${fraction}`
+    }
+
+    return fraction ? `${whole}.${fraction}` : whole
   }
 
   return (
@@ -1044,11 +1072,11 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
               <label>
                 Сумма, ₽
                 <input
-                  type="number"
-                  min="1"
-                  step="1"
+                  type="text"
+                  inputMode="decimal"
+                  maxLength={12}
                   value={payAmount}
-                  onChange={(event) => setPayAmount(event.target.value)}
+                  onChange={(event) => setPayAmount(normalizeAmountInput(event.target.value))}
                 />
               </label>
 
