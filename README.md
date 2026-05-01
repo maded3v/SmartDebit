@@ -115,3 +115,22 @@ python manage.py migrate && python manage.py seed_data && gunicorn smartdebit_co
 - `POST /api/v1/payments/`
 - `PATCH /api/v1/payments/:id/`
 - `POST /api/v1/payments/:id/pay`
+
+## Тестовые учётные записи
+
+При входе в SmartDebit используйте один из 10 встроенных аккаунтов. У всех имя
+«Иван Иванов», но у каждого собственная история операций, избранные платежи и
+просрочки. Баланса достаточно, чтобы погасить все просрочки.
+
+| Логин   | Пароль  |
+| ------- | ------- |
+| user1   | user1   |
+| user2   | user2   |
+| user3   | user3   |
+| user4   | user4   |
+| user5   | user5   |
+| user6   | user6   |
+| user7   | user7   |
+| user8   | user8   |
+| user9   | user9   |
+| user10  | user10  |

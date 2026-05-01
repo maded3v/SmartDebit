@@ -2,23 +2,35 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BrowserRouter,
   Link,
-  NavLink,
   Navigate,
   Route,
   Routes,
   useLocation,
   useNavigate,
 } from 'react-router-dom'
-import { smartDebitApi } from './api'
 import './App.css'
 import type { FormEvent } from 'react'
+import { LoginPage } from './components/LoginPage'
+import {
+  USER_DATASETS,
+  buildUserChart,
+  buildUserNotifications,
+  toUpcomingPayments,
+  getFavoriteIcon,
+  operationISO,
+  type UserDataset,
+  type UserOperation,
+  type UserFavorite,
+  type UserUpcoming,
+} from './userData'
 import {
   ArrowLeftRight,
-  Bell,
   Briefcase,
   Car,
+  Check,
   Copy,
   CirclePlus,
+  ChevronDown,
   ChevronRight,
   Crown,
   FileText,
@@ -26,6 +38,7 @@ import {
   HandCoins,
   Home,
   Landmark,
+  LogOut,
   Mail,
   PiggyBank,
   Phone,
@@ -33,21 +46,31 @@ import {
   QrCode,
   Receipt,
   RefreshCw,
+  Search,
   Shield,
+  SlidersHorizontal,
   Smartphone,
+  Sparkles,
+  AlertTriangle,
+  CalendarClock,
   User,
   UserCheck,
   Wifi,
+  X,
   Zap,
 } from 'lucide-react'
 import type {
   CreatePaymentPayload,
   DashboardPayload,
-  NotificationItem,
   Payment,
   PaymentStatus,
 } from './types'
 import toast from 'react-hot-toast'
+import { AppHeader } from './components/AppHeader'
+import { BottomNav } from './components/BottomNav'
+import { OperationDetailDialog } from './components/OperationDetailDialog'
+import { buildOperationDetail, brandColorFor, brandInitial, categoryFor } from './operationDetails'
+import type { OperationDetail } from './operationDetails'
 
 type StatusTone = 'green' | 'yellow' | 'red' | 'gray'
 
@@ -56,6 +79,8 @@ interface BankOperation {
   title: string
   subtitle: string
   dateLabel: string
+  /** ISO date string (yyyy-mm-dd) used for grouping/sorting. */
+  dateISO: string
   amount: number
   smartTag?: string
   tone: 'neutral' | 'danger' | 'success'
@@ -118,12 +143,20 @@ const STATUS_TONE: Record<PaymentStatus, StatusTone> = {
   paid: 'green',
 }
 
+function isoDaysAgo(days: number) {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  date.setDate(date.getDate() - days)
+  return date.toISOString().slice(0, 10)
+}
+
 const BASE_OPERATIONS: BankOperation[] = [
   {
     id: 'salary-1',
     title: 'Зарплата',
     subtitle: 'Acme Team',
     dateLabel: 'Сегодня, 09:12',
+    dateISO: isoDaysAgo(0),
     amount: 85000,
     tone: 'success',
   },
@@ -132,6 +165,7 @@ const BASE_OPERATIONS: BankOperation[] = [
     title: 'Самокат',
     subtitle: 'Еда и продукты',
     dateLabel: 'Сегодня, 12:41',
+    dateISO: isoDaysAgo(0),
     amount: -1250,
     tone: 'neutral',
   },
@@ -140,6 +174,7 @@ const BASE_OPERATIONS: BankOperation[] = [
     title: 'Wildberries',
     subtitle: 'Покупки',
     dateLabel: 'Вчера, 21:07',
+    dateISO: isoDaysAgo(1),
     amount: -3450,
     tone: 'neutral',
   },
@@ -148,7 +183,35 @@ const BASE_OPERATIONS: BankOperation[] = [
     title: 'Ozon',
     subtitle: 'Маркетплейс',
     dateLabel: 'Вчера, 19:23',
+    dateISO: isoDaysAgo(1),
     amount: -2300,
+    tone: 'neutral',
+  },
+  {
+    id: 'magnit-2',
+    title: 'Магнит',
+    subtitle: 'Супермаркеты',
+    dateLabel: 'Позавчера, 18:50',
+    dateISO: isoDaysAgo(2),
+    amount: -2340,
+    tone: 'neutral',
+  },
+  {
+    id: 'yandex-eda-2',
+    title: 'Яндекс Еда',
+    subtitle: 'Кафе и доставка',
+    dateLabel: '3 дня назад, 14:25',
+    dateISO: isoDaysAgo(3),
+    amount: -890,
+    tone: 'neutral',
+  },
+  {
+    id: 'mts-2',
+    title: 'МТС',
+    subtitle: 'Мобильная связь',
+    dateLabel: '5 дней назад, 10:00',
+    dateISO: isoDaysAgo(5),
+    amount: -600,
     tone: 'neutral',
   },
 ]
@@ -285,14 +348,6 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
-function getOperationIcon(title: string) {
-  const normalized = title.trim()
-  if (!normalized) {
-    return 'O'
-  }
-  return normalized.slice(0, 1).toUpperCase()
-}
-
 function resolveMerchantLogo(...parts: string[]) {
   const value = parts.join(' ').trim()
   if (!value) {
@@ -320,9 +375,12 @@ function isPaymentQuickActionId(value: string): value is PaymentQuickActionId {
   return PAYMENT_QUICK_ACTIONS.some((action) => action.id === value)
 }
 
-function buildOperationsFeed(dashboard: DashboardPayload | null): BankOperation[] {
+function buildOperationsFeed(
+  dashboard: DashboardPayload | null,
+  baseOperations: BankOperation[] = BASE_OPERATIONS,
+): BankOperation[] {
   if (!dashboard) {
-    return BASE_OPERATIONS
+    return baseOperations
   }
   const smartOperations: BankOperation[] = dashboard.upcoming.map((payment) => {
     const tone: BankOperation['tone'] =
@@ -332,12 +390,64 @@ function buildOperationsFeed(dashboard: DashboardPayload | null): BankOperation[
       title: formatPaymentTitle(payment.title),
       subtitle: payment.provider,
       dateLabel: `Списание: ${formatDate(payment.nextChargeDate)}`,
+      dateISO: new Date(payment.nextChargeDate).toISOString().slice(0, 10),
       amount: -payment.amount,
       smartTag: `SmartDebit · ${payment.periodLabel}`,
       tone,
     }
   })
-  return [...BASE_OPERATIONS, ...smartOperations]
+  return [...baseOperations, ...smartOperations]
+}
+
+interface OperationGroup {
+  key: string
+  label: string
+  items: BankOperation[]
+}
+
+function formatGroupHeader(iso: string): string {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const date = new Date(`${iso}T00:00:00`)
+  const ms = date.getTime()
+  if (ms === today.getTime()) return 'Сегодня'
+  if (ms === yesterday.getTime()) return 'Вчера'
+
+  const formatter = new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    ...(today.getFullYear() !== date.getFullYear() ? { year: 'numeric' } : {}),
+  })
+  return formatter.format(date)
+}
+
+function pluralizeOperations(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return 'операция'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'операции'
+  return 'операций'
+}
+
+function groupOperationsByDay(operations: BankOperation[]): OperationGroup[] {
+  const map = new Map<string, BankOperation[]>()
+  for (const op of operations) {
+    const list = map.get(op.dateISO)
+    if (list) {
+      list.push(op)
+    } else {
+      map.set(op.dateISO, [op])
+    }
+  }
+  const sortedKeys = Array.from(map.keys()).sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))
+  return sortedKeys.map((key) => ({
+    key,
+    label: formatGroupHeader(key),
+    items: map.get(key) ?? [],
+  }))
 }
 
 function StatusBadge({
@@ -350,174 +460,22 @@ function StatusBadge({
   return <span className={`status-badge ${STATUS_TONE[status]}`}>{label}</span>
 }
 
-function AppHeader({
-  notifications,
-  profileName,
-}: {
-  notifications: NotificationItem[]
-  profileName: string
-}) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const isPaymentsActive = location.pathname.startsWith('/payments')
-  const isHomeActive = location.pathname === '/'
-  const isOperationsActive =
-    location.pathname.startsWith('/operations') && !location.pathname.includes('/smartdebit')
-  const isSmartDebitActive = location.pathname.includes('/smartdebit')
-  const isProfileActive = location.pathname.startsWith('/profile')
-
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
-  const notificationWrapRef = useRef<HTMLDivElement | null>(null)
-  const unreadNotifications = notifications.slice(0, 4)
-
-  useEffect(() => {
-    if (!isNotificationOpen) {
-      return
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      if (notificationWrapRef.current?.contains(event.target as Node)) {
-        return
-      }
-      setIsNotificationOpen(false)
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsNotificationOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isNotificationOpen])
-
-  return (
-    <header className="topbar">
-      <Link
-        to="/"
-        className="brand"
-        onClick={() => {
-          setIsNotificationOpen(false)
-        }}
-      >
-        <img src="/favicon-32x32.png" alt="" className="brand-logo" />
-        <strong>Банк</strong>
-      </Link>
-
-      <nav className="topbar-nav" aria-label="Основная навигация">
-        <NavLink
-          to="/"
-          end
-          className={isHomeActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          Главная
-        </NavLink>
-        <NavLink
-          to="/operations"
-          end
-          className={isOperationsActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          Операции
-        </NavLink>
-        <button
-          type="button"
-          className={isPaymentsActive ? 'payments-nav-button active' : 'payments-nav-button'}
-          onClick={() => {
-            setIsNotificationOpen(false)
-            navigate('/payments')
-          }}
-        >
-          Платежи
-        </button>
-        <NavLink
-          to="/operations/smartdebit"
-          className={isSmartDebitActive ? 'active' : ''}
-          onClick={() => {
-            setIsNotificationOpen(false)
-          }}
-        >
-          SmartDebit
-          <span className="nav-new-chip">NEW</span>
-        </NavLink>
-      </nav>
-
-      <div className="topbar-actions">
-        <div
-          className={isNotificationOpen ? 'notification-wrap active' : 'notification-wrap'}
-          ref={notificationWrapRef}
-        >
-          <button
-            type="button"
-            className="notification-btn"
-            onClick={() => setIsNotificationOpen((value) => !value)}
-            aria-label="Уведомления"
-            aria-expanded={isNotificationOpen}
-            aria-controls="notifications-dropdown"
-          >
-            <Bell size={19} />
-            {unreadNotifications.length ? <span className="notification-dot" /> : null}
-          </button>
-
-          {isNotificationOpen ? (
-            <div className="notification-dropdown" id="notifications-dropdown">
-              <p>Уведомления</p>
-              {unreadNotifications.length ? (
-                unreadNotifications.map((notification) => (
-                  <div key={notification.id} className="notification-item">
-                    <strong>{notification.title}</strong>
-                    <small>{notification.subtitle}</small>
-                  </div>
-                ))
-              ) : (
-                <div className="notification-item">
-                  <strong>Новых уведомлений нет</strong>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
-
-      </div>
-
-      <NavLink
-        to="/profile"
-        className={isProfileActive ? 'topbar-user active' : 'topbar-user'}
-        onClick={() => {
-          setIsNotificationOpen(false)
-        }}
-      >
-        <span className="user-avatar" aria-hidden="true">
-          <User size={13} strokeWidth={2.3} />
-        </span>
-        <span>{profileName}</span>
-      </NavLink>
-    </header>
-  )
-}
-
 function HomePage({
   dashboard,
   loading,
   error,
+  userHistory,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
+  userHistory?: HomeHistoryItem[]
 }) {
   const navigate = useNavigate()
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
+    if (userHistory && userHistory.length > 0) {
+      return userHistory
+    }
     const mortgage = dashboard?.upcoming.find((payment) => payment.id === 'mortgage-sber')
     const kion = dashboard?.upcoming.find((payment) => payment.id === 'kion')
     return [
@@ -589,7 +547,7 @@ function HomePage({
         iconTone: 'gray',
       },
     ]
-  }, [dashboard])
+  }, [dashboard, userHistory])
 
   const openPaymentsByIntent = useCallback(
     (quickAction: PaymentQuickActionId) => {
@@ -602,6 +560,20 @@ function HomePage({
     [navigate],
   )
   const [isCardBackVisible, setCardBackVisible] = useState(false)
+  const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
+
+  const openHistoryDetail = useCallback((item: HomeHistoryItem) => {
+    setActiveDetail(
+      buildOperationDetail({
+        id: item.id,
+        title: item.title,
+        subtitle: item.smartTag ? item.smartTag.replace(/^SmartDebit · /, '') : '',
+        amount: item.amount,
+        dateLabel: item.date,
+        smartTag: item.smartTag,
+      }),
+    )
+  }, [])
 
   async function copyCardData(value: string) {
     try {
@@ -784,24 +756,37 @@ function HomePage({
             <ul className="home-history-list">
               {historyItems.map((item) => {
                 const merchantLogo = resolveMerchantLogo(item.title)
+                const showInitial = !merchantLogo
+                const tileColor = showInitial ? brandColorFor(item.title) : undefined
 
                 return (
                   <li key={item.id}>
-                    <span className={`history-icon ${item.iconTone}${merchantLogo ? ' has-logo' : ''}`}>
-                      {merchantLogo ? (
-                        <img src={merchantLogo.src} alt={merchantLogo.alt} className="merchant-logo" />
-                      ) : (
-                        item.icon
-                      )}
-                    </span>
-                    <div className="history-body">
-                      <p>{item.title}</p>
-                      <small>{item.date}</small>
-                      {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
-                    </div>
-                    <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
-                      {formatCurrency(item.amount, true)}
-                    </strong>
+                    <button
+                      type="button"
+                      className="history-row"
+                      onClick={() => openHistoryDetail(item)}
+                      aria-label={`Открыть детали операции ${item.title}`}
+                    >
+                      <span
+                        className={`history-icon ${item.iconTone}${merchantLogo ? ' has-logo' : ' has-initial'}`}
+                        style={tileColor ? { backgroundColor: tileColor } : undefined}
+                      >
+                        {merchantLogo ? (
+                          <img src={merchantLogo.src} alt="" className="merchant-logo" />
+                        ) : (
+                          brandInitial(item.title)
+                        )}
+                      </span>
+                      <div className="history-body">
+                        <p>{item.title}</p>
+                        <small>{item.date}</small>
+                        {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
+                      </div>
+                      <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                        {formatCurrency(item.amount, true)}
+                      </strong>
+                      <ChevronRight size={16} className="history-chevron" aria-hidden />
+                    </button>
                   </li>
                 )
               })}
@@ -809,11 +794,21 @@ function HomePage({
           </article>
         </div>
       </div>
+      <OperationDetailDialog detail={activeDetail} onClose={() => setActiveDetail(null)} />
     </section>
   )
 }
 
-function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null }) {
+function CardOverviewPage({
+  dashboard,
+  onLocalDebit,
+  favorites,
+}: {
+  dashboard: DashboardPayload | null
+  onLocalDebit: (amount: number) => void
+  favorites?: FavoritePaymentEntry[]
+}) {
+  const favoriteList = favorites && favorites.length > 0 ? favorites : FAVORITE_PAYMENTS
   const location = useLocation()
   const locationState = location.state as PaymentsLocationState | null
   const initialQuickActionCandidate =
@@ -833,6 +828,7 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
   const [payNotice, setPayNotice] = useState(
     initialQuickAction ? QUICK_ACTION_NOTICE[initialQuickAction] : '',
   )
+  const payTimerRef = useRef<number | null>(null)
 
   const mandatoryPayments = useMemo(() => {
     return (dashboard?.upcoming ?? []).filter((payment) => payment.mandatory)
@@ -849,12 +845,30 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
     return () => clearTimeout(timer)
   }, [payNotice])
 
+  useEffect(() => {
+    return () => {
+      if (payTimerRef.current !== null) {
+        clearTimeout(payTimerRef.current)
+        payTimerRef.current = null
+      }
+    }
+  }, [])
+
+  function cancelPendingPayment() {
+    if (payTimerRef.current !== null) {
+      clearTimeout(payTimerRef.current)
+      payTimerRef.current = null
+    }
+  }
+
   function openFavoritePayment(payment: FavoritePaymentEntry) {
+    cancelPendingPayment()
     setSelectedFavoritePayment(payment)
     setPayAmount(String(payment.lastAmount))
   }
 
   function closeFavoritePayment() {
+    cancelPendingPayment()
     setSelectedFavoritePayment(null)
     setPayAmount('')
     setPaying(false)
@@ -862,15 +876,19 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
 
   function handleFavoritePayment() {
     const amountValue = Number(payAmount)
-    if (!selectedFavoritePayment || !Number.isFinite(amountValue) || amountValue <= 0) {
+    const payment = selectedFavoritePayment
+    if (!payment || !Number.isFinite(amountValue) || amountValue <= 0) {
       return
     }
+    cancelPendingPayment()
     setPaying(true)
 
-    setTimeout(() => {
+    payTimerRef.current = window.setTimeout(() => {
+      payTimerRef.current = null
       setPaying(false)
+      onLocalDebit(amountValue)
       setPayNotice(
-        `Оплата ${selectedFavoritePayment.title}: ${numberFormatter.format(amountValue)} ₽`,
+        `Оплата ${payment.title}: ${numberFormatter.format(amountValue)} ₽`,
       )
       closeFavoritePayment()
     }, 700)
@@ -907,7 +925,7 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
         <h2>Избранные платежи</h2>
 
         <ul className="favorite-payments-list">
-          {FAVORITE_PAYMENTS.map((payment) => {
+          {favoriteList.map((payment) => {
             const Icon = payment.icon
 
             return (
@@ -1003,10 +1021,17 @@ function CardOverviewPage({ dashboard }: { dashboard: DashboardPayload | null })
                 Сумма, ₽
                 <input
                   type="number"
+                  inputMode="decimal"
                   min="1"
-                  step="1"
+                  max="999999"
+                  step="0.01"
                   value={payAmount}
-                  onChange={(event) => setPayAmount(event.target.value)}
+                  onChange={(event) => {
+                    const next = event.target.value
+                    if (next === '' || (next.length <= 12 && Number(next) <= 999999)) {
+                      setPayAmount(next)
+                    }
+                  }}
                 />
               </label>
 
@@ -1211,6 +1236,7 @@ function AddPaymentModal({
             <input
               type="text"
               value={title}
+              maxLength={60}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Например, аренда квартиры"
             />
@@ -1220,10 +1246,17 @@ function AddPaymentModal({
             Сумма
             <input
               type="number"
+              inputMode="decimal"
               min="1"
-              step="1"
+              max="999999"
+              step="0.01"
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              onChange={(event) => {
+                const next = event.target.value
+                if (next === '' || (next.length <= 12 && Number(next) <= 999999)) {
+                  setAmount(next)
+                }
+              }}
               placeholder="25000"
             />
           </label>
@@ -1275,28 +1308,126 @@ function OperationsPage({
   dashboard,
   loading,
   error,
+  userOperations,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
+  userOperations?: BankOperation[]
 }) {
-  const [activeFilter, setActiveFilter] = useState('all')
-  const operations = useMemo(() => buildOperationsFeed(dashboard), [dashboard])
+  const [activeFilter, setActiveFilter] = useState<OperationsFilterId>('all')
+  const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
+  const [merchantQuery, setMerchantQuery] = useState('')
+  const operations = useMemo(
+    () => buildOperationsFeed(dashboard, userOperations && userOperations.length > 0 ? userOperations : undefined),
+    [dashboard, userOperations],
+  )
+
+  const openOperationDetail = useCallback((operation: BankOperation) => {
+    setActiveDetail(
+      buildOperationDetail({
+        id: operation.id,
+        title: operation.title,
+        subtitle: operation.subtitle,
+        amount: operation.amount,
+        dateLabel: operation.dateLabel,
+        smartTag: operation.smartTag,
+      }),
+    )
+  }, [])
+
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>()
+    for (const op of operations) {
+      set.add(categoryFor(op.title, op.subtitle))
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'))
+  }, [operations])
+
+  const minAmountNumber = useMemo(() => {
+    const value = parseFloat(minAmount.replace(/[^\d.-]/g, ''))
+    return Number.isFinite(value) ? value : null
+  }, [minAmount])
+
+  const maxAmountNumber = useMemo(() => {
+    const value = parseFloat(maxAmount.replace(/[^\d.-]/g, ''))
+    return Number.isFinite(value) ? value : null
+  }, [maxAmount])
+
+  const trimmedSearch = searchQuery.trim().toLowerCase()
+  const trimmedMerchant = merchantQuery.trim().toLowerCase()
 
   const filteredOperations = useMemo(() => {
-    if (activeFilter === 'income') {
-      return operations.filter((operation) => operation.amount > 0)
-    }
-    if (activeFilter === 'expense') {
-      return operations.filter((operation) => operation.amount < 0)
-    }
+    return operations.filter((operation) => {
+      if (activeFilter === 'income' && operation.amount <= 0) return false
+      if (activeFilter === 'expense' && operation.amount >= 0) return false
+      if (activeFilter === 'subscriptions' && !operation.smartTag) return false
 
-    if (activeFilter === 'subscriptions') {
-      return operations.filter((operation) => Boolean(operation.smartTag))
-    }
+      if (trimmedSearch) {
+        const haystack = [operation.title, operation.subtitle, operation.smartTag ?? '']
+          .join(' ')
+          .toLowerCase()
+        if (!haystack.includes(trimmedSearch)) return false
+      }
 
-    return operations
-  }, [activeFilter, operations])
+      if (trimmedMerchant) {
+        const haystack = `${operation.title} ${operation.subtitle}`.toLowerCase()
+        if (!haystack.includes(trimmedMerchant)) return false
+      }
+
+      if (selectedCategories.length > 0) {
+        const category = categoryFor(operation.title, operation.subtitle)
+        if (!selectedCategories.includes(category)) return false
+      }
+
+      const absAmount = Math.abs(operation.amount)
+      if (minAmountNumber !== null && absAmount < minAmountNumber) return false
+      if (maxAmountNumber !== null && absAmount > maxAmountNumber) return false
+
+      return true
+    })
+  }, [
+    activeFilter,
+    operations,
+    trimmedSearch,
+    trimmedMerchant,
+    selectedCategories,
+    minAmountNumber,
+    maxAmountNumber,
+  ])
+
+  const operationGroups = useMemo(
+    () => groupOperationsByDay(filteredOperations),
+    [filteredOperations],
+  )
+
+  const activeFilterCount =
+    (trimmedSearch ? 1 : 0) +
+    (trimmedMerchant ? 1 : 0) +
+    selectedCategories.length +
+    (minAmountNumber !== null ? 1 : 0) +
+    (maxAmountNumber !== null ? 1 : 0) +
+    (activeFilter !== 'all' ? 1 : 0)
+
+  function toggleCategory(category: string) {
+    setSelectedCategories((prev) =>
+      prev.includes(category) ? prev.filter((value) => value !== category) : [...prev, category],
+    )
+  }
+
+  function clearAllFilters() {
+    setActiveFilter('all')
+    setSearchQuery('')
+    setSelectedCategories([])
+    setMinAmount('')
+    setMaxAmount('')
+    setMerchantQuery('')
+  }
 
   const upcomingPayments = useMemo(() => {
     return [...(dashboard?.upcoming ?? [])].sort((left, right) => {
@@ -1367,50 +1498,208 @@ function OperationsPage({
               </div>
             </div>
 
-            {filteredOperations.length ? (
-              <ul className="operation-list">
-                {filteredOperations.map((operation) => {
-                  const merchantLogo = resolveMerchantLogo(operation.title, operation.subtitle)
+            <div className="operations-search">
+              <label className="operations-search-input">
+                <Search size={16} aria-hidden />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Поиск по операциям и тегам"
+                  aria-label="Поиск по операциям"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    className="operations-search-clear"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Очистить поиск"
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                ) : null}
+              </label>
+              <button
+                type="button"
+                className={`operations-advanced-toggle${advancedOpen ? ' open' : ''}`}
+                onClick={() => setAdvancedOpen((value) => !value)}
+                aria-expanded={advancedOpen}
+              >
+                <SlidersHorizontal size={16} aria-hidden />
+                <span>Фильтры</span>
+                {activeFilterCount > 0 ? (
+                  <span className="operations-advanced-count">{activeFilterCount}</span>
+                ) : null}
+                <ChevronDown size={14} aria-hidden className="operations-advanced-caret" />
+              </button>
+            </div>
 
-                  return (
-                    <li key={operation.id}>
-                      <span className={`operation-icon ${operation.tone}${merchantLogo ? ' has-logo' : ''}`}>
-                        {merchantLogo ? (
-                          <img src={merchantLogo.src} alt={merchantLogo.alt} className="merchant-logo" />
-                        ) : (
-                          getOperationIcon(operation.title)
-                        )}
-                      </span>
-                      <div className="operation-body">
-                        <p>{operation.title}</p>
-                        <small>
-                          {operation.subtitle} · {operation.dateLabel}
-                        </small>
-                        {operation.smartTag ? (
-                          <small
-                            className={
-                              operation.tone === 'danger' ? 'smart-tag danger' : 'smart-tag'
-                            }
+            {advancedOpen ? (
+              <div className="operations-advanced" role="group" aria-label="Расширенные фильтры">
+                <div className="operations-advanced-row">
+                  <label className="operations-advanced-field">
+                    <span>Мерчант</span>
+                    <input
+                      type="text"
+                      value={merchantQuery}
+                      onChange={(event) => setMerchantQuery(event.target.value)}
+                      placeholder="Например, Самокат"
+                    />
+                  </label>
+                  <label className="operations-advanced-field">
+                    <span>Сумма от, ₽</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={minAmount}
+                      onChange={(event) => setMinAmount(event.target.value)}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="operations-advanced-field">
+                    <span>Сумма до, ₽</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={maxAmount}
+                      onChange={(event) => setMaxAmount(event.target.value)}
+                      placeholder="999 999"
+                    />
+                  </label>
+                </div>
+
+                {availableCategories.length ? (
+                  <div className="operations-advanced-categories">
+                    <p className="operations-advanced-label">Категории</p>
+                    <div className="operations-category-grid">
+                      {availableCategories.map((category) => {
+                        const checked = selectedCategories.includes(category)
+                        return (
+                          <button
+                            key={category}
+                            type="button"
+                            className={`operations-category-chip${checked ? ' checked' : ''}`}
+                            onClick={() => toggleCategory(category)}
+                            aria-pressed={checked}
                           >
-                            {operation.smartTag}
-                          </small>
-                        ) : null}
-                      </div>
-                      <strong
-                        className={operation.amount > 0 ? 'amount positive' : 'amount negative'}
-                      >
-                        {formatCurrency(operation.amount, true)}
-                      </strong>
-                    </li>
-                  )
-                })}
-              </ul>
+                            {checked ? <Check size={14} aria-hidden /> : null}
+                            <span>{category}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {activeFilterCount > 0 ? (
+                  <button
+                    type="button"
+                    className="operations-advanced-clear"
+                    onClick={clearAllFilters}
+                  >
+                    <X size={14} aria-hidden />
+                    Сбросить все фильтры
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {operationGroups.length ? (
+              <div className="operation-groups">
+                {operationGroups.map((group) => (
+                  <section key={group.key} className="operation-group">
+                    <header className="operation-group-header">
+                      <span>{group.label}</span>
+                      <small>
+                        {group.items.length}{' '}
+                        {pluralizeOperations(group.items.length)}
+                      </small>
+                    </header>
+                    <ul className="operation-list">
+                      {group.items.map((operation) => {
+                        const merchantLogo = resolveMerchantLogo(
+                          operation.title,
+                          operation.subtitle,
+                        )
+                        const tileColor = !merchantLogo
+                          ? brandColorFor(operation.title)
+                          : undefined
+
+                        return (
+                          <li key={operation.id}>
+                            <button
+                              type="button"
+                              className="operation-row"
+                              onClick={() => openOperationDetail(operation)}
+                              aria-label={`Открыть детали операции ${operation.title}`}
+                            >
+                              <span
+                                className={`operation-icon ${operation.tone}${merchantLogo ? ' has-logo' : ' has-initial'}`}
+                                style={
+                                  tileColor ? { backgroundColor: tileColor } : undefined
+                                }
+                              >
+                                {merchantLogo ? (
+                                  <img
+                                    src={merchantLogo.src}
+                                    alt=""
+                                    className="merchant-logo"
+                                  />
+                                ) : (
+                                  brandInitial(operation.title)
+                                )}
+                              </span>
+                              <div className="operation-body">
+                                <p>{operation.title}</p>
+                                <small>
+                                  {operation.subtitle} · {operation.dateLabel}
+                                </small>
+                                {operation.smartTag ? (
+                                  <small
+                                    className={
+                                      operation.tone === 'danger'
+                                        ? 'smart-tag danger'
+                                        : 'smart-tag'
+                                    }
+                                  >
+                                    {operation.smartTag}
+                                  </small>
+                                ) : null}
+                              </div>
+                              <strong
+                                className={
+                                  operation.amount > 0 ? 'amount positive' : 'amount negative'
+                                }
+                              >
+                                {formatCurrency(operation.amount, true)}
+                              </strong>
+                              <ChevronRight
+                                size={16}
+                                className="operation-chevron"
+                                aria-hidden
+                              />
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
             ) : (
-              <p className="operations-empty">По выбранному фильтру операций пока нет.</p>
+              <div className="operations-empty">
+                <p>Ничего не нашли по текущим фильтрам.</p>
+                {activeFilterCount > 0 ? (
+                  <button type="button" className="link-button" onClick={clearAllFilters}>
+                    Сбросить фильтры
+                  </button>
+                ) : null}
+              </div>
             )}
           </article>
         </div>
       </div>
+      <OperationDetailDialog detail={activeDetail} onClose={() => setActiveDetail(null)} />
     </section>
   )
 }
@@ -1454,16 +1743,53 @@ function SmartDebitDetailsPage({
 
   return (
     <section className="smartdebit-details-page">
-      <header className="smartdebit-head">
-        <button type="button" className="back-link back-link-button" onClick={handleBackNavigation}>
+      <header className="smartdebit-hero">
+        <button
+          type="button"
+          className="back-link back-link-button smartdebit-hero-back"
+          onClick={handleBackNavigation}
+        >
           <span>←</span>
           Назад
         </button>
-        <div className="smartdebit-head-copy">
-          <h1 className="smartdebit-head-title">SmartDebit</h1>
-          <p className="smartdebit-head-subtitle">
-            Управляйте автосписаниями и контролируйте будущие платежи
-          </p>
+        <div className="smartdebit-hero-grid">
+          <div className="smartdebit-hero-copy">
+            <span className="smartdebit-hero-eyebrow">
+              <Sparkles size={14} aria-hidden />
+              Умный сервис автосписаний
+            </span>
+            <h1 className="smartdebit-hero-title">SmartDebit</h1>
+            <p className="smartdebit-hero-subtitle">
+              Управляйте автосписаниями и контролируйте будущие платежи в одном экране
+            </p>
+          </div>
+          {dashboard ? (
+            <div className="smartdebit-hero-stats" role="list">
+              <div className="smartdebit-hero-stat" role="listitem">
+                <span className="smartdebit-hero-stat-icon">
+                  <CalendarClock size={18} aria-hidden />
+                </span>
+                <span className="smartdebit-hero-stat-body">
+                  <span className="smartdebit-hero-stat-label">Всего подписок</span>
+                  <span className="smartdebit-hero-stat-value">{dashboard.upcoming.length}</span>
+                </span>
+              </div>
+              <div
+                className={`smartdebit-hero-stat${
+                  dashboard.alerts.length ? ' smartdebit-hero-stat-warn' : ''
+                }`}
+                role="listitem"
+              >
+                <span className="smartdebit-hero-stat-icon">
+                  <AlertTriangle size={18} aria-hidden />
+                </span>
+                <span className="smartdebit-hero-stat-body">
+                  <span className="smartdebit-hero-stat-label">Просрочек</span>
+                  <span className="smartdebit-hero-stat-value">{dashboard.alerts.length}</span>
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -1603,10 +1929,26 @@ function SmartDebitDetailsPage({
   )
 }
 
-function ProfilePage({ fullName }: { fullName: string }) {
+function ProfilePage({
+  fullName,
+  username,
+  onLogout,
+}: {
+  fullName: string
+  username?: string
+  onLogout?: () => void
+}) {
   return (
     <section className="profile-page">
-      <h1 className="profile-page-title">Ваши данные</h1>
+      <div className="profile-page-head">
+        <h1 className="profile-page-title">Ваши данные</h1>
+        {onLogout ? (
+          <button type="button" className="profile-logout" onClick={onLogout}>
+            <LogOut size={16} aria-hidden />
+            Выйти{username ? ` · ${username}` : ''}
+          </button>
+        ) : null}
+      </div>
 
       <div className="profile-layout">
         <div>
@@ -1657,107 +1999,282 @@ function ProfilePage({ fullName }: { fullName: string }) {
   )
 }
 
-function App() {
-  const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const profileName = PROFILE.fullName
+const AUTH_STORAGE_KEY = 'smartdebit:current-user'
 
-  const refreshDashboard = useCallback(async (silent = false) => {
-    if (!silent) {
-      setLoading(true)
+function loadStoredUsername(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage.getItem(AUTH_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function persistUsername(username: string | null) {
+  if (typeof window === 'undefined') return
+  try {
+    if (username) {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, username)
+    } else {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
     }
-    try {
-      const payload = await smartDebitApi.getDashboard()
-      setDashboard(payload)
-      setError('')
-    } catch (loadError) {
-      setError(resolveErrorMessage(loadError, 'Не удалось загрузить данные SmartDebit'))
-    } finally {
-      if (!silent) {
-        setLoading(false)
-      }
+  } catch {
+    /* ignore */
+  }
+}
+
+function userOperationsToBank(operations: UserOperation[]): BankOperation[] {
+  return operations.map((op) => ({
+    id: op.id,
+    title: op.title,
+    subtitle: op.subtitle,
+    dateLabel: op.dateLabel,
+    dateISO: operationISO(op),
+    amount: op.amount,
+    smartTag: op.smartTag,
+    tone: op.amount >= 0 ? 'success' : 'neutral',
+  }))
+}
+
+function userFavoritesToEntries(favorites: UserFavorite[]): FavoritePaymentEntry[] {
+  return favorites.map((fav) => ({
+    id: fav.id,
+    title: fav.title,
+    subtitle: fav.subtitle,
+    account: fav.account,
+    lastAmount: fav.lastAmount,
+    icon: getFavoriteIcon(fav.iconKey),
+  }))
+}
+
+function userOperationsToHomeHistory(operations: UserOperation[]): HomeHistoryItem[] {
+  return operations.slice(0, 8).map((op) => {
+    const initial = op.title.trim().charAt(0).toUpperCase() || '•'
+    const tone: HomeHistoryItem['iconTone'] = op.amount >= 0 ? 'green' : 'dark'
+    return {
+      id: op.id,
+      title: op.title,
+      date: op.dateLabel,
+      amount: op.amount,
+      icon: initial,
+      iconTone: tone,
+      smartTag: op.smartTag,
     }
+  })
+}
+
+function buildEffectiveDashboard(
+  upcoming: UserUpcoming[],
+  balance: number,
+  enabled: boolean,
+): DashboardPayload {
+  const upcomingPayments = toUpcomingPayments(upcoming)
+  const overdue = upcoming.filter((item) => item.status === 'overdue')
+  return {
+    enabled,
+    account: {
+      balance,
+      available: balance,
+    },
+    alerts: overdue.map((item) => ({
+      id: `alert-${item.id}`,
+      paymentId: item.id,
+      title: item.title,
+      amount: item.amount,
+    })),
+    upcoming: upcomingPayments,
+    chart: buildUserChart(upcoming),
+    notifications: buildUserNotifications(upcoming),
+    generatedAt: new Date().toISOString(),
+  }
+}
+
+function App() {
+  const [currentUsername, setCurrentUsername] = useState<string | null>(() => loadStoredUsername())
+  const userDataset = useMemo<UserDataset | null>(() => {
+    if (!currentUsername) return null
+    return USER_DATASETS.find((entry) => entry.user.username === currentUsername) ?? null
+  }, [currentUsername])
+
+  const [balance, setBalance] = useState<number>(userDataset?.balance ?? 0)
+  const [upcoming, setUpcoming] = useState<UserUpcoming[]>(userDataset?.upcoming ?? [])
+  const [smartDebitEnabled, setSmartDebitEnabled] = useState<boolean>(true)
+  const lastUserKeyRef = useRef<string | null>(userDataset?.user.username ?? null)
+
+  const currentUserKey = userDataset?.user.username ?? null
+  if (lastUserKeyRef.current !== currentUserKey) {
+    lastUserKeyRef.current = currentUserKey
+    setBalance(userDataset?.balance ?? 0)
+    setUpcoming(userDataset?.upcoming ?? [])
+    setSmartDebitEnabled(true)
+  }
+
+  const handleLogin = useCallback((username: string) => {
+    persistUsername(username)
+    setCurrentUsername(username)
   }, [])
 
-  useEffect(() => {
-    void refreshDashboard()
-  }, [refreshDashboard])
+  const handleLogout = useCallback(() => {
+    persistUsername(null)
+    setCurrentUsername(null)
+    toast.success('Вы вышли из аккаунта')
+  }, [])
 
-  const handleToggle = useCallback(
-    async (enabled: boolean) => {
-      try {
-        await smartDebitApi.toggle(enabled)
-        await refreshDashboard(true)
-        toast.success(enabled ? 'SmartDebit включен' : 'SmartDebit выключен')
-      } catch (toggleError) {
-        toast.error(resolveErrorMessage(toggleError, 'Не удалось изменить состояние SmartDebit'))
-      }
-    },
-    [refreshDashboard],
-  )
+  const dashboard = useMemo(() => {
+    if (!userDataset) return null
+    return buildEffectiveDashboard(upcoming, balance, smartDebitEnabled)
+  }, [userDataset, upcoming, balance, smartDebitEnabled])
+
+  const userBankOperations = useMemo(() => {
+    if (!userDataset) return [] as BankOperation[]
+    return userOperationsToBank(userDataset.operations)
+  }, [userDataset])
+
+  const userFavorites = useMemo(() => {
+    if (!userDataset) return [] as FavoritePaymentEntry[]
+    return userFavoritesToEntries(userDataset.favorites)
+  }, [userDataset])
+
+  const userHomeHistory = useMemo(() => {
+    if (!userDataset) return [] as HomeHistoryItem[]
+    return userOperationsToHomeHistory(userDataset.operations)
+  }, [userDataset])
+
+  const profileName = userDataset?.user.fullName ?? PROFILE.fullName
+
+  const handleToggle = useCallback(async (enabled: boolean) => {
+    setSmartDebitEnabled(enabled)
+    toast.success(enabled ? 'SmartDebit включен' : 'SmartDebit выключен')
+  }, [])
 
   const handlePayDebt = useCallback(
     async (paymentId: string) => {
-      try {
-        const result = await smartDebitApi.payDebt(paymentId)
-        await refreshDashboard(true)
-        toast.success(result.message)
-      } catch (debtError) {
-        toast.error(resolveErrorMessage(debtError, 'Не удалось погасить задолженность'))
+      const target = upcoming.find((item) => item.id === paymentId)
+      if (!target) {
+        toast.error('Платёж не найден')
+        return
       }
+      if (balance < target.amount) {
+        toast.error('Недостаточно средств для оплаты')
+        return
+      }
+      setBalance((value) => Math.max(0, value - target.amount))
+      setUpcoming((current) => current.filter((item) => item.id !== paymentId))
+      toast.success(`Просрочка погашена: ${target.title}`)
     },
-    [refreshDashboard],
+    [upcoming, balance],
   )
 
   const handleChangeStatus = useCallback(
     async (paymentId: string, status: PaymentStatus) => {
-      try {
-        await smartDebitApi.updateStatus(paymentId, status)
-        await refreshDashboard(true)
-        toast.success('Статус платежа обновлен')
-      } catch (statusError) {
-        toast.error(resolveErrorMessage(statusError, 'Не удалось обновить статус платежа'))
+      const allowed: UserUpcoming['status'][] = [
+        'overdue',
+        'expected',
+        'active',
+        'low_balance',
+        'cancelled',
+        'frozen',
+      ]
+      const mapped = (allowed as PaymentStatus[]).includes(status)
+        ? (status as UserUpcoming['status'])
+        : null
+      if (!mapped) {
+        toast.error('Этот статус пока не поддерживается')
+        return
       }
+      setUpcoming((current) =>
+        current.map((item) => (item.id === paymentId ? { ...item, status: mapped } : item)),
+      )
+      toast.success('Статус платежа обновлен')
     },
-    [refreshDashboard],
+    [],
   )
 
-  const handleAddPayment = useCallback(
-    async (payload: CreatePaymentPayload) => {
-      try {
-        await smartDebitApi.addPayment(payload)
-        await refreshDashboard(true)
-        toast.success('Новый платеж добавлен')
-      } catch (paymentError) {
-        toast.error(resolveErrorMessage(paymentError, 'Не удалось добавить платеж'))
-        throw new Error(resolveErrorMessage(paymentError, 'Не удалось добавить платеж'))
-      }
-    },
-    [refreshDashboard],
-  )
+  const handleLocalDebit = useCallback((amount: number) => {
+    setBalance((value) => Math.max(0, value - amount))
+  }, [])
+
+  const handleAddPayment = useCallback(async (payload: CreatePaymentPayload) => {
+    const id = `manual-${Date.now()}`
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const [chargeYear, chargeMonth, chargeDay] = payload.nextChargeDate
+      .split('-')
+      .map(Number)
+    const charge = new Date(chargeYear, chargeMonth - 1, chargeDay)
+    const daysFromToday = Math.round((charge.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const status: UserUpcoming['status'] = daysFromToday < 0 ? 'overdue' : 'expected'
+    setUpcoming((current) => [
+      ...current,
+      {
+        id,
+        title: payload.title,
+        provider: payload.title,
+        amount: payload.amount,
+        category: payload.category,
+        mandatory: payload.mandatory,
+        status,
+        daysFromToday,
+      },
+    ])
+    toast.success('Новый платеж добавлен')
+  }, [])
+
+  if (!currentUsername || !userDataset) {
+    return <LoginPage onLogin={handleLogin} />
+  }
 
   return (
     <BrowserRouter>
-      <AppHeader notifications={dashboard?.notifications ?? []} profileName={profileName} />
+      <AppHeader
+        notifications={dashboard?.notifications ?? []}
+        profileName={profileName}
+        onLogout={handleLogout}
+      />
 
       <div className="shell">
         <div className="content">
           <Routes>
-            <Route path="/" element={<HomePage dashboard={dashboard} loading={loading} error={error} />} />
-            <Route path="/payments" element={<CardOverviewPage dashboard={dashboard} />} />
+            <Route
+              path="/"
+              element={
+                <HomePage
+                  dashboard={dashboard}
+                  loading={false}
+                  error=""
+                  userHistory={userHomeHistory}
+                />
+              }
+            />
+            <Route
+              path="/payments"
+              element={
+                <CardOverviewPage
+                  dashboard={dashboard}
+                  onLocalDebit={handleLocalDebit}
+                  favorites={userFavorites}
+                />
+              }
+            />
             <Route path="/card-overview" element={<Navigate to="/payments" replace />} />
             <Route
               path="/operations"
-              element={<OperationsPage dashboard={dashboard} loading={loading} error={error} />}
+              element={
+                <OperationsPage
+                  dashboard={dashboard}
+                  loading={false}
+                  error=""
+                  userOperations={userBankOperations}
+                />
+              }
             />
             <Route
               path="/operations/smartdebit"
               element={
                 <SmartDebitDetailsPage
                   dashboard={dashboard}
-                  loading={loading}
-                  error={error}
+                  loading={false}
+                  error=""
                   onToggle={handleToggle}
                   onPayDebt={handlePayDebt}
                   onStatusChange={handleChangeStatus}
@@ -1765,11 +2282,21 @@ function App() {
                 />
               }
             />
-            <Route path="/profile" element={<ProfilePage fullName={profileName} />} />
+            <Route
+              path="/profile"
+              element={
+                <ProfilePage
+                  fullName={profileName}
+                  username={currentUsername}
+                  onLogout={handleLogout}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>
+      <BottomNav />
     </BrowserRouter>
   )
 }
