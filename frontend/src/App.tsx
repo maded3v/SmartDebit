@@ -602,6 +602,8 @@ function HomePage({
   onSpend: (amount: number) => void
 }) {
   const [isCardBackVisible, setCardBackVisible] = useState(false)
+  const [balanceAction, setBalanceAction] = useState<'spend' | 'topup' | null>(null)
+  const [balanceAmount, setBalanceAmount] = useState('1500')
 
   const firstName = useMemo(() => {
     const normalized = profileName.trim()
@@ -611,21 +613,48 @@ function HomePage({
     return normalized.split(' ')[0]
   }, [profileName])
 
-  function askAmount(label: string) {
-    const rawValue = window.prompt(label, '1500')
-    if (!rawValue) {
-      return null
+  function openBalanceModal(action: 'spend' | 'topup') {
+    setBalanceAction(action)
+    setBalanceAmount('1500')
+  }
+
+  function closeBalanceModal() {
+    setBalanceAction(null)
+    setBalanceAmount('1500')
+  }
+
+  function normalizeAmountInput(value: string) {
+    const normalized = value.replace(',', '.').replace(/[^\d.]/g, '')
+    const [wholeRaw, ...fractionParts] = normalized.split('.')
+    const whole = wholeRaw.slice(0, 9)
+    const fraction = fractionParts.join('').slice(0, 2)
+
+    if (!whole && fraction) {
+      return `0.${fraction}`
     }
 
-    const normalized = rawValue.replace(/\s+/g, '').replace(',', '.')
-    const amount = Number(normalized)
+    return fraction ? `${whole}.${fraction}` : whole
+  }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+  function submitBalanceAction(event: FormEvent) {
+    event.preventDefault()
+    if (!balanceAction) {
+      return
+    }
+
+    const amountValue = Number(balanceAmount)
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
       toast.error('Введите корректную сумму')
-      return null
+      return
     }
 
-    return Math.round(amount)
+    const amount = Math.round(amountValue)
+    if (balanceAction === 'spend') {
+      onSpend(amount)
+    } else {
+      onTopUp(amount)
+    }
+    closeBalanceModal()
   }
 
   async function copyCardData(value: string) {
@@ -730,13 +759,7 @@ function HomePage({
             <button
               type="button"
               className="action-transfer"
-              onClick={() => {
-                const amount = askAmount('Введите сумму списания, ₽')
-                if (!amount) {
-                  return
-                }
-                onSpend(amount)
-              }}
+              onClick={() => openBalanceModal('spend')}
             >
               <ArrowLeftRight size={17} />
               <span>Списать</span>
@@ -744,13 +767,7 @@ function HomePage({
             <button
               type="button"
               className="action-top-up"
-              onClick={() => {
-                const amount = askAmount('Введите сумму пополнения, ₽')
-                if (!amount) {
-                  return
-                }
-                onTopUp(amount)
-              }}
+              onClick={() => openBalanceModal('topup')}
             >
               <CirclePlus size={17} />
               <span>Пополнить</span>
@@ -851,6 +868,46 @@ function HomePage({
           </article>
         </div>
       </div>
+
+      {balanceAction ? (
+        <div className="modal-overlay" role="presentation" onClick={closeBalanceModal}>
+          <div
+            className="modal-window balance-modal-window"
+            role="dialog"
+            aria-modal="true"
+            aria-label={balanceAction === 'spend' ? 'Списание со счета' : 'Пополнение счета'}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="close-btn" type="button" onClick={closeBalanceModal}>
+              x
+            </button>
+
+            <h3>{balanceAction === 'spend' ? 'Списание со счета' : 'Пополнение счета'}</h3>
+            <p className="muted">Текущий баланс: {formatCurrency(dashboard?.account.balance ?? 0)}</p>
+
+            <form className="form-grid balance-action-form" onSubmit={submitBalanceAction}>
+              <label>
+                Сумма, ₽
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  maxLength={12}
+                  autoFocus
+                  value={balanceAmount}
+                  onChange={(event) => setBalanceAmount(normalizeAmountInput(event.target.value))}
+                  placeholder="1500"
+                />
+              </label>
+
+              <button type="submit" className="primary">
+                {balanceAction === 'spend'
+                  ? `Списать ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`
+                  : `Пополнить ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
