@@ -465,13 +465,16 @@ function HomePage({
   loading,
   error,
   userHistory,
+  onTopUp,
+  onSpend,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
   userHistory?: HomeHistoryItem[]
+  onTopUp: (amount: number) => boolean
+  onSpend: (amount: number) => boolean
 }) {
-  const navigate = useNavigate()
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
     if (userHistory && userHistory.length > 0) {
       return userHistory
@@ -549,18 +552,54 @@ function HomePage({
     ]
   }, [dashboard, userHistory])
 
-  const openPaymentsByIntent = useCallback(
-    (quickAction: PaymentQuickActionId) => {
-      navigate('/payments', {
-        state: {
-          quickAction,
-        } satisfies PaymentsLocationState,
-      })
-    },
-    [navigate],
-  )
   const [isCardBackVisible, setCardBackVisible] = useState(false)
   const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
+  const [balanceAction, setBalanceAction] = useState<'spend' | 'topup' | null>(null)
+  const [balanceAmount, setBalanceAmount] = useState('1500')
+
+  function openBalanceModal(action: 'spend' | 'topup') {
+    setBalanceAction(action)
+    setBalanceAmount('1500')
+  }
+
+  function closeBalanceModal() {
+    setBalanceAction(null)
+    setBalanceAmount('1500')
+  }
+
+  function normalizeAmountInput(value: string) {
+    const normalized = value.replace(',', '.').replace(/[^\d.]/g, '')
+    const [wholeRaw, ...fractionParts] = normalized.split('.')
+    const whole = wholeRaw.slice(0, 9)
+    const fraction = fractionParts.join('').slice(0, 2)
+
+    if (!whole && fraction) {
+      return `0.${fraction}`
+    }
+
+    return fraction ? `${whole}.${fraction}` : whole
+  }
+
+  function submitBalanceAction(event: FormEvent) {
+    event.preventDefault()
+    if (!balanceAction) {
+      return
+    }
+
+    const amountValue = Number(balanceAmount)
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      toast.error('Введите корректную сумму')
+      return
+    }
+
+    const normalizedAmount = Math.round(amountValue)
+    const actionSucceeded =
+      balanceAction === 'spend' ? onSpend(normalizedAmount) : onTopUp(normalizedAmount)
+
+    if (actionSucceeded) {
+      closeBalanceModal()
+    }
+  }
 
   const openHistoryDetail = useCallback((item: HomeHistoryItem) => {
     setActiveDetail(
@@ -674,15 +713,15 @@ function HomePage({
             <button
               type="button"
               className="action-transfer"
-              onClick={() => openPaymentsByIntent('quick-between')}
+              onClick={() => openBalanceModal('spend')}
             >
               <ArrowLeftRight size={17} />
-              <span>Перевод</span>
+              <span>Списать</span>
             </button>
             <button
               type="button"
               className="action-top-up"
-              onClick={() => openPaymentsByIntent('quick-details')}
+              onClick={() => openBalanceModal('topup')}
             >
               <CirclePlus size={17} />
               <span>Пополнить</span>
@@ -794,6 +833,47 @@ function HomePage({
           </article>
         </div>
       </div>
+
+      {balanceAction ? (
+        <div className="modal-overlay" role="presentation" onClick={closeBalanceModal}>
+          <div
+            className="modal-window balance-modal-window"
+            role="dialog"
+            aria-modal="true"
+            aria-label={balanceAction === 'spend' ? 'Списание со счета' : 'Пополнение счета'}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="close-btn" type="button" onClick={closeBalanceModal}>
+              x
+            </button>
+
+            <h3>{balanceAction === 'spend' ? 'Списание со счета' : 'Пополнение счета'}</h3>
+            <p className="muted">Текущий баланс: {formatCurrency(dashboard?.account.balance ?? 0)}</p>
+
+            <form className="form-grid balance-action-form" onSubmit={submitBalanceAction}>
+              <label>
+                Сумма, ₽
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  maxLength={12}
+                  autoFocus
+                  value={balanceAmount}
+                  onChange={(event) => setBalanceAmount(normalizeAmountInput(event.target.value))}
+                  placeholder="1500"
+                />
+              </label>
+
+              <button type="submit" className="primary">
+                {balanceAction === 'spend'
+                  ? `Списать ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`
+                  : `Пополнить ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       <OperationDetailDialog detail={activeDetail} onClose={() => setActiveDetail(null)} />
     </section>
   )
@@ -2190,6 +2270,38 @@ function App() {
     [],
   )
 
+  const handleHomeTopUp = useCallback((amount: number) => {
+    const normalizedAmount = Math.round(Number(amount))
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      toast.error('Введите корректную сумму')
+      return false
+    }
+
+    setBalance((value) => value + normalizedAmount)
+    toast.success(`Баланс пополнен на ${numberFormatter.format(normalizedAmount)} ₽`)
+    return true
+  }, [])
+
+  const handleHomeSpend = useCallback(
+    (amount: number) => {
+      const normalizedAmount = Math.round(Number(amount))
+      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        toast.error('Введите корректную сумму')
+        return false
+      }
+
+      if (normalizedAmount > balance) {
+        toast.error('Недостаточно средств для списания')
+        return false
+      }
+
+      setBalance((value) => value - normalizedAmount)
+      toast.success(`Списано ${numberFormatter.format(normalizedAmount)} ₽`)
+      return true
+    },
+    [balance],
+  )
+
   const handleLocalDebit = useCallback((amount: number) => {
     setBalance((value) => Math.max(0, value - amount))
   }, [])
@@ -2243,6 +2355,8 @@ function App() {
                   loading={false}
                   error=""
                   userHistory={userHomeHistory}
+                  onTopUp={handleHomeTopUp}
+                  onSpend={handleHomeSpend}
                 />
               }
             />

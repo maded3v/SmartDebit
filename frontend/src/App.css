@@ -2580,6 +2580,18 @@
   overflow-wrap: anywhere;
 }
 
+.balance-modal-window {
+  width: min(390px, 100%);
+}
+
+.balance-action-form {
+  margin-top: 12px;
+}
+
+.balance-action-form .primary {
+  width: 100%;
+}
+
 .auth-modal {
   width: min(440px, 100%);
 }
