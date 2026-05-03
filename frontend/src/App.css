@@ -151,8 +151,8 @@
 
 .notification-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 3px;
+  right: 3px;
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
@@ -161,8 +161,10 @@
   color: #ffffff;
   font-size: 10px;
   font-weight: 700;
-  line-height: 17px;
-  text-align: center;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 2px solid #f6f8fb;
   pointer-events: none;
 }
@@ -556,6 +558,7 @@
   padding: 18px 16px 22px;
   box-shadow: 4px 0 24px rgba(11, 17, 27, 0.12);
   animation: mobileMenuIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
 }
 
 .mobile-menu-head {
@@ -584,6 +587,7 @@
 .mobile-menu-nav {
   display: grid;
   gap: 4px;
+  min-height: 0;
 }
 
 .mobile-menu-link {
@@ -777,20 +781,35 @@
   padding: 10px;
 }
 
+.home-widget-list li > div {
+  min-width: 0;
+}
+
 .home-widget-list p {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #1b2537;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .home-widget-list small {
   color: #6f7e93;
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .home-widget-list strong {
   white-space: nowrap;
   color: #1a2230;
+}
+
+.home-smartdebit-disabled {
+  margin-top: 2px;
+  display: grid;
+  gap: 10px;
 }
 
 .widget-link-btn {
@@ -921,6 +940,7 @@
   background:
     linear-gradient(145deg, rgba(5, 8, 12, 0.78) 0%, rgba(10, 15, 24, 0.62) 100%),
     url('/icons/card_back.png') center / cover no-repeat;
+  background-size: 100% 100%;
 }
 
 .wallet-card-bank {
@@ -2742,6 +2762,12 @@
 .form-grid select:focus {
   outline: 2px solid rgba(255, 221, 45, 0.5);
   border-color: #f0d350;
+}
+
+.date-select-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .form-grid label.check-row,
@@ -4572,6 +4598,11 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  position: sticky;
+  bottom: 0;
+  margin-top: 6px;
+  padding-top: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #ffffff 24%);
 }
 
 .op-dialog-action {
@@ -4586,6 +4617,7 @@
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
+  white-space: nowrap;
   transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -4635,11 +4667,18 @@
     max-height: 90dvh;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    padding: 22px 18px 18px;
+    padding: 22px 18px calc(16px + env(safe-area-inset-bottom, 0px));
     animation: opDialogSheetIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .op-dialog-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .op-dialog-action {
+    padding: 10px 8px;
+    font-size: 13px;
+    gap: 6px;
   }
 }
 
@@ -4705,6 +4744,10 @@
 }
 :root[data-theme='dark'] .op-dialog-action.ghost:hover {
   background: #2c3850;
+}
+
+:root[data-theme='dark'] .op-dialog-actions {
+  background: linear-gradient(180deg, rgba(22, 30, 44, 0) 0%, #161e2c 24%);
 }
 
 :root[data-theme='dark'] .history-row:hover,

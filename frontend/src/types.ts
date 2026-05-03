@@ -58,6 +58,7 @@ export interface DashboardPayload {
 
 export interface CreatePaymentPayload {
   title: string
+  description?: string
   amount: number
   nextChargeDate: string
   category: string

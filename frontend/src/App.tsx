@@ -754,7 +754,7 @@ function HomePage({
           <button
             type="button"
             className="home-open-product-btn"
-            onClick={() => toast('У вас уже открыто все, что нужно')}
+            onClick={() => toast('У вас уже открыто все, что нужно', { id: 'home-open-product' })}
           >
             <Plus size={18} />
             <span>Открыть новый продукт</span>
@@ -770,23 +770,34 @@ function HomePage({
               </span>
             </div>
 
-            <p className="muted">Ближайшие списания на 7 дней</p>
+            {dashboard?.enabled ? (
+              <>
+                <p className="muted">Ближайшие списания на 7 дней</p>
 
-            <ul className="home-widget-list">
-              {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
-                <li key={payment.id}>
-                  <div>
-                    <p>{formatPaymentTitle(payment.title)}</p>
-                    <small>{formatDate(payment.nextChargeDate)}</small>
-                  </div>
-                  <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
-                </li>
-              ))}
-            </ul>
+                <ul className="home-widget-list">
+                  {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
+                    <li key={payment.id}>
+                      <div>
+                        <p>{formatPaymentTitle(payment.title)}</p>
+                        <small>{formatDate(payment.nextChargeDate)}</small>
+                      </div>
+                      <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
+                    </li>
+                  ))}
+                </ul>
 
-            <Link to="/operations/smartdebit" className="widget-link-btn">
-              Открыть SmartDebit
-            </Link>
+                <Link to="/operations/smartdebit" className="widget-link-btn">
+                  Открыть SmartDebit
+                </Link>
+              </>
+            ) : (
+              <div className="home-smartdebit-disabled">
+                <p className="muted">SmartDebit выключен. Включите сервис, чтобы видеть будущие списания.</p>
+                <Link to="/operations/smartdebit" className="widget-link-btn">
+                  Перейти к SmartDebit
+                </Link>
+              </div>
+            )}
           </article>
 
           <article className="panel home-history-panel">
@@ -885,11 +896,12 @@ function CardOverviewPage({
   favorites,
 }: {
   dashboard: DashboardPayload | null
-  onLocalDebit: (amount: number) => void
+  onLocalDebit: (amount: number) => boolean
   favorites?: FavoritePaymentEntry[]
 }) {
   const favoriteList = favorites && favorites.length > 0 ? favorites : FAVORITE_PAYMENTS
   const location = useLocation()
+  const navigate = useNavigate()
   const locationState = location.state as PaymentsLocationState | null
   const initialQuickActionCandidate =
     typeof locationState?.quickAction === 'string' ? locationState.quickAction : null
@@ -924,6 +936,14 @@ function CardOverviewPage({
 
     return () => clearTimeout(timer)
   }, [payNotice])
+
+  useEffect(() => {
+    if (!locationState?.quickAction) {
+      return
+    }
+
+    navigate('/payments', { replace: true, state: null })
+  }, [locationState?.quickAction, navigate])
 
   useEffect(() => {
     return () => {
@@ -966,7 +986,10 @@ function CardOverviewPage({
     payTimerRef.current = window.setTimeout(() => {
       payTimerRef.current = null
       setPaying(false)
-      onLocalDebit(amountValue)
+      const paid = onLocalDebit(amountValue)
+      if (!paid) {
+        return
+      }
       setPayNotice(
         `Оплата ${payment.title}: ${numberFormatter.format(amountValue)} ₽`,
       )
@@ -1253,21 +1276,61 @@ function AddPaymentModal({
   onSave: (payload: CreatePaymentPayload) => Promise<void>
 }) {
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
-  const [nextChargeDate, setNextChargeDate] = useState(() => {
+  const currentYear = new Date().getFullYear()
+  const [chargeMonth, setChargeMonth] = useState(() => {
     const date = new Date()
     date.setDate(date.getDate() + 1)
-    return date.toISOString().slice(0, 10)
+    return String(date.getMonth() + 1).padStart(2, '0')
+  })
+  const [chargeDay, setChargeDay] = useState(() => {
+    const date = new Date()
+    date.setDate(date.getDate() + 1)
+    return String(date.getDate()).padStart(2, '0')
   })
   const [category, setCategory] = useState('Прочее')
   const [mandatory, setMandatory] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const monthOptions = [
+    { value: '01', label: 'Январь' },
+    { value: '02', label: 'Февраль' },
+    { value: '03', label: 'Март' },
+    { value: '04', label: 'Апрель' },
+    { value: '05', label: 'Май' },
+    { value: '06', label: 'Июнь' },
+    { value: '07', label: 'Июль' },
+    { value: '08', label: 'Август' },
+    { value: '09', label: 'Сентябрь' },
+    { value: '10', label: 'Октябрь' },
+    { value: '11', label: 'Ноябрь' },
+    { value: '12', label: 'Декабрь' },
+  ]
+
+  const daysInSelectedMonth = useMemo(() => {
+    return new Date(currentYear, Number(chargeMonth), 0).getDate()
+  }, [chargeMonth, currentYear])
+
+  function handleChargeMonthChange(nextMonth: string) {
+    const daysInNextMonth = new Date(currentYear, Number(nextMonth), 0).getDate()
+    setChargeMonth(nextMonth)
+    if (Number(chargeDay) > daysInNextMonth) {
+      setChargeDay(String(daysInNextMonth).padStart(2, '0'))
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!title.trim()) {
+    const normalizedTitle = title.trim()
+    if (!normalizedTitle) {
       setError('Укажите название платежа')
+      return
+    }
+
+    if (normalizedTitle.length > 60) {
+      setError('Название не должно превышать 60 символов')
       return
     }
 
@@ -1277,12 +1340,15 @@ function AddPaymentModal({
       return
     }
 
+    const nextChargeDate = `${currentYear}-${chargeMonth}-${chargeDay}`
+
     setSaving(true)
     setError('')
 
     try {
       await onSave({
-        title: title.trim(),
+        title: normalizedTitle,
+        description: description.trim() || undefined,
         amount: amountValue,
         nextChargeDate,
         category,
@@ -1323,6 +1389,17 @@ function AddPaymentModal({
           </label>
 
           <label>
+            Описание (необязательно)
+            <input
+              type="text"
+              value={description}
+              maxLength={80}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Например, счет 4218"
+            />
+          </label>
+
+          <label>
             Сумма
             <input
               type="number"
@@ -1331,6 +1408,9 @@ function AddPaymentModal({
               max="999999"
               step="0.01"
               value={amount}
+              onWheel={(event) => {
+                event.currentTarget.blur()
+              }}
               onChange={(event) => {
                 const next = event.target.value
                 if (next === '' || (next.length <= 12 && Number(next) <= 999999)) {
@@ -1343,11 +1423,29 @@ function AddPaymentModal({
 
           <label>
             Дата списания
-            <input
-              type="date"
-              value={nextChargeDate}
-              onChange={(event) => setNextChargeDate(event.target.value)}
-            />
+            <div className="date-select-row">
+              <select value={chargeDay} onChange={(event) => setChargeDay(event.target.value)}>
+                {Array.from({ length: daysInSelectedMonth }, (_, index) => {
+                  const day = String(index + 1).padStart(2, '0')
+                  return (
+                    <option key={day} value={day}>
+                      {day}
+                    </option>
+                  )
+                })}
+              </select>
+              <select
+                value={chargeMonth}
+                onChange={(event) => handleChargeMonthChange(event.target.value)}
+              >
+                {monthOptions.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <small className="muted">Год: {currentYear}</small>
           </label>
 
           <label>
@@ -1632,6 +1730,9 @@ function OperationsPage({
                       type="number"
                       inputMode="decimal"
                       value={minAmount}
+                      onWheel={(event) => {
+                        event.currentTarget.blur()
+                      }}
                       onChange={(event) => setMinAmount(event.target.value)}
                       placeholder="0"
                     />
@@ -1642,6 +1743,9 @@ function OperationsPage({
                       type="number"
                       inputMode="decimal"
                       value={maxAmount}
+                      onWheel={(event) => {
+                        event.currentTarget.blur()
+                      }}
                       onChange={(event) => setMaxAmount(event.target.value)}
                       placeholder="999 999"
                     />
@@ -2224,7 +2328,9 @@ function App() {
 
   const handleToggle = useCallback(async (enabled: boolean) => {
     setSmartDebitEnabled(enabled)
-    toast.success(enabled ? 'SmartDebit включен' : 'SmartDebit выключен')
+    toast.success(enabled ? 'SmartDebit включен' : 'SmartDebit выключен', {
+      id: 'smartdebit-toggle',
+    })
   }, [])
 
   const handlePayDebt = useCallback(
@@ -2302,9 +2408,24 @@ function App() {
     [balance],
   )
 
-  const handleLocalDebit = useCallback((amount: number) => {
-    setBalance((value) => Math.max(0, value - amount))
-  }, [])
+  const handleLocalDebit = useCallback(
+    (amount: number) => {
+      const normalizedAmount = Math.round(Number(amount))
+      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        toast.error('Введите корректную сумму')
+        return false
+      }
+
+      if (normalizedAmount > balance) {
+        toast.error('Недостаточно средств для оплаты')
+        return false
+      }
+
+      setBalance((value) => value - normalizedAmount)
+      return true
+    },
+    [balance],
+  )
 
   const handleAddPayment = useCallback(async (payload: CreatePaymentPayload) => {
     const id = `manual-${Date.now()}`
@@ -2321,7 +2442,7 @@ function App() {
       {
         id,
         title: payload.title,
-        provider: payload.title,
+        provider: payload.description?.trim() || payload.category,
         amount: payload.amount,
         category: payload.category,
         mandatory: payload.mandatory,

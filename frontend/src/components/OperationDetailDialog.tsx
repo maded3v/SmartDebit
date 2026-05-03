@@ -26,8 +26,17 @@ export function OperationDetailDialog({ detail, onClose }: OperationDetailDialog
 
   useEffect(() => {
     if (!detail) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const { body } = document
+    const previousOverflow = body.style.overflow
+    const previousPosition = body.style.position
+    const previousTop = body.style.top
+    const previousWidth = body.style.width
+    const scrollY = window.scrollY
+
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
 
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -38,7 +47,11 @@ export function OperationDetailDialog({ detail, onClose }: OperationDetailDialog
     closeRef.current?.focus()
 
     return () => {
-      document.body.style.overflow = previousOverflow
+      body.style.overflow = previousOverflow
+      body.style.position = previousPosition
+      body.style.top = previousTop
+      body.style.width = previousWidth
+      window.scrollTo(0, scrollY)
       window.removeEventListener('keydown', onKey)
     }
   }, [detail, onClose])
