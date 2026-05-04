@@ -443,6 +443,46 @@ def analyze_and_create_payments(request):
 
 
 @extend_schema(
+    summary="История операций",
+    description="Возвращает последние операции текущего пользователя",
+    tags=["Transactions"],
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_transactions(request):
+    user = _get_api_user(request)
+    if not user:
+        return Response(
+            {"status": "error", "message": "Профиль не найден"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    raw_limit = request.query_params.get('limit', '50')
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        limit = 50
+    limit = max(1, min(limit, 200))
+
+    transactions = Transaction.objects.filter(
+        account__user=user,
+    ).order_by('-transaction_date')[:limit]
+
+    data = [
+        {
+            "id": t.id,
+            "merchant_name": t.merchant_name,
+            "amount": float(t.amount),
+            "transaction_date": t.transaction_date.isoformat(),
+            "status": t.status,
+        }
+        for t in transactions
+    ]
+
+    return Response({"status": "success", "transactions": data})
+
+
+@extend_schema(
     summary="Получить уведомления",
     description="Возвращает последние 20 уведомлений текущего пользователя",
     tags=["Notifications"],

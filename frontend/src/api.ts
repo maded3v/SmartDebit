@@ -263,6 +263,27 @@ interface BackendPayEnvelope {
   }
 }
 
+interface BackendTransaction {
+  id: number | string
+  merchant_name: string
+  amount: number
+  transaction_date: string
+  status?: string
+}
+
+interface BackendTransactionsEnvelope {
+  status?: string
+  transactions?: BackendTransaction[]
+}
+
+export interface ApiTransaction {
+  id: string
+  merchantName: string
+  amount: number
+  transactionDate: string
+  status: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isAuthEndpoint = path.startsWith('/auth/')
   const response = await doFetch(path, init, !isAuthEndpoint)
@@ -356,6 +377,16 @@ function mapBackendPayment(payment: BackendPayment): Payment {
     nextChargeDate: payment.next_charge_date,
     periodLabel: getPeriodLabel(payment.next_charge_date),
     source: 'auto',
+  }
+}
+
+function mapBackendTransaction(transaction: BackendTransaction): ApiTransaction {
+  return {
+    id: String(transaction.id),
+    merchantName: transaction.merchant_name || 'Операция',
+    amount: Number(transaction.amount) || 0,
+    transactionDate: transaction.transaction_date,
+    status: transaction.status || 'completed',
   }
 }
 
@@ -539,5 +570,12 @@ export const smartDebitApi = {
       message: response.message || 'Новый платеж добавлен',
       payment: response.payment ? mapBackendPayment(response.payment) : null,
     }
+  },
+
+  async getTransactions(limit = 60) {
+    const safeLimit = Math.max(1, Math.min(Math.round(limit), 200))
+    const payload = await request<BackendTransactionsEnvelope>(`/transactions/?limit=${safeLimit}`)
+    const transactions = Array.isArray(payload.transactions) ? payload.transactions : []
+    return transactions.map(mapBackendTransaction)
   },
 }

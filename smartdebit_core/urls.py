@@ -24,6 +24,9 @@ urlpatterns = [
     path('api/v1/payments/<int:payment_id>/', views.payment_detail, name='payment_detail'),
     path('api/v1/payments/<int:payment_id>/pay/', views.pay_payment, name='pay_payment'),
 
+    # Transactions
+    path('api/v1/transactions/', views.get_transactions, name='get_transactions'),
+
     # Notifications
     path('api/v1/notifications/', views.get_notifications, name='get_notifications'),
     path('api/v1/notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),

@@ -11,15 +11,7 @@ import {
 import './App.css'
 import type { FormEvent } from 'react'
 import { LoginPage } from './components/LoginPage'
-import {
-  USER_DATASETS,
-  getFavoriteIcon,
-  operationISO,
-  type UserDataset,
-  type UserOperation,
-  type UserFavorite,
-} from './userData'
-import { authApi, smartDebitApi } from './api'
+import { authApi, smartDebitApi, type ApiTransaction } from './api'
 import {
   ArrowLeftRight,
   Briefcase,
@@ -140,79 +132,6 @@ const STATUS_TONE: Record<PaymentStatus, StatusTone> = {
   paid: 'green',
 }
 
-function isoDaysAgo(days: number) {
-  const date = new Date()
-  date.setHours(0, 0, 0, 0)
-  date.setDate(date.getDate() - days)
-  return date.toISOString().slice(0, 10)
-}
-
-const BASE_OPERATIONS: BankOperation[] = [
-  {
-    id: 'salary-1',
-    title: 'Зарплата',
-    subtitle: 'Acme Team',
-    dateLabel: 'Сегодня, 09:12',
-    dateISO: isoDaysAgo(0),
-    amount: 85000,
-    tone: 'success',
-  },
-  {
-    id: 'samokat-1',
-    title: 'Самокат',
-    subtitle: 'Еда и продукты',
-    dateLabel: 'Сегодня, 12:41',
-    dateISO: isoDaysAgo(0),
-    amount: -1250,
-    tone: 'neutral',
-  },
-  {
-    id: 'wildberries-1',
-    title: 'Wildberries',
-    subtitle: 'Покупки',
-    dateLabel: 'Вчера, 21:07',
-    dateISO: isoDaysAgo(1),
-    amount: -3450,
-    tone: 'neutral',
-  },
-  {
-    id: 'ozon-1',
-    title: 'Ozon',
-    subtitle: 'Маркетплейс',
-    dateLabel: 'Вчера, 19:23',
-    dateISO: isoDaysAgo(1),
-    amount: -2300,
-    tone: 'neutral',
-  },
-  {
-    id: 'magnit-2',
-    title: 'Магнит',
-    subtitle: 'Супермаркеты',
-    dateLabel: 'Позавчера, 18:50',
-    dateISO: isoDaysAgo(2),
-    amount: -2340,
-    tone: 'neutral',
-  },
-  {
-    id: 'yandex-eda-2',
-    title: 'Яндекс Еда',
-    subtitle: 'Кафе и доставка',
-    dateLabel: '3 дня назад, 14:25',
-    dateISO: isoDaysAgo(3),
-    amount: -890,
-    tone: 'neutral',
-  },
-  {
-    id: 'mts-2',
-    title: 'МТС',
-    subtitle: 'Мобильная связь',
-    dateLabel: '5 дней назад, 10:00',
-    dateISO: isoDaysAgo(5),
-    amount: -600,
-    tone: 'neutral',
-  },
-]
-
 const PROFILE = {
   fullName: 'Иван Иванов',
   cardNameLatin: 'IVAN IVANOV',
@@ -266,49 +185,6 @@ const OPERATIONS_FILTERS: Array<{ id: OperationsFilterId; label: string }> = [
   { id: 'income', label: 'Доходы' },
   { id: 'expense', label: 'Расходы' },
   { id: 'subscriptions', label: 'Подписки' },
-]
-
-const FAVORITE_PAYMENTS: FavoritePaymentEntry[] = [
-  {
-    id: 'fav-mts',
-    title: 'МТС',
-    subtitle: 'Мобильная связь',
-    account: '+7 (925) 123-45-67',
-    lastAmount: 600,
-    icon: Smartphone,
-  },
-  {
-    id: 'fav-rostelecom',
-    title: 'Ростелеком',
-    subtitle: 'Интернет',
-    account: 'Договор №847291',
-    lastAmount: 890,
-    icon: Wifi,
-  },
-  {
-    id: 'fav-zhkh',
-    title: 'ЖКХ Квартплата',
-    subtitle: 'УК «Домсервис»',
-    account: 'ЛС 4820193847',
-    lastAmount: 8500,
-    icon: Home,
-  },
-  {
-    id: 'fav-energo',
-    title: 'МосЭнерго',
-    subtitle: 'Электроэнергия',
-    account: 'ЛС 7391028456',
-    lastAmount: 1340,
-    icon: Zap,
-  },
-  {
-    id: 'fav-kindergarten',
-    title: 'Детский сад №42',
-    subtitle: 'Образование',
-    account: 'ИНН 7701234567',
-    lastAmount: 3200,
-    icon: GraduationCap,
-  },
 ]
 
 const PAYMENT_SERVICES: PaymentServiceEntry[] = [
@@ -387,7 +263,7 @@ function isPaymentQuickActionId(value: string): value is PaymentQuickActionId {
 
 function buildOperationsFeed(
   dashboard: DashboardPayload | null,
-  baseOperations: BankOperation[] = BASE_OPERATIONS,
+  baseOperations: BankOperation[] = [],
 ): BankOperation[] {
   if (!dashboard) {
     return baseOperations
@@ -475,6 +351,7 @@ function HomePage({
   loading,
   error,
   userHistory,
+  profileName,
   walletCashback,
   onTopUp,
   onSpend,
@@ -483,91 +360,20 @@ function HomePage({
   loading: boolean
   error: string
   userHistory?: HomeHistoryItem[]
+  profileName: string
   walletCashback: number
   onTopUp: (amount: number) => boolean
   onSpend: (amount: number) => boolean
 }) {
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
-    if (userHistory && userHistory.length > 0) {
-      return userHistory
-    }
-    const mortgage = dashboard?.upcoming.find((payment) => payment.id === 'mortgage-sber')
-    const kion = dashboard?.upcoming.find((payment) => payment.id === 'kion')
-    return [
-      {
-        id: 'salary-main',
-        title: 'Зарплата',
-        date: '1 мар',
-        amount: 95000,
-        icon: '↙',
-        iconTone: 'green',
-      },
-      {
-        id: 'mortgage-main',
-        title: 'Ипотека (Сбербанк)',
-        date: '28 фев',
-        amount: -(mortgage?.amount ?? 45000),
-        icon: 'Б',
-        iconTone: 'dark',
-        smartTag: 'SmartDebit · Ежемесячный платеж',
-      },
-      {
-        id: 'samokat-main',
-        title: 'Самокат',
-        date: '27 фев',
-        amount: -1250,
-        icon: 'С',
-        iconTone: 'green',
-      },
-      {
-        id: 'plus-main',
-        title: 'Яндекс Плюс',
-        date: '27 фев',
-        amount: -299,
-        icon: '↻',
-        iconTone: 'gray',
-        smartTag: 'SmartDebit · Оплата за расчетный период: Март 2026',
-      },
-      {
-        id: 'eda-main',
-        title: 'Яндекс Еда',
-        date: '26 фев',
-        amount: -890,
-        icon: 'Я',
-        iconTone: 'dark',
-      },
-      {
-        id: 'start-main',
-        title: 'START Подписка',
-        date: '26 фев',
-        amount: -399,
-        icon: '↻',
-        iconTone: 'gray',
-        smartTag: 'SmartDebit · Оплата за расчетный период: Март 2026',
-      },
-      {
-        id: 'magnit-main',
-        title: 'Магнит',
-        date: '25 фев',
-        amount: -2340,
-        icon: 'М',
-        iconTone: 'red',
-      },
-      {
-        id: 'kion-main',
-        title: 'KION',
-        date: '24 фев',
-        amount: -(kion?.amount ?? 249),
-        icon: 'К',
-        iconTone: 'gray',
-      },
-    ]
-  }, [dashboard, userHistory])
+    return userHistory ?? []
+  }, [userHistory])
 
   const [isCardBackVisible, setCardBackVisible] = useState(false)
   const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
   const [balanceAction, setBalanceAction] = useState<'spend' | 'topup' | null>(null)
   const [balanceAmount, setBalanceAmount] = useState('1500')
+  const greetingName = profileName.trim().split(/\s+/)[0] || 'клиент'
 
   function openBalanceModal(action: 'spend' | 'topup') {
     setBalanceAction(action)
@@ -637,7 +443,7 @@ function HomePage({
 
   return (
     <section className="home-screen">
-      <h1 className="home-title">Добрый день, Иван</h1>
+      <h1 className="home-title">Добрый день, {greetingName}</h1>
       {loading ? <p className="home-note">Загружаем данные...</p> : null}
       {error ? <p className="home-error">{error}</p> : null}
 
@@ -648,7 +454,7 @@ function HomePage({
               <span className="wallet-currency">₽</span>
               <div className="wallet-balance-wrap">
                 <p className="wallet-balance">
-                  {formatCurrency(dashboard?.account.balance ?? 116783)}
+                  {formatCurrency(dashboard?.account.balance ?? 0)}
                 </p>
                 <small>Black</small>
               </div>
@@ -815,44 +621,48 @@ function HomePage({
           <article className="panel home-history-panel">
             <h2>История операций</h2>
 
-            <ul className="home-history-list">
-              {historyItems.map((item) => {
-                const merchantLogo = resolveMerchantLogo(item.title)
-                const showInitial = !merchantLogo
-                const tileColor = showInitial ? brandColorFor(item.title) : undefined
+            {historyItems.length ? (
+              <ul className="home-history-list">
+                {historyItems.map((item) => {
+                  const merchantLogo = resolveMerchantLogo(item.title)
+                  const showInitial = !merchantLogo
+                  const tileColor = showInitial ? brandColorFor(item.title) : undefined
 
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      className="history-row"
-                      onClick={() => openHistoryDetail(item)}
-                      aria-label={`Открыть детали операции ${item.title}`}
-                    >
-                      <span
-                        className={`history-icon ${item.iconTone}${merchantLogo ? ' has-logo' : ' has-initial'}`}
-                        style={tileColor ? { backgroundColor: tileColor } : undefined}
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="history-row"
+                        onClick={() => openHistoryDetail(item)}
+                        aria-label={`Открыть детали операции ${item.title}`}
                       >
-                        {merchantLogo ? (
-                          <img src={merchantLogo.src} alt="" className="merchant-logo" />
-                        ) : (
-                          brandInitial(item.title)
-                        )}
-                      </span>
-                      <div className="history-body">
-                        <p>{item.title}</p>
-                        <small>{item.date}</small>
-                        {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
-                      </div>
-                      <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
-                        {formatCurrency(item.amount, true)}
-                      </strong>
-                      <ChevronRight size={16} className="history-chevron" aria-hidden />
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+                        <span
+                          className={`history-icon ${item.iconTone}${merchantLogo ? ' has-logo' : ' has-initial'}`}
+                          style={tileColor ? { backgroundColor: tileColor } : undefined}
+                        >
+                          {merchantLogo ? (
+                            <img src={merchantLogo.src} alt="" className="merchant-logo" />
+                          ) : (
+                            brandInitial(item.title)
+                          )}
+                        </span>
+                        <div className="history-body">
+                          <p>{item.title}</p>
+                          <small>{item.date}</small>
+                          {item.smartTag ? <small className="history-tag">{item.smartTag}</small> : null}
+                        </div>
+                        <strong className={item.amount > 0 ? 'amount positive' : 'amount negative'}>
+                          {formatCurrency(item.amount, true)}
+                        </strong>
+                        <ChevronRight size={16} className="history-chevron" aria-hidden />
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="muted">Операции пока не найдены.</p>
+            )}
           </article>
         </div>
       </div>
@@ -911,7 +721,7 @@ function CardOverviewPage({
   onLocalDebit: (amount: number) => boolean
   favorites?: FavoritePaymentEntry[]
 }) {
-  const favoriteList = favorites && favorites.length > 0 ? favorites : FAVORITE_PAYMENTS
+  const favoriteList = favorites ?? []
   const location = useLocation()
   const navigate = useNavigate()
   const locationState = location.state as PaymentsLocationState | null
@@ -1039,35 +849,39 @@ function CardOverviewPage({
       <article className="panel card-favorites-panel payments-favorites-panel">
         <h2>Избранные платежи</h2>
 
-        <ul className="favorite-payments-list">
-          {favoriteList.map((payment) => {
-            const Icon = payment.icon
+        {favoriteList.length ? (
+          <ul className="favorite-payments-list">
+            {favoriteList.map((payment) => {
+              const Icon = payment.icon
 
-            return (
-              <li key={payment.id}>
-                <div className="favorite-payment-main">
-                  <span className="favorite-payment-icon">
-                    <Icon size={19} />
-                  </span>
+              return (
+                <li key={payment.id}>
+                  <div className="favorite-payment-main">
+                    <span className="favorite-payment-icon">
+                      <Icon size={19} />
+                    </span>
 
-                  <div className="favorite-payment-content">
-                    <p>{payment.title}</p>
-                    <small>{payment.subtitle}</small>
-                    <small className="favorite-payment-account">{payment.account}</small>
+                    <div className="favorite-payment-content">
+                      <p>{payment.title}</p>
+                      <small>{payment.subtitle}</small>
+                      <small className="favorite-payment-account">{payment.account}</small>
+                    </div>
                   </div>
-                </div>
 
-                <button
-                  type="button"
-                  className="favorite-pay-btn"
-                  onClick={() => openFavoritePayment(payment)}
-                >
-                  Оплатить
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+                  <button
+                    type="button"
+                    className="favorite-pay-btn"
+                    onClick={() => openFavoritePayment(payment)}
+                  >
+                    Оплатить
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="muted">Нет операций для автоподбора избранных платежей.</p>
+        )}
       </article>
 
       {mandatoryPayments.length ? (
@@ -1514,7 +1328,7 @@ function OperationsPage({
   const [maxAmount, setMaxAmount] = useState('')
   const [merchantQuery, setMerchantQuery] = useState('')
   const operations = useMemo(
-    () => buildOperationsFeed(dashboard, userOperations && userOperations.length > 0 ? userOperations : undefined),
+    () => buildOperationsFeed(dashboard, userOperations ?? []),
     [dashboard, userOperations],
   )
 
@@ -2195,42 +2009,152 @@ function ProfilePage({
   )
 }
 
-function userOperationsToBank(operations: UserOperation[]): BankOperation[] {
-  return operations.map((op) => ({
-    id: op.id,
-    title: op.title,
-    subtitle: op.subtitle,
-    dateLabel: op.dateLabel,
-    dateISO: operationISO(op),
-    amount: op.amount,
-    smartTag: op.smartTag,
-    tone: op.amount >= 0 ? 'success' : 'neutral',
-  }))
+function normalizeTransactionDateISO(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toISOString().slice(0, 10)
+  }
+  return date.toISOString().slice(0, 10)
 }
 
-function userFavoritesToEntries(favorites: UserFavorite[]): FavoritePaymentEntry[] {
-  return favorites.map((fav) => ({
-    id: fav.id,
-    title: fav.title,
-    subtitle: fav.subtitle,
-    account: fav.account,
-    lastAmount: fav.lastAmount,
-    icon: getFavoriteIcon(fav.iconKey),
-  }))
+function formatTransactionDateLabel(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return 'Операция по карте'
+  }
+
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDiff = Math.round((startOfToday.getTime() - startOfDate.getTime()) / (1000 * 60 * 60 * 24))
+  const timeLabel = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+
+  if (dayDiff === 0) {
+    return `Сегодня, ${timeLabel}`
+  }
+  if (dayDiff === 1) {
+    return `Вчера, ${timeLabel}`
+  }
+
+  return `${formatDate(date.toISOString())}, ${timeLabel}`
 }
 
-function userOperationsToHomeHistory(operations: UserOperation[]): HomeHistoryItem[] {
-  return operations.slice(0, 8).map((op) => {
-    const initial = op.title.trim().charAt(0).toUpperCase() || '•'
-    const tone: HomeHistoryItem['iconTone'] = op.amount >= 0 ? 'green' : 'dark'
+function formatTransactionDayLabel(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return 'Недавно'
+  }
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+}
+
+function mapTransactionAmount(amount: number, merchantName: string) {
+  const normalizedAmount = Math.abs(Number(amount) || 0)
+  const incomeLike = /(зарплат|salary|refund|возврат|cashback|кешбек|кэшбек)/i.test(merchantName)
+  return incomeLike ? normalizedAmount : -normalizedAmount
+}
+
+function transactionsToBankOperations(transactions: ApiTransaction[]): BankOperation[] {
+  return transactions.map((transaction) => {
+    const amount = mapTransactionAmount(transaction.amount, transaction.merchantName)
     return {
-      id: op.id,
-      title: op.title,
-      date: op.dateLabel,
-      amount: op.amount,
+      id: `tx-${transaction.id}`,
+      title: formatPaymentTitle(transaction.merchantName),
+      subtitle: 'Операция по карте',
+      dateLabel: formatTransactionDateLabel(transaction.transactionDate),
+      dateISO: normalizeTransactionDateISO(transaction.transactionDate),
+      amount,
+      tone: amount >= 0 ? 'success' : 'neutral',
+    }
+  })
+}
+
+function resolveFavoriteIconByMerchant(merchantName: string) {
+  const value = merchantName.toLowerCase()
+
+  if (/(мтс|мегафон|tele2|yota|билайн|мобил|sim)/.test(value)) {
+    return Smartphone
+  }
+  if (/(интернет|wifi|роутер|ростелеком|akado|tv|kion|netflix|spotify|start)/.test(value)) {
+    return Wifi
+  }
+  if (/(жкх|квартплат|коммун|вода|газ|домсервис|ук)/.test(value)) {
+    return Home
+  }
+  if (/(энерг|электр)/.test(value)) {
+    return Zap
+  }
+  if (/(такси|авто|карш|метро|тройка|sapsan|транспорт)/.test(value)) {
+    return Car
+  }
+
+  return Phone
+}
+
+function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymentEntry[] {
+  const grouped = new Map<
+    string,
+    { merchantName: string; count: number; latestTimestamp: number; latestAmount: number }
+  >()
+
+  for (const transaction of transactions) {
+    const merchantName = transaction.merchantName.trim() || 'Операция'
+    const key = merchantName.toLowerCase()
+    const timestamp = new Date(transaction.transactionDate).getTime()
+    const safeTimestamp = Number.isNaN(timestamp) ? 0 : timestamp
+    const amount = Math.abs(Number(transaction.amount) || 0)
+
+    const current = grouped.get(key)
+    if (!current) {
+      grouped.set(key, {
+        merchantName,
+        count: 1,
+        latestTimestamp: safeTimestamp,
+        latestAmount: amount,
+      })
+      continue
+    }
+
+    current.count += 1
+    if (safeTimestamp >= current.latestTimestamp) {
+      current.latestTimestamp = safeTimestamp
+      current.latestAmount = amount
+      current.merchantName = merchantName
+    }
+  }
+
+  return Array.from(grouped.entries())
+    .sort((left, right) => {
+      const byCount = right[1].count - left[1].count
+      if (byCount !== 0) {
+        return byCount
+      }
+      return right[1].latestTimestamp - left[1].latestTimestamp
+    })
+    .slice(0, 6)
+    .map(([key, item], index) => ({
+      id: `fav-${index}-${key}`,
+      title: formatPaymentTitle(item.merchantName),
+      subtitle: 'Частый платеж',
+      account: 'Быстрый платеж',
+      lastAmount: item.latestAmount,
+      icon: resolveFavoriteIconByMerchant(item.merchantName),
+    }))
+}
+
+function transactionsToHomeHistory(transactions: ApiTransaction[]): HomeHistoryItem[] {
+  return transactions.slice(0, 8).map((transaction) => {
+    const title = formatPaymentTitle(transaction.merchantName)
+    const amount = mapTransactionAmount(transaction.amount, transaction.merchantName)
+    const initial = title.trim().charAt(0).toUpperCase() || '•'
+    const iconTone: HomeHistoryItem['iconTone'] = amount >= 0 ? 'green' : 'dark'
+
+    return {
+      id: `home-${transaction.id}`,
+      title,
+      date: formatTransactionDayLabel(transaction.transactionDate),
+      amount,
       icon: initial,
-      iconTone: tone,
-      smartTag: op.smartTag,
+      iconTone,
     }
   })
 }
@@ -2240,17 +2164,18 @@ function App() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [dashboardError, setDashboardError] = useState('')
-
-  const userDataset = useMemo<UserDataset | null>(() => {
-    if (!currentUsername) return null
-    return USER_DATASETS.find((entry) => entry.user.username === currentUsername) ?? null
-  }, [currentUsername])
+  const [transactions, setTransactions] = useState<ApiTransaction[]>([])
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true)
     try {
-      const payload = await smartDebitApi.getDashboard()
-      setDashboard(payload)
+      const [dashboardPayload, transactionsPayload] = await Promise.all([
+        smartDebitApi.getDashboard(),
+        smartDebitApi.getTransactions(120),
+      ])
+
+      setDashboard(dashboardPayload)
+      setTransactions(transactionsPayload)
       setDashboardError('')
     } catch (error) {
       const message = resolveErrorMessage(error, 'Не удалось загрузить данные SmartDebit')
@@ -2259,6 +2184,7 @@ function App() {
         authApi.logout()
         setCurrentUsername(null)
         setDashboard(null)
+        setTransactions([])
       }
     } finally {
       setDashboardLoading(false)
@@ -2268,6 +2194,7 @@ function App() {
   useEffect(() => {
     if (!currentUsername) {
       setDashboard(null)
+      setTransactions([])
       return
     }
 
@@ -2285,26 +2212,24 @@ function App() {
     authApi.logout()
     setCurrentUsername(null)
     setDashboard(null)
+    setTransactions([])
     setDashboardError('')
     toast.success('Вы вышли из аккаунта')
   }, [])
 
   const userBankOperations = useMemo(() => {
-    if (!userDataset) return [] as BankOperation[]
-    return userOperationsToBank(userDataset.operations)
-  }, [userDataset])
+    return transactionsToBankOperations(transactions)
+  }, [transactions])
 
   const userFavorites = useMemo(() => {
-    if (!userDataset) return [] as FavoritePaymentEntry[]
-    return userFavoritesToEntries(userDataset.favorites)
-  }, [userDataset])
+    return transactionsToFavorites(transactions)
+  }, [transactions])
 
   const userHomeHistory = useMemo(() => {
-    if (!userDataset) return [] as HomeHistoryItem[]
-    return userOperationsToHomeHistory(userDataset.operations)
-  }, [userDataset])
+    return transactionsToHomeHistory(transactions)
+  }, [transactions])
 
-  const profileName = userDataset?.user.fullName ?? currentUsername ?? PROFILE.fullName
+  const profileName = currentUsername ?? PROFILE.fullName
   const walletCashback = useMemo(() => {
     if (!currentUsername) {
       return 601
@@ -2465,6 +2390,7 @@ function App() {
                   loading={dashboardLoading}
                   error={dashboardError}
                   userHistory={userHomeHistory}
+                  profileName={profileName}
                   walletCashback={walletCashback}
                   onTopUp={handleHomeTopUp}
                   onSpend={handleHomeSpend}
