@@ -1,9 +1,19 @@
+from django.conf import settings
 from django.db import models
 
+
 class User(models.Model):
+    auth_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='api_profile',
+        null=True,
+        blank=True,
+    )
     internal_id = models.CharField(max_length=100, unique=True, db_index=True)
     is_smartdebit_enabled = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
         return self.internal_id
 
@@ -50,7 +60,6 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.merchant_name} - {self.amount}"
 
-# НОВАЯ ТАБЛИЦА ПО ТЗ (Task 1.1)
 class Notification(models.Model):
     TYPE_CHOICES = [
         ('upcoming', 'Upcoming Payment'),
