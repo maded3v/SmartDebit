@@ -222,6 +222,19 @@ const PROFILE = {
   city: 'Москва',
 }
 
+const WALLET_CASHBACK_BY_USER: Record<string, number> = {
+  user1: 601,
+  user2: 520,
+  user3: 740,
+  user4: 410,
+  user5: 990,
+  user6: 350,
+  user7: 860,
+  user8: 470,
+  user9: 630,
+  user10: 1200,
+}
+
 const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
   { match: /зарплат|salary|acme/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
   { match: /самокат|samokat/i, src: '/icons/brands/samokat.svg', alt: 'Самокат' },
@@ -462,6 +475,7 @@ function HomePage({
   loading,
   error,
   userHistory,
+  walletCashback,
   onTopUp,
   onSpend,
 }: {
@@ -469,6 +483,7 @@ function HomePage({
   loading: boolean
   error: string
   userHistory?: HomeHistoryItem[]
+  walletCashback: number
   onTopUp: (amount: number) => boolean
   onSpend: (amount: number) => boolean
 }) {
@@ -639,7 +654,7 @@ function HomePage({
               </div>
               <span className="wallet-chip">
                 <Crown size={11} strokeWidth={2.5} />
-                <span>601 ₽</span>
+                <span>{numberFormatter.format(walletCashback)} ₽</span>
               </span>
             </div>
 
@@ -2290,6 +2305,12 @@ function App() {
   }, [userDataset])
 
   const profileName = userDataset?.user.fullName ?? currentUsername ?? PROFILE.fullName
+  const walletCashback = useMemo(() => {
+    if (!currentUsername) {
+      return 601
+    }
+    return WALLET_CASHBACK_BY_USER[currentUsername] ?? 601
+  }, [currentUsername])
 
   const applyLocalBalanceDelta = useCallback((delta: number) => {
     setDashboard((current) => {
@@ -2444,6 +2465,7 @@ function App() {
                   loading={dashboardLoading}
                   error={dashboardError}
                   userHistory={userHomeHistory}
+                  walletCashback={walletCashback}
                   onTopUp={handleHomeTopUp}
                   onSpend={handleHomeSpend}
                 />
