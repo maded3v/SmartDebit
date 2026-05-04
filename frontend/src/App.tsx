@@ -2240,7 +2240,7 @@ function App() {
     } catch (error) {
       const message = resolveErrorMessage(error, 'Не удалось загрузить данные SmartDebit')
       setDashboardError(message)
-      if (message.includes('(401)')) {
+      if (/(401|403|token|credentials|авторизац|учетные данные|доступ)/i.test(message)) {
         authApi.logout()
         setCurrentUsername(null)
         setDashboard(null)
@@ -2251,7 +2251,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!currentUsername || !authApi.isAuthenticated()) {
+    if (!currentUsername) {
       setDashboard(null)
       return
     }
@@ -2421,7 +2421,7 @@ function App() {
     [refreshDashboard],
   )
 
-  if (!currentUsername || !authApi.isAuthenticated()) {
+  if (!currentUsername) {
     return <LoginPage onLogin={handleLogin} />
   }
 

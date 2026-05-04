@@ -15,6 +15,10 @@ const ACCESS_TOKEN_STORAGE_KEY = 'smartdebit:access-token'
 const REFRESH_TOKEN_STORAGE_KEY = 'smartdebit:refresh-token'
 const USERNAME_STORAGE_KEY = 'smartdebit:current-user'
 
+let accessTokenMemory: string | null = null
+let refreshTokenMemory: string | null = null
+let usernameMemory: string | null = null
+
 const STATUS_LABELS: Record<PaymentStatus, string> = {
   active: 'Активен',
   expected: 'Ожидается',
@@ -80,32 +84,53 @@ function writeStorage(key: string, value: string | null) {
 }
 
 function getAccessToken() {
-  return readStorage(ACCESS_TOKEN_STORAGE_KEY)
+  if (accessTokenMemory) {
+    return accessTokenMemory
+  }
+  const value = readStorage(ACCESS_TOKEN_STORAGE_KEY)
+  accessTokenMemory = value
+  return value
 }
 
 function getRefreshToken() {
-  return readStorage(REFRESH_TOKEN_STORAGE_KEY)
+  if (refreshTokenMemory) {
+    return refreshTokenMemory
+  }
+  const value = readStorage(REFRESH_TOKEN_STORAGE_KEY)
+  refreshTokenMemory = value
+  return value
 }
 
 function setTokens(access: string, refresh: string) {
+  accessTokenMemory = access
+  refreshTokenMemory = refresh
   writeStorage(ACCESS_TOKEN_STORAGE_KEY, access)
   writeStorage(REFRESH_TOKEN_STORAGE_KEY, refresh)
 }
 
 function setAccessToken(access: string) {
+  accessTokenMemory = access
   writeStorage(ACCESS_TOKEN_STORAGE_KEY, access)
 }
 
 function clearTokens() {
+  accessTokenMemory = null
+  refreshTokenMemory = null
   writeStorage(ACCESS_TOKEN_STORAGE_KEY, null)
   writeStorage(REFRESH_TOKEN_STORAGE_KEY, null)
 }
 
 function getStoredUsername() {
-  return readStorage(USERNAME_STORAGE_KEY)
+  if (usernameMemory) {
+    return usernameMemory
+  }
+  const value = readStorage(USERNAME_STORAGE_KEY)
+  usernameMemory = value
+  return value
 }
 
 function setStoredUsername(username: string | null) {
+  usernameMemory = username
   writeStorage(USERNAME_STORAGE_KEY, username)
 }
 
