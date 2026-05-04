@@ -11,6 +11,10 @@ import type {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
+const ACCESS_TOKEN_STORAGE_KEY = 'smartdebit:access-token'
+const REFRESH_TOKEN_STORAGE_KEY = 'smartdebit:refresh-token'
+const USERNAME_STORAGE_KEY = 'smartdebit:current-user'
+
 const STATUS_LABELS: Record<PaymentStatus, string> = {
   active: 'Активен',
   expected: 'Ожидается',
@@ -35,6 +39,142 @@ interface ErrorPayload {
   message?: string
   detail?: string
   error?: string
+}
+
+interface TokenRefreshEnvelope {
+  access?: string
+}
+
+interface AuthLoginEnvelope {
+  status?: string
+  access?: string
+  refresh?: string
+}
+
+function readStorage(key: string) {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeStorage(key: string, value: string | null) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    if (value === null) {
+      window.localStorage.removeItem(key)
+      return
+    }
+    window.localStorage.setItem(key, value)
+  } catch {
+    // ignore localStorage errors
+  }
+}
+
+function getAccessToken() {
+  return readStorage(ACCESS_TOKEN_STORAGE_KEY)
+}
+
+function getRefreshToken() {
+  return readStorage(REFRESH_TOKEN_STORAGE_KEY)
+}
+
+function setTokens(access: string, refresh: string) {
+  writeStorage(ACCESS_TOKEN_STORAGE_KEY, access)
+  writeStorage(REFRESH_TOKEN_STORAGE_KEY, refresh)
+}
+
+function setAccessToken(access: string) {
+  writeStorage(ACCESS_TOKEN_STORAGE_KEY, access)
+}
+
+function clearTokens() {
+  writeStorage(ACCESS_TOKEN_STORAGE_KEY, null)
+  writeStorage(REFRESH_TOKEN_STORAGE_KEY, null)
+}
+
+function getStoredUsername() {
+  return readStorage(USERNAME_STORAGE_KEY)
+}
+
+function setStoredUsername(username: string | null) {
+  writeStorage(USERNAME_STORAGE_KEY, username)
+}
+
+function buildHeaders(init?: HeadersInit, includeAuth = true) {
+  const headers = new Headers(init)
+
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  if (includeAuth) {
+    const accessToken = getAccessToken()
+    if (accessToken) {
+      headers.set('Authorization', `Bearer ${accessToken}`)
+    }
+  }
+
+  return headers
+}
+
+async function parseErrorMessage(response: Response) {
+  let message = `Ошибка запроса (${response.status})`
+
+  try {
+    const payload = (await response.json()) as ErrorPayload
+    if (payload.message || payload.detail || payload.error) {
+      message = payload.message || payload.detail || payload.error || message
+    }
+  } catch {
+    // ignore json parsing errors for non-json responses
+  }
+
+  return message
+}
+
+async function refreshAccessToken() {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) {
+    return false
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ refresh: refreshToken }),
+  })
+
+  if (!response.ok) {
+    clearTokens()
+    return false
+  }
+
+  const payload = (await response.json()) as TokenRefreshEnvelope
+  if (!payload.access) {
+    clearTokens()
+    return false
+  }
+
+  setAccessToken(payload.access)
+  return true
+}
+
+async function doFetch(path: string, init?: RequestInit, includeAuth = true) {
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: buildHeaders(init?.headers, includeAuth),
+  })
 }
 
 interface BackendPayment {
@@ -99,30 +239,53 @@ interface BackendPayEnvelope {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-    ...init,
-  })
+  const isAuthEndpoint = path.startsWith('/auth/')
+  const response = await doFetch(path, init, !isAuthEndpoint)
+
+  if (response.status === 401 && !isAuthEndpoint) {
+    const refreshed = await refreshAccessToken()
+    if (refreshed) {
+      const retried = await doFetch(path, init, true)
+      if (retried.ok) {
+        return (await retried.json()) as T
+      }
+      throw new Error(await parseErrorMessage(retried))
+    }
+  }
 
   if (!response.ok) {
-    let message = `Ошибка запроса (${response.status})`
-
-    try {
-      const payload = (await response.json()) as ErrorPayload
-      if (payload.message || payload.detail || payload.error) {
-        message = payload.message || payload.detail || payload.error || message
-      }
-    } catch {
-      // ignore json parsing errors for non-json responses
-    }
-
-    throw new Error(message)
+    throw new Error(await parseErrorMessage(response))
   }
 
   return (await response.json()) as T
+}
+
+export const authApi = {
+  async login(username: string, password: string) {
+    const normalizedUsername = username.trim()
+    const payload = await request<AuthLoginEnvelope>('/auth/login/', {
+      method: 'POST',
+      body: JSON.stringify({ username: normalizedUsername, password }),
+    })
+
+    if (!payload.access || !payload.refresh) {
+      throw new Error('Сервер не вернул токены доступа')
+    }
+
+    setTokens(payload.access, payload.refresh)
+    setStoredUsername(normalizedUsername)
+  },
+
+  logout() {
+    clearTokens()
+    setStoredUsername(null)
+  },
+
+  isAuthenticated() {
+    return Boolean(getAccessToken() && getStoredUsername())
+  },
+
+  getStoredUsername,
 }
 
 function normalizeStatus(status: string): PaymentStatus {
@@ -298,7 +461,7 @@ export const smartDebitApi = {
   async toggle(enabled: boolean) {
     const payload = await request<BackendToggleEnvelope>('/smartdebit/toggle/', {
       method: 'POST',
-      body: JSON.stringify({ enabled, user_id: 1 }),
+      body: JSON.stringify({ enabled }),
     })
 
     const resolvedEnabled =
@@ -312,7 +475,7 @@ export const smartDebitApi = {
   },
 
   async payDebt(paymentId: string) {
-    const payload = await request<BackendPayEnvelope>(`/payments/${paymentId}/pay`, {
+    const payload = await request<BackendPayEnvelope>(`/payments/${paymentId}/pay/`, {
       method: 'POST',
     })
 
@@ -341,7 +504,6 @@ export const smartDebitApi = {
     const response = await request<BackendCreatePaymentEnvelope>('/payments/', {
       method: 'POST',
       body: JSON.stringify({
-        user_id: 1,
         custom_name: payload.title,
         amount: payload.amount,
         next_charge_date: payload.nextChargeDate,

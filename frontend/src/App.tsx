@@ -13,16 +13,13 @@ import type { FormEvent } from 'react'
 import { LoginPage } from './components/LoginPage'
 import {
   USER_DATASETS,
-  buildUserChart,
-  buildUserNotifications,
-  toUpcomingPayments,
   getFavoriteIcon,
   operationISO,
   type UserDataset,
   type UserOperation,
   type UserFavorite,
-  type UserUpcoming,
 } from './userData'
+import { authApi, smartDebitApi } from './api'
 import {
   ArrowLeftRight,
   Briefcase,
@@ -2183,30 +2180,6 @@ function ProfilePage({
   )
 }
 
-const AUTH_STORAGE_KEY = 'smartdebit:current-user'
-
-function loadStoredUsername(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return window.localStorage.getItem(AUTH_STORAGE_KEY)
-  } catch {
-    return null
-  }
-}
-
-function persistUsername(username: string | null) {
-  if (typeof window === 'undefined') return
-  try {
-    if (username) {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, username)
-    } else {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY)
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
 function userOperationsToBank(operations: UserOperation[]): BankOperation[] {
   return operations.map((op) => ({
     id: op.id,
@@ -2247,67 +2220,59 @@ function userOperationsToHomeHistory(operations: UserOperation[]): HomeHistoryIt
   })
 }
 
-function buildEffectiveDashboard(
-  upcoming: UserUpcoming[],
-  balance: number,
-  enabled: boolean,
-): DashboardPayload {
-  const upcomingPayments = toUpcomingPayments(upcoming)
-  const overdue = upcoming.filter((item) => item.status === 'overdue')
-  return {
-    enabled,
-    account: {
-      balance,
-      available: balance,
-    },
-    alerts: overdue.map((item) => ({
-      id: `alert-${item.id}`,
-      paymentId: item.id,
-      title: item.title,
-      amount: item.amount,
-    })),
-    upcoming: upcomingPayments,
-    chart: buildUserChart(upcoming),
-    notifications: buildUserNotifications(upcoming),
-    generatedAt: new Date().toISOString(),
-  }
-}
-
 function App() {
-  const [currentUsername, setCurrentUsername] = useState<string | null>(() => loadStoredUsername())
+  const [currentUsername, setCurrentUsername] = useState<string | null>(() => authApi.getStoredUsername())
+  const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
+  const [dashboardLoading, setDashboardLoading] = useState(false)
+  const [dashboardError, setDashboardError] = useState('')
+
   const userDataset = useMemo<UserDataset | null>(() => {
     if (!currentUsername) return null
     return USER_DATASETS.find((entry) => entry.user.username === currentUsername) ?? null
   }, [currentUsername])
 
-  const [balance, setBalance] = useState<number>(userDataset?.balance ?? 0)
-  const [upcoming, setUpcoming] = useState<UserUpcoming[]>(userDataset?.upcoming ?? [])
-  const [smartDebitEnabled, setSmartDebitEnabled] = useState<boolean>(true)
-  const lastUserKeyRef = useRef<string | null>(userDataset?.user.username ?? null)
+  const refreshDashboard = useCallback(async () => {
+    setDashboardLoading(true)
+    try {
+      const payload = await smartDebitApi.getDashboard()
+      setDashboard(payload)
+      setDashboardError('')
+    } catch (error) {
+      const message = resolveErrorMessage(error, 'Не удалось загрузить данные SmartDebit')
+      setDashboardError(message)
+      if (message.includes('(401)')) {
+        authApi.logout()
+        setCurrentUsername(null)
+        setDashboard(null)
+      }
+    } finally {
+      setDashboardLoading(false)
+    }
+  }, [])
 
-  const currentUserKey = userDataset?.user.username ?? null
-  if (lastUserKeyRef.current !== currentUserKey) {
-    lastUserKeyRef.current = currentUserKey
-    setBalance(userDataset?.balance ?? 0)
-    setUpcoming(userDataset?.upcoming ?? [])
-    setSmartDebitEnabled(true)
-  }
+  useEffect(() => {
+    if (!currentUsername || !authApi.isAuthenticated()) {
+      setDashboard(null)
+      return
+    }
 
-  const handleLogin = useCallback((username: string) => {
-    persistUsername(username)
-    setCurrentUsername(username)
+    void refreshDashboard()
+  }, [currentUsername, refreshDashboard])
+
+  const handleLogin = useCallback(async (username: string, password: string) => {
+    await authApi.login(username, password)
+    setCurrentUsername(username.trim())
+    setDashboardError('')
+    toast.success('Вход выполнен')
   }, [])
 
   const handleLogout = useCallback(() => {
-    persistUsername(null)
+    authApi.logout()
     setCurrentUsername(null)
+    setDashboard(null)
+    setDashboardError('')
     toast.success('Вы вышли из аккаунта')
   }, [])
-
-  const dashboard = useMemo(() => {
-    if (!userDataset) return null
-    return buildEffectiveDashboard(upcoming, balance, smartDebitEnabled)
-  }, [userDataset, upcoming, balance, smartDebitEnabled])
 
   const userBankOperations = useMemo(() => {
     if (!userDataset) return [] as BankOperation[]
@@ -2324,69 +2289,83 @@ function App() {
     return userOperationsToHomeHistory(userDataset.operations)
   }, [userDataset])
 
-  const profileName = userDataset?.user.fullName ?? PROFILE.fullName
+  const profileName = userDataset?.user.fullName ?? currentUsername ?? PROFILE.fullName
 
-  const handleToggle = useCallback(async (enabled: boolean) => {
-    setSmartDebitEnabled(enabled)
-    toast.success(enabled ? 'SmartDebit включен' : 'SmartDebit выключен', {
-      id: 'smartdebit-toggle',
+  const applyLocalBalanceDelta = useCallback((delta: number) => {
+    setDashboard((current) => {
+      if (!current) {
+        return current
+      }
+
+      const nextBalance = Math.max(0, current.account.balance + delta)
+      const nextAvailable = Math.max(0, current.account.available + delta)
+
+      return {
+        ...current,
+        account: {
+          ...current.account,
+          balance: nextBalance,
+          available: nextAvailable,
+        },
+      }
     })
   }, [])
 
+  const handleToggle = useCallback(
+    async (enabled: boolean) => {
+      try {
+        const result = await smartDebitApi.toggle(enabled)
+        await refreshDashboard()
+        toast.success(result.enabled ? 'SmartDebit включен' : 'SmartDebit выключен', {
+          id: 'smartdebit-toggle',
+        })
+      } catch (error) {
+        toast.error(resolveErrorMessage(error, 'Не удалось изменить состояние SmartDebit'))
+      }
+    },
+    [refreshDashboard],
+  )
+
   const handlePayDebt = useCallback(
     async (paymentId: string) => {
-      const target = upcoming.find((item) => item.id === paymentId)
-      if (!target) {
-        toast.error('Платёж не найден')
-        return
+      try {
+        const result = await smartDebitApi.payDebt(paymentId)
+        toast.success(result.message)
+        await refreshDashboard()
+      } catch (error) {
+        toast.error(resolveErrorMessage(error, 'Не удалось оплатить платёж'))
       }
-      if (balance < target.amount) {
-        toast.error('Недостаточно средств для оплаты')
-        return
-      }
-      setBalance((value) => Math.max(0, value - target.amount))
-      setUpcoming((current) => current.filter((item) => item.id !== paymentId))
-      toast.success(`Просрочка погашена: ${target.title}`)
     },
-    [upcoming, balance],
+    [refreshDashboard],
   )
 
   const handleChangeStatus = useCallback(
     async (paymentId: string, status: PaymentStatus) => {
-      const allowed: UserUpcoming['status'][] = [
-        'overdue',
-        'expected',
-        'active',
-        'low_balance',
-        'cancelled',
-        'frozen',
-      ]
-      const mapped = (allowed as PaymentStatus[]).includes(status)
-        ? (status as UserUpcoming['status'])
-        : null
-      if (!mapped) {
-        toast.error('Этот статус пока не поддерживается')
-        return
+      try {
+        const result = await smartDebitApi.updateStatus(paymentId, status)
+        toast.success(result.message)
+        await refreshDashboard()
+      } catch (error) {
+        toast.error(resolveErrorMessage(error, 'Не удалось обновить статус платежа'))
       }
-      setUpcoming((current) =>
-        current.map((item) => (item.id === paymentId ? { ...item, status: mapped } : item)),
-      )
-      toast.success('Статус платежа обновлен')
     },
-    [],
+    [refreshDashboard],
   )
 
-  const handleHomeTopUp = useCallback((amount: number) => {
-    const normalizedAmount = Math.round(Number(amount))
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-      toast.error('Введите корректную сумму')
-      return false
-    }
+  const handleHomeTopUp = useCallback(
+    (amount: number) => {
+      const normalizedAmount = Math.round(Number(amount))
+      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        toast.error('Введите корректную сумму')
+        return false
+      }
 
-    setBalance((value) => value + normalizedAmount)
-    toast.success(`Баланс пополнен на ${numberFormatter.format(normalizedAmount)} ₽`)
-    return true
-  }, [])
+      applyLocalBalanceDelta(normalizedAmount)
+      toast.success(`Баланс пополнен на ${numberFormatter.format(normalizedAmount)} ₽`)
+      return true
+    },
+    [applyLocalBalanceDelta],
+  )
 
   const handleHomeSpend = useCallback(
     (amount: number) => {
@@ -2396,16 +2375,17 @@ function App() {
         return false
       }
 
-      if (normalizedAmount > balance) {
+      const currentBalance = dashboard?.account.balance ?? 0
+      if (normalizedAmount > currentBalance) {
         toast.error('Недостаточно средств для списания')
         return false
       }
 
-      setBalance((value) => value - normalizedAmount)
+      applyLocalBalanceDelta(-normalizedAmount)
       toast.success(`Списано ${numberFormatter.format(normalizedAmount)} ₽`)
       return true
     },
-    [balance],
+    [applyLocalBalanceDelta, dashboard?.account.balance],
   )
 
   const handleLocalDebit = useCallback(
@@ -2416,44 +2396,32 @@ function App() {
         return false
       }
 
-      if (normalizedAmount > balance) {
+      const currentBalance = dashboard?.account.balance ?? 0
+      if (normalizedAmount > currentBalance) {
         toast.error('Недостаточно средств для оплаты')
         return false
       }
 
-      setBalance((value) => value - normalizedAmount)
+      applyLocalBalanceDelta(-normalizedAmount)
       return true
     },
-    [balance],
+    [applyLocalBalanceDelta, dashboard?.account.balance],
   )
 
-  const handleAddPayment = useCallback(async (payload: CreatePaymentPayload) => {
-    const id = `manual-${Date.now()}`
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const [chargeYear, chargeMonth, chargeDay] = payload.nextChargeDate
-      .split('-')
-      .map(Number)
-    const charge = new Date(chargeYear, chargeMonth - 1, chargeDay)
-    const daysFromToday = Math.round((charge.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    const status: UserUpcoming['status'] = daysFromToday < 0 ? 'overdue' : 'expected'
-    setUpcoming((current) => [
-      ...current,
-      {
-        id,
-        title: payload.title,
-        provider: payload.description?.trim() || payload.category,
-        amount: payload.amount,
-        category: payload.category,
-        mandatory: payload.mandatory,
-        status,
-        daysFromToday,
-      },
-    ])
-    toast.success('Новый платеж добавлен')
-  }, [])
+  const handleAddPayment = useCallback(
+    async (payload: CreatePaymentPayload) => {
+      try {
+        const result = await smartDebitApi.addPayment(payload)
+        toast.success(result.message)
+        await refreshDashboard()
+      } catch (error) {
+        toast.error(resolveErrorMessage(error, 'Не удалось добавить платеж'))
+      }
+    },
+    [refreshDashboard],
+  )
 
-  if (!currentUsername || !userDataset) {
+  if (!currentUsername || !authApi.isAuthenticated()) {
     return <LoginPage onLogin={handleLogin} />
   }
 
@@ -2473,8 +2441,8 @@ function App() {
               element={
                 <HomePage
                   dashboard={dashboard}
-                  loading={false}
-                  error=""
+                  loading={dashboardLoading}
+                  error={dashboardError}
                   userHistory={userHomeHistory}
                   onTopUp={handleHomeTopUp}
                   onSpend={handleHomeSpend}
@@ -2497,8 +2465,8 @@ function App() {
               element={
                 <OperationsPage
                   dashboard={dashboard}
-                  loading={false}
-                  error=""
+                  loading={dashboardLoading}
+                  error={dashboardError}
                   userOperations={userBankOperations}
                 />
               }
@@ -2508,8 +2476,8 @@ function App() {
               element={
                 <SmartDebitDetailsPage
                   dashboard={dashboard}
-                  loading={false}
-                  error=""
+                  loading={dashboardLoading}
+                  error={dashboardError}
                   onToggle={handleToggle}
                   onPayDebt={handlePayDebt}
                   onStatusChange={handleChangeStatus}

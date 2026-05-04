@@ -1,25 +1,35 @@
 import { useState, type FormEvent } from 'react'
 import { LogIn, AlertCircle } from 'lucide-react'
-import { findUser } from '../userData'
 
 interface LoginPageProps {
-  onLogin: (username: string) => void
+  onLogin: (username: string, password: string) => Promise<void>
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError('')
-    const dataset = findUser(username, password)
-    if (!dataset) {
-      setError('Неверный логин или пароль')
+
+    const normalizedUsername = username.trim()
+    if (!normalizedUsername || !password.trim()) {
+      setError('Введите логин и пароль')
       return
     }
-    onLogin(dataset.user.username)
+
+    setSubmitting(true)
+    try {
+      await onLogin(normalizedUsername, password)
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : 'Ошибка входа'
+      setError(message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -64,9 +74,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               {error}
             </div>
           ) : null}
-          <button type="submit" className="login-submit">
+          <button type="submit" className="login-submit" disabled={submitting}>
             <LogIn size={18} aria-hidden />
-            Войти
+            {submitting ? 'Входим...' : 'Войти'}
           </button>
         </form>
         <p className="login-hint">
