@@ -102,9 +102,21 @@ python manage.py migrate && python manage.py seed_data && gunicorn smartdebit_co
 - Импортируйте проект `frontend/` в Vercel.
 - Добавьте env:
   - `VITE_API_BASE_URL=https://<render-host>/api/v1`
-  - `VITE_AUTH_PROVIDER=mock`
+  - `VITE_AUTH_PROVIDER=backend`
 
-Примечание: backend пока не содержит `/auth/*` эндпоинты, поэтому для прод-демо нужен `mock` режим авторизации на фронте.
+Если нужно быстро запустить UI без backend, можно оставить `VITE_AUTH_PROVIDER=mock`.
+
+## Аутентификация и заголовки
+
+- `POST /api/v1/auth/register/`
+- `POST /api/v1/auth/login/`
+- `POST /api/v1/auth/token/refresh/`
+- `access` JWT живёт 1 час, `refresh` JWT живёт 7 дней
+- Все API-эндпоинты, кроме `/api/v1/auth/*` и `/api/health/`, требуют заголовок:
+
+```http
+Authorization: Bearer <access_token>
+```
 
 ## Основные API endpoints
 
@@ -113,8 +125,12 @@ python manage.py migrate && python manage.py seed_data && gunicorn smartdebit_co
 - `POST /api/v1/smartdebit/toggle/`
 - `GET /api/v1/payments/`
 - `POST /api/v1/payments/`
-- `PATCH /api/v1/payments/:id/`
-- `POST /api/v1/payments/:id/pay`
+- `GET /api/v1/payments/<id>/`
+- `PATCH /api/v1/payments/<id>/`
+- `POST /api/v1/payments/<id>/pay/`
+- `GET /api/v1/notifications/`
+- `PATCH /api/v1/notifications/<id>/read/`
+- `GET /api/health/`
 
 ## Тестовые учётные записи
 

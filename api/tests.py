@@ -1,11 +1,15 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from django.contrib.auth.models import User as AuthUser
 from django.test import TestCase
 from django.utils import timezone
 
 from api.models import Account, Notification, RecurringPayment, ServiceDictionary, Transaction, User
-from api.serializers import PaymentCreateSerializer, PaymentStatusSerializer, ToggleSmartDebitSerializer
+from api.serializers import (
+    LoginSerializer, PaymentCreateSerializer, PaymentStatusSerializer,
+    RegisterSerializer, ToggleSmartDebitSerializer,
+)
 from api.services.cron_jobs import daily_alert_generator, low_balance_checker, missed_payment_detector
 from api.services.parser import predict_next_charge_date
 
@@ -79,31 +83,57 @@ class MandatoryPaymentProtectionTest(TestCase):
         self.assertEqual(payment.status, 'active')
 
 
+class RegisterSerializerTest(TestCase):
+    def test_valid_data(self):
+        serializer = RegisterSerializer(data={'username': 'testuser', 'password': 'pass123'})
+        self.assertTrue(serializer.is_valid())
+
+    def test_short_username_rejected(self):
+        serializer = RegisterSerializer(data={'username': 'ab', 'password': 'pass123'})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('username', serializer.errors)
+
+    def test_short_password_rejected(self):
+        serializer = RegisterSerializer(data={'username': 'testuser', 'password': '123'})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('password', serializer.errors)
+
+    def test_duplicate_username_rejected(self):
+        AuthUser.objects.create_user(username='existing', password='pass123')
+        serializer = RegisterSerializer(data={'username': 'existing', 'password': 'pass123'})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('username', serializer.errors)
+
+
+class LoginSerializerTest(TestCase):
+    def test_valid_data(self):
+        serializer = LoginSerializer(data={'username': 'user', 'password': 'pass'})
+        self.assertTrue(serializer.is_valid())
+
+    def test_missing_password(self):
+        serializer = LoginSerializer(data={'username': 'user'})
+        self.assertFalse(serializer.is_valid())
+
+
 class ToggleSmartDebitSerializerTest(TestCase):
     def test_valid_data(self):
-        serializer = ToggleSmartDebitSerializer(data={'user_id': 1, 'enabled': True})
+        serializer = ToggleSmartDebitSerializer(data={'enabled': True})
         self.assertTrue(serializer.is_valid())
 
     def test_defaults(self):
         serializer = ToggleSmartDebitSerializer(data={})
         self.assertTrue(serializer.is_valid())
-        self.assertEqual(serializer.validated_data['user_id'], 1)
         self.assertEqual(serializer.validated_data['enabled'], True)
 
     def test_enabled_false(self):
-        serializer = ToggleSmartDebitSerializer(data={'user_id': 2, 'enabled': False})
+        serializer = ToggleSmartDebitSerializer(data={'enabled': False})
         self.assertTrue(serializer.is_valid())
         self.assertFalse(serializer.validated_data['enabled'])
-
-    def test_invalid_user_id(self):
-        serializer = ToggleSmartDebitSerializer(data={'user_id': 'abc', 'enabled': True})
-        self.assertFalse(serializer.is_valid())
 
 
 class PaymentCreateSerializerTest(TestCase):
     def valid_data(self):
         return {
-            'user_id': 1,
             'amount': '299.00',
             'next_charge_date': (date.today() + timedelta(days=1)).isoformat(),
         }
@@ -141,11 +171,6 @@ class PaymentCreateSerializerTest(TestCase):
         serializer = PaymentCreateSerializer(data=self.valid_data())
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data['custom_name'], '')
-
-    def test_service_id_optional(self):
-        serializer = PaymentCreateSerializer(data=self.valid_data())
-        self.assertTrue(serializer.is_valid())
-        self.assertIsNone(serializer.validated_data.get('service_id'))
 
     def test_amount_as_decimal(self):
         serializer = PaymentCreateSerializer(data=self.valid_data())
@@ -219,6 +244,18 @@ class DailyAlertGeneratorTest(TestCase):
             next_charge_date=date.today() + timedelta(days=1),
             status='active',
         )
+        daily_alert_generator()
+        self.assertEqual(Notification.objects.filter(notification_type='upcoming').count(), 1)
+
+    def test_no_duplicate_notification(self):
+        RecurringPayment.objects.create(
+            user=self.user,
+            service=self.service,
+            amount=Decimal('599.00'),
+            next_charge_date=date.today() + timedelta(days=1),
+            status='active',
+        )
+        daily_alert_generator()
         daily_alert_generator()
         self.assertEqual(Notification.objects.filter(notification_type='upcoming').count(), 1)
 
