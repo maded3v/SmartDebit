@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 
 from django.db import connection
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -12,7 +13,8 @@ from api.models import (
     Account, Notification, RecurringPayment, ServiceDictionary, Transaction, User,
 )
 from api.serializers import (
-    PaymentCreateSerializer, PaymentStatusSerializer, ToggleSmartDebitSerializer,
+    BalanceAdjustSerializer, PaymentCreateSerializer, PaymentStatusSerializer,
+    ToggleSmartDebitSerializer,
 )
 from api.services.parser import find_recurring_patterns, create_recurring_payments_from_patterns
 
@@ -31,6 +33,44 @@ CATEGORY_MAP = {
     'ЖКХ': 'utilities',
     'Кредиты': 'finance',
 }
+
+INCOME_MERCHANT_RE = re.compile(
+    r'(зарплат|salary|refund|возврат|cashback|кешбек|кэшбек|пополн|topup|deposit)',
+    re.IGNORECASE,
+)
+
+
+def _transaction_direction(transaction):
+    amount = float(transaction.amount)
+    if amount < 0:
+        return 'expense'
+    if INCOME_MERCHANT_RE.search(transaction.merchant_name or ''):
+        return 'income'
+    return 'expense'
+
+
+@extend_schema(
+    summary="Текущий пользователь",
+    description="Возвращает профиль текущего авторизованного пользователя",
+    tags=["Auth"],
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_me(request):
+    auth_user = request.user
+    first_name = (auth_user.first_name or '').strip()
+    last_name = (auth_user.last_name or '').strip()
+    full_name = f"{first_name} {last_name}".strip() or auth_user.username
+
+    return Response({
+        "status": "success",
+        "data": {
+            "username": auth_user.username,
+            "first_name": first_name,
+            "last_name": last_name,
+            "full_name": full_name,
+        },
+    })
 
 
 @extend_schema(
@@ -419,6 +459,80 @@ def pay_payment(request, payment_id):
 
 
 @extend_schema(
+    summary="Корректировка баланса",
+    description="Пополнение или ручное списание средств по счету текущего пользователя",
+    tags=["Account"],
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def adjust_account_balance(request):
+    user = _get_api_user(request)
+    if not user:
+        return Response(
+            {"status": "error", "message": "Профиль не найден"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    serializer = BalanceAdjustSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {"status": "error", "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    account = Account.objects.filter(user=user).first()
+    if not account:
+        return Response(
+            {"status": "error", "message": "Счет не найден"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    action = serializer.validated_data['action']
+    amount = serializer.validated_data['amount']
+    description = serializer.validated_data.get('description', '').strip()
+
+    if action == 'spend' and account.balance < amount:
+        return Response(
+            {
+                "status": "error",
+                "message": "Недостаточно средств на счете",
+                "error_code": "INSUFFICIENT_FUNDS",
+                "current_balance": float(account.balance),
+                "required_amount": float(amount),
+            },
+            status=status.HTTP_402_PAYMENT_REQUIRED,
+        )
+
+    if action == 'topup':
+        account.balance += amount
+        default_merchant_name = 'Пополнение счета'
+        success_message = 'Баланс пополнен'
+    else:
+        account.balance -= amount
+        default_merchant_name = 'Ручное списание'
+        success_message = 'Списание выполнено'
+
+    account.save(update_fields=['balance'])
+
+    transaction = Transaction.objects.create(
+        account=account,
+        merchant_name=description or default_merchant_name,
+        amount=amount,
+        transaction_date=datetime.now(),
+        status='completed',
+    )
+
+    return Response({
+        "status": "success",
+        "message": success_message,
+        "data": {
+            "new_balance": float(account.balance),
+            "transaction_id": transaction.id,
+        },
+    })
+
+
+@extend_schema(
     summary="Анализ и создание платежей",
     description="Анализирует транзакции и создает регулярные платежи",
     tags=["SmartDebit"],
@@ -473,6 +587,7 @@ def get_transactions(request):
             "id": t.id,
             "merchant_name": t.merchant_name,
             "amount": float(t.amount),
+            "direction": _transaction_direction(t),
             "transaction_date": t.transaction_date.isoformat(),
             "status": t.status,
         }

@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/v1/auth/register/', views_auth.register, name='auth_register'),
     path('api/v1/auth/login/', views_auth.login_view, name='auth_login'),
     path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/me/', views.get_me, name='auth_me'),
 
     # SmartDebit
     path('api/v1/smartdebit/services/', views.get_services, name='get_services'),
@@ -23,6 +24,7 @@ urlpatterns = [
     path('api/v1/payments/', views.payments_list_create, name='payments_list_create'),
     path('api/v1/payments/<int:payment_id>/', views.payment_detail, name='payment_detail'),
     path('api/v1/payments/<int:payment_id>/pay/', views.pay_payment, name='pay_payment'),
+    path('api/v1/account/balance/adjust/', views.adjust_account_balance, name='adjust_account_balance'),
 
     # Transactions
     path('api/v1/transactions/', views.get_transactions, name='get_transactions'),

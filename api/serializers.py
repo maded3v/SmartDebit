@@ -47,3 +47,13 @@ class PaymentCreateSerializer(serializers.Serializer):
 
 class PaymentStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=['active', 'frozen', 'cancelled'])
+
+
+class BalanceAdjustSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=['topup', 'spend'])
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal('0.01'),
+    )
+    description = serializers.CharField(required=False, allow_blank=True, default='')

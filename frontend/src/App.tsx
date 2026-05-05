@@ -362,8 +362,8 @@ function HomePage({
   userHistory?: HomeHistoryItem[]
   profileName: string
   walletCashback: number
-  onTopUp: (amount: number) => boolean
-  onSpend: (amount: number) => boolean
+  onTopUp: (amount: number) => Promise<boolean>
+  onSpend: (amount: number) => Promise<boolean>
 }) {
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
     return userHistory ?? []
@@ -373,6 +373,7 @@ function HomePage({
   const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
   const [balanceAction, setBalanceAction] = useState<'spend' | 'topup' | null>(null)
   const [balanceAmount, setBalanceAmount] = useState('1500')
+  const [balanceSubmitting, setBalanceSubmitting] = useState(false)
   const greetingName = profileName.trim().split(/\s+/)[0] || 'клиент'
 
   function openBalanceModal(action: 'spend' | 'topup') {
@@ -398,7 +399,7 @@ function HomePage({
     return fraction ? `${whole}.${fraction}` : whole
   }
 
-  function submitBalanceAction(event: FormEvent) {
+  async function submitBalanceAction(event: FormEvent) {
     event.preventDefault()
     if (!balanceAction) {
       return
@@ -411,8 +412,12 @@ function HomePage({
     }
 
     const normalizedAmount = Math.round(amountValue)
+    setBalanceSubmitting(true)
     const actionSucceeded =
-      balanceAction === 'spend' ? onSpend(normalizedAmount) : onTopUp(normalizedAmount)
+      balanceAction === 'spend'
+        ? await onSpend(normalizedAmount)
+        : await onTopUp(normalizedAmount)
+    setBalanceSubmitting(false)
 
     if (actionSucceeded) {
       closeBalanceModal()
@@ -697,10 +702,10 @@ function HomePage({
                 />
               </label>
 
-              <button type="submit" className="primary">
+              <button type="submit" className="primary" disabled={balanceSubmitting}>
                 {balanceAction === 'spend'
-                  ? `Списать ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`
-                  : `Пополнить ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`}
+                  ? `${balanceSubmitting ? 'Списываем' : 'Списать'} ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`
+                  : `${balanceSubmitting ? 'Пополняем' : 'Пополнить'} ${numberFormatter.format(Number(balanceAmount) || 0)} ₽`}
               </button>
             </form>
           </div>
@@ -718,7 +723,7 @@ function CardOverviewPage({
   favorites,
 }: {
   dashboard: DashboardPayload | null
-  onLocalDebit: (amount: number) => boolean
+  onLocalDebit: (amount: number) => Promise<boolean>
   favorites?: FavoritePaymentEntry[]
 }) {
   const favoriteList = favorites ?? []
@@ -807,15 +812,17 @@ function CardOverviewPage({
 
     payTimerRef.current = window.setTimeout(() => {
       payTimerRef.current = null
-      setPaying(false)
-      const paid = onLocalDebit(amountValue)
-      if (!paid) {
-        return
-      }
-      setPayNotice(
-        `Оплата ${payment.title}: ${numberFormatter.format(amountValue)} ₽`,
-      )
-      closeFavoritePayment()
+      void (async () => {
+        const paid = await onLocalDebit(amountValue)
+        setPaying(false)
+        if (!paid) {
+          return
+        }
+        setPayNotice(
+          `Оплата ${payment.title}: ${numberFormatter.format(amountValue)} ₽`,
+        )
+        closeFavoritePayment()
+      })()
     }, 700)
   }
 
@@ -2047,15 +2054,14 @@ function formatTransactionDayLabel(value: string) {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
-function mapTransactionAmount(amount: number, merchantName: string) {
-  const normalizedAmount = Math.abs(Number(amount) || 0)
-  const incomeLike = /(зарплат|salary|refund|возврат|cashback|кешбек|кэшбек)/i.test(merchantName)
-  return incomeLike ? normalizedAmount : -normalizedAmount
+function mapTransactionAmount(transaction: ApiTransaction) {
+  const normalizedAmount = Math.abs(Number(transaction.amount) || 0)
+  return transaction.direction === 'income' ? normalizedAmount : -normalizedAmount
 }
 
 function transactionsToBankOperations(transactions: ApiTransaction[]): BankOperation[] {
   return transactions.map((transaction) => {
-    const amount = mapTransactionAmount(transaction.amount, transaction.merchantName)
+    const amount = mapTransactionAmount(transaction)
     return {
       id: `tx-${transaction.id}`,
       title: formatPaymentTitle(transaction.merchantName),
@@ -2097,6 +2103,10 @@ function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymen
   >()
 
   for (const transaction of transactions) {
+    if (transaction.direction === 'income') {
+      continue
+    }
+
     const merchantName = transaction.merchantName.trim() || 'Операция'
     const key = merchantName.toLowerCase()
     const timestamp = new Date(transaction.transactionDate).getTime()
@@ -2144,7 +2154,7 @@ function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymen
 function transactionsToHomeHistory(transactions: ApiTransaction[]): HomeHistoryItem[] {
   return transactions.slice(0, 8).map((transaction) => {
     const title = formatPaymentTitle(transaction.merchantName)
-    const amount = mapTransactionAmount(transaction.amount, transaction.merchantName)
+    const amount = mapTransactionAmount(transaction)
     const initial = title.trim().charAt(0).toUpperCase() || '•'
     const iconTone: HomeHistoryItem['iconTone'] = amount >= 0 ? 'green' : 'dark'
 
@@ -2161,6 +2171,7 @@ function transactionsToHomeHistory(transactions: ApiTransaction[]): HomeHistoryI
 
 function App() {
   const [currentUsername, setCurrentUsername] = useState<string | null>(() => authApi.getStoredUsername())
+  const [profileName, setProfileName] = useState<string>(() => authApi.getStoredUsername() || PROFILE.fullName)
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [dashboardError, setDashboardError] = useState('')
@@ -2175,6 +2186,16 @@ function App() {
 
       setDashboardLoading(false)
 
+      const fallbackName = currentUsername || authApi.getStoredUsername() || PROFILE.fullName
+      void authApi
+        .getMe()
+        .then((me) => {
+          setProfileName(me.fullName || me.username || fallbackName)
+        })
+        .catch(() => {
+          setProfileName(fallbackName)
+        })
+
       try {
         const transactionsPayload = await smartDebitApi.getTransactions(60)
         setTransactions(transactionsPayload)
@@ -2187,12 +2208,13 @@ function App() {
       if (/(401|403|token|credentials|авторизац|учетные данные|доступ)/i.test(message)) {
         authApi.logout()
         setCurrentUsername(null)
+        setProfileName(PROFILE.fullName)
         setDashboard(null)
         setTransactions([])
       }
       setDashboardLoading(false)
     }
-  }, [])
+  }, [currentUsername])
 
   useEffect(() => {
     if (!currentUsername) {
@@ -2205,7 +2227,9 @@ function App() {
 
   const handleLogin = useCallback(async (username: string, password: string) => {
     await authApi.login(username, password)
-    setCurrentUsername(username.trim())
+    const normalizedUsername = username.trim()
+    setCurrentUsername(normalizedUsername)
+    setProfileName(normalizedUsername)
     setDashboardError('')
     toast.success('Вход выполнен')
   }, [])
@@ -2213,6 +2237,7 @@ function App() {
   const handleLogout = useCallback(() => {
     authApi.logout()
     setCurrentUsername(null)
+    setProfileName(PROFILE.fullName)
     setDashboard(null)
     setTransactions([])
     setDashboardError('')
@@ -2231,7 +2256,6 @@ function App() {
     return transactionsToHomeHistory(transactions)
   }, [transactions])
 
-  const profileName = currentUsername ?? PROFILE.fullName
   const walletCashback = useMemo(() => {
     if (!currentUsername) {
       return 601
@@ -2239,21 +2263,18 @@ function App() {
     return WALLET_CASHBACK_BY_USER[currentUsername] ?? 601
   }, [currentUsername])
 
-  const applyLocalBalanceDelta = useCallback((delta: number) => {
+  const applyServerBalance = useCallback((nextBalance: number) => {
     setDashboard((current) => {
       if (!current) {
         return current
       }
 
-      const nextBalance = Math.max(0, current.account.balance + delta)
-      const nextAvailable = Math.max(0, current.account.available + delta)
-
       return {
         ...current,
         account: {
           ...current.account,
-          balance: nextBalance,
-          available: nextAvailable,
+          balance: Math.max(0, nextBalance),
+          available: Math.max(0, nextBalance),
         },
       }
     })
@@ -2301,22 +2322,29 @@ function App() {
   )
 
   const handleHomeTopUp = useCallback(
-    (amount: number) => {
+    async (amount: number) => {
       const normalizedAmount = Math.round(Number(amount))
       if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
         toast.error('Введите корректную сумму')
         return false
       }
 
-      applyLocalBalanceDelta(normalizedAmount)
-      toast.success(`Баланс пополнен на ${numberFormatter.format(normalizedAmount)} ₽`)
-      return true
+      try {
+        const result = await smartDebitApi.adjustBalance('topup', normalizedAmount, 'Пополнение счета')
+        applyServerBalance(result.newBalance)
+        toast.success(result.message)
+        await refreshDashboard()
+        return true
+      } catch (error) {
+        toast.error(resolveErrorMessage(error, 'Не удалось пополнить баланс'))
+        return false
+      }
     },
-    [applyLocalBalanceDelta],
+    [applyServerBalance, refreshDashboard],
   )
 
   const handleHomeSpend = useCallback(
-    (amount: number) => {
+    async (amount: number) => {
       const normalizedAmount = Math.round(Number(amount))
       if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
         toast.error('Введите корректную сумму')
@@ -2329,15 +2357,22 @@ function App() {
         return false
       }
 
-      applyLocalBalanceDelta(-normalizedAmount)
-      toast.success(`Списано ${numberFormatter.format(normalizedAmount)} ₽`)
-      return true
+      try {
+        const result = await smartDebitApi.adjustBalance('spend', normalizedAmount, 'Ручное списание')
+        applyServerBalance(result.newBalance)
+        toast.success(result.message)
+        await refreshDashboard()
+        return true
+      } catch (error) {
+        toast.error(resolveErrorMessage(error, 'Не удалось выполнить списание'))
+        return false
+      }
     },
-    [applyLocalBalanceDelta, dashboard?.account.balance],
+    [applyServerBalance, dashboard?.account.balance, refreshDashboard],
   )
 
   const handleLocalDebit = useCallback(
-    (amount: number) => {
+    async (amount: number) => {
       const normalizedAmount = Math.round(Number(amount))
       if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
         toast.error('Введите корректную сумму')
@@ -2350,10 +2385,17 @@ function App() {
         return false
       }
 
-      applyLocalBalanceDelta(-normalizedAmount)
-      return true
+      try {
+        const result = await smartDebitApi.adjustBalance('spend', normalizedAmount, 'Оплата вручную')
+        applyServerBalance(result.newBalance)
+        await refreshDashboard()
+        return true
+      } catch (error) {
+        toast.error(resolveErrorMessage(error, 'Не удалось провести оплату'))
+        return false
+      }
     },
-    [applyLocalBalanceDelta, dashboard?.account.balance],
+    [applyServerBalance, dashboard?.account.balance, refreshDashboard],
   )
 
   const handleAddPayment = useCallback(

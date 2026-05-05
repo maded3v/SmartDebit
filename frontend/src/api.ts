@@ -55,6 +55,23 @@ interface AuthLoginEnvelope {
   refresh?: string
 }
 
+interface BackendMeEnvelope {
+  status?: string
+  data?: {
+    username?: string
+    first_name?: string
+    last_name?: string
+    full_name?: string
+  }
+}
+
+export interface ApiMe {
+  username: string
+  firstName: string
+  lastName: string
+  fullName: string
+}
+
 function readStorage(key: string) {
   if (typeof window === 'undefined') {
     return null
@@ -263,10 +280,20 @@ interface BackendPayEnvelope {
   }
 }
 
+interface BackendBalanceAdjustEnvelope {
+  status?: string
+  message?: string
+  data?: {
+    new_balance?: number
+    transaction_id?: number | string
+  }
+}
+
 interface BackendTransaction {
   id: number | string
   merchant_name: string
   amount: number
+  direction?: string
   transaction_date: string
   status?: string
 }
@@ -280,6 +307,7 @@ export interface ApiTransaction {
   id: string
   merchantName: string
   amount: number
+  direction: 'income' | 'expense'
   transactionDate: string
   status: string
 }
@@ -306,6 +334,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T
 }
 
+function mapBackendMe(payload: BackendMeEnvelope): ApiMe {
+  const username = (payload.data?.username || getStoredUsername() || '').trim()
+  const firstName = (payload.data?.first_name || '').trim()
+  const lastName = (payload.data?.last_name || '').trim()
+  const fullName = (payload.data?.full_name || `${firstName} ${lastName}` || username).trim() || username
+
+  return {
+    username,
+    firstName,
+    lastName,
+    fullName,
+  }
+}
+
 export const authApi = {
   async login(username: string, password: string) {
     const normalizedUsername = username.trim()
@@ -329,6 +371,13 @@ export const authApi = {
 
   isAuthenticated() {
     return Boolean(getAccessToken() && getStoredUsername())
+  },
+
+  async getMe() {
+    const payload = await request<BackendMeEnvelope>('/me/', {
+      method: 'GET',
+    })
+    return mapBackendMe(payload)
   },
 
   getStoredUsername,
@@ -381,10 +430,13 @@ function mapBackendPayment(payment: BackendPayment): Payment {
 }
 
 function mapBackendTransaction(transaction: BackendTransaction): ApiTransaction {
+  const direction = transaction.direction === 'income' ? 'income' : 'expense'
+
   return {
     id: String(transaction.id),
     merchantName: transaction.merchant_name || 'Операция',
     amount: Number(transaction.amount) || 0,
+    direction,
     transactionDate: transaction.transaction_date,
     status: transaction.status || 'completed',
   }
@@ -569,6 +621,24 @@ export const smartDebitApi = {
     return {
       message: response.message || 'Новый платеж добавлен',
       payment: response.payment ? mapBackendPayment(response.payment) : null,
+    }
+  },
+
+  async adjustBalance(action: 'topup' | 'spend', amount: number, description = '') {
+    const payload = await request<BackendBalanceAdjustEnvelope>('/account/balance/adjust/', {
+      method: 'POST',
+      body: JSON.stringify({
+        action,
+        amount,
+        description,
+      }),
+    })
+
+    return {
+      message:
+        payload.message || (action === 'topup' ? 'Баланс пополнен' : 'Списание выполнено'),
+      newBalance: Number(payload.data?.new_balance) || 0,
+      transactionId: payload.data?.transaction_id ? String(payload.data.transaction_id) : null,
     }
   },
 

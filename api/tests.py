@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User as AuthUser
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from api.models import Account, Notification, RecurringPayment, ServiceDictionary, Transaction, User
 from api.serializers import (
@@ -398,3 +399,78 @@ class MissedPaymentDetectorTest(TestCase):
         )
         missed_payment_detector()
         self.assertEqual(Notification.objects.filter(notification_type='missed').count(), 1)
+
+
+class ApiUserAndTransactionsEndpointTest(TestCase):
+    def setUp(self):
+        self.auth_user = AuthUser.objects.create_user(
+            username='api_user',
+            password='pass123',
+            first_name='Илья',
+            last_name='Кузнецов',
+        )
+        self.user = User.objects.create(
+            internal_id='api_user_1',
+            auth_user=self.auth_user,
+            is_smartdebit_enabled=True,
+        )
+        self.account = Account.objects.create(user=self.user, balance=Decimal('10000.00'), currency='RUB')
+
+        Transaction.objects.create(
+            account=self.account,
+            merchant_name='Salary ACME',
+            amount=Decimal('120000.00'),
+            transaction_date=timezone.now(),
+            status='completed',
+        )
+        Transaction.objects.create(
+            account=self.account,
+            merchant_name='Пятёрочка',
+            amount=Decimal('2500.00'),
+            transaction_date=timezone.now() - timedelta(minutes=5),
+            status='completed',
+        )
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.auth_user)
+
+    def test_me_endpoint_returns_full_name(self):
+        response = self.client.get('/api/v1/me/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['data']['username'], 'api_user')
+        self.assertEqual(response.data['data']['full_name'], 'Илья Кузнецов')
+
+    def test_transactions_endpoint_returns_direction(self):
+        response = self.client.get('/api/v1/transactions/?limit=10')
+        self.assertEqual(response.status_code, 200)
+
+        by_merchant = {item['merchant_name']: item for item in response.data['transactions']}
+        self.assertEqual(by_merchant['Salary ACME']['direction'], 'income')
+        self.assertEqual(by_merchant['Пятёрочка']['direction'], 'expense')
+
+    def test_adjust_balance_topup_updates_account_and_creates_transaction(self):
+        response = self.client.post(
+            '/api/v1/account/balance/adjust/',
+            {'action': 'topup', 'amount': '1500.00', 'description': 'Пополнение через тест'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.balance, Decimal('11500.00'))
+        self.assertTrue(
+            Transaction.objects.filter(
+                account=self.account,
+                merchant_name='Пополнение через тест',
+                amount=Decimal('1500.00'),
+            ).exists()
+        )
+
+    def test_adjust_balance_spend_rejects_when_insufficient_funds(self):
+        response = self.client.post(
+            '/api/v1/account/balance/adjust/',
+            {'action': 'spend', 'amount': '999999.00'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 402)
+        self.assertEqual(response.data['error_code'], 'INSUFFICIENT_FUNDS')
