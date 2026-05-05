@@ -2169,14 +2169,18 @@ function App() {
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true)
     try {
-      const [dashboardPayload, transactionsPayload] = await Promise.all([
-        smartDebitApi.getDashboard(),
-        smartDebitApi.getTransactions(120),
-      ])
-
+      const dashboardPayload = await smartDebitApi.getDashboard()
       setDashboard(dashboardPayload)
-      setTransactions(transactionsPayload)
       setDashboardError('')
+
+      setDashboardLoading(false)
+
+      try {
+        const transactionsPayload = await smartDebitApi.getTransactions(60)
+        setTransactions(transactionsPayload)
+      } catch {
+        setTransactions([])
+      }
     } catch (error) {
       const message = resolveErrorMessage(error, 'Не удалось загрузить данные SmartDebit')
       setDashboardError(message)
@@ -2186,18 +2190,16 @@ function App() {
         setDashboard(null)
         setTransactions([])
       }
-    } finally {
       setDashboardLoading(false)
     }
   }, [])
 
   useEffect(() => {
     if (!currentUsername) {
-      setDashboard(null)
-      setTransactions([])
       return
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshDashboard()
   }, [currentUsername, refreshDashboard])
 

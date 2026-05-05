@@ -46,6 +46,8 @@ ALL_SERVICES = [
 USERS_DATA = [
     {
         'username': 'user1',
+        'first_name': 'Илья',
+        'last_name': 'Кузнецов',
         'internal_id': 'user_1',
         'balance': Decimal('42300.00'),
         'smartdebit': True,
@@ -68,6 +70,8 @@ USERS_DATA = [
     },
     {
         'username': 'user2',
+        'first_name': 'Мария',
+        'last_name': 'Смирнова',
         'internal_id': 'user_2',
         'balance': Decimal('18500.00'),
         'smartdebit': True,
@@ -91,6 +95,8 @@ USERS_DATA = [
     },
     {
         'username': 'user3',
+        'first_name': 'Алексей',
+        'last_name': 'Орлов',
         'internal_id': 'user_3',
         'balance': Decimal('125000.00'),
         'smartdebit': True,
@@ -118,6 +124,8 @@ USERS_DATA = [
     },
     {
         'username': 'user4',
+        'first_name': 'Анна',
+        'last_name': 'Воронова',
         'internal_id': 'user_4',
         'balance': Decimal('67800.00'),
         'smartdebit': True,
@@ -146,6 +154,8 @@ USERS_DATA = [
     },
     {
         'username': 'user5',
+        'first_name': 'Дмитрий',
+        'last_name': 'Павлов',
         'internal_id': 'user_5',
         'balance': Decimal('4200.00'),
         'smartdebit': False,
@@ -164,6 +174,8 @@ USERS_DATA = [
     },
     {
         'username': 'user6',
+        'first_name': 'Елена',
+        'last_name': 'Соколова',
         'internal_id': 'user_6',
         'balance': Decimal('89000.00'),
         'smartdebit': True,
@@ -191,6 +203,8 @@ USERS_DATA = [
     },
     {
         'username': 'user7',
+        'first_name': 'Никита',
+        'last_name': 'Фролов',
         'internal_id': 'user_7',
         'balance': Decimal('31500.00'),
         'smartdebit': True,
@@ -214,6 +228,8 @@ USERS_DATA = [
     },
     {
         'username': 'user8',
+        'first_name': 'Ольга',
+        'last_name': 'Романова',
         'internal_id': 'user_8',
         'balance': Decimal('11200.00'),
         'smartdebit': False,
@@ -235,6 +251,8 @@ USERS_DATA = [
     },
     {
         'username': 'user9',
+        'first_name': 'Сергей',
+        'last_name': 'Лебедев',
         'internal_id': 'user_9',
         'balance': Decimal('58000.00'),
         'smartdebit': True,
@@ -262,6 +280,8 @@ USERS_DATA = [
     },
     {
         'username': 'user10',
+        'first_name': 'Виктория',
+        'last_name': 'Морозова',
         'internal_id': 'user_10',
         'balance': Decimal('1850.00'),
         'smartdebit': True,
@@ -300,8 +320,21 @@ class Command(BaseCommand):
 
         for data in USERS_DATA:
             auth_user, created = AuthUser.objects.get_or_create(username=data['username'])
+            auth_user_updated = False
+
             if created or not auth_user.has_usable_password():
                 auth_user.set_password(data['username'])
+                auth_user_updated = True
+
+            if auth_user.first_name != data.get('first_name', ''):
+                auth_user.first_name = data.get('first_name', '')
+                auth_user_updated = True
+
+            if auth_user.last_name != data.get('last_name', ''):
+                auth_user.last_name = data.get('last_name', '')
+                auth_user_updated = True
+
+            if auth_user_updated:
                 auth_user.save()
 
             user, _ = User.objects.get_or_create(

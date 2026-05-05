@@ -940,7 +940,6 @@
   background:
     linear-gradient(145deg, rgba(5, 8, 12, 0.78) 0%, rgba(10, 15, 24, 0.62) 100%),
     url('/icons/card_back.png') center / cover no-repeat;
-  background-size: 100% 100%;
 }
 
 .wallet-card-bank {
@@ -2807,18 +2806,16 @@
   padding: 20px 24px 22px;
   border: 1px solid #e5ecf7;
   border-radius: 22px;
-  background:
-    radial-gradient(120% 180% at 0% 0%, rgba(255, 221, 45, 0.18) 0%, rgba(255, 221, 45, 0) 55%),
-    linear-gradient(135deg, #ffffff 0%, #f4f8ff 100%);
+  background: #ffffff;
   box-shadow: 0 18px 38px -28px rgba(13, 26, 51, 0.35);
   overflow: hidden;
 }
 
 .smartdebit-hero::before {
-  content: '';
+  content: none;
   position: absolute;
   inset: 0;
-  background: radial-gradient(220px 220px at 100% 0%, rgba(47, 105, 255, 0.08) 0%, transparent 65%);
+  background: transparent;
   pointer-events: none;
 }
 
@@ -2851,8 +2848,8 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #ffe89a;
-  color: #5b3d00;
+  background: #eef3fa;
+  color: #40516d;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -2860,7 +2857,7 @@
 }
 
 .smartdebit-hero-eyebrow svg {
-  color: #b07a00;
+  color: #4d648a;
 }
 
 .smartdebit-hero-title {
@@ -2996,19 +2993,17 @@
 
 :root[data-theme='dark'] .smartdebit-hero {
   border-color: #2f3d56;
-  background:
-    radial-gradient(120% 180% at 0% 0%, rgba(255, 221, 45, 0.16) 0%, rgba(255, 221, 45, 0) 55%),
-    linear-gradient(135deg, #15203a 0%, #0f1729 100%);
+  background: #121b2b;
   box-shadow: 0 22px 42px -28px rgba(0, 0, 0, 0.65);
 }
 
 :root[data-theme='dark'] .smartdebit-hero-eyebrow {
-  background: rgba(255, 221, 45, 0.18);
-  color: #ffe066;
+  background: rgba(126, 168, 255, 0.16);
+  color: #9fbaff;
 }
 
 :root[data-theme='dark'] .smartdebit-hero-eyebrow svg {
-  color: #ffe066;
+  color: #9fbaff;
 }
 
 :root[data-theme='dark'] .smartdebit-hero-title {
@@ -3112,7 +3107,8 @@
 }
 
 .smart-panel-full {
-  max-width: 880px;
+  width: 100%;
+  max-width: none;
 }
 
 .smartdebit-strip-body {
@@ -4385,7 +4381,7 @@
   inset: 0;
   background: rgba(11, 17, 28, 0.46);
   backdrop-filter: blur(6px);
-  z-index: 80;
+  z-index: 1300;
   display: grid;
   place-items: center;
   padding: 24px;
