@@ -44,6 +44,7 @@ class RecurringPayment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recurring_payments')
     service = models.ForeignKey(ServiceDictionary, on_delete=models.SET_NULL, null=True, blank=True)
     custom_name = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True, default='')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     next_charge_date = models.DateField(db_index=True)
     status = models.CharField(max_length=20, default='active', choices=PAYMENT_STATUS_CHOICES, db_index=True)

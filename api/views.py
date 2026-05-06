@@ -134,6 +134,7 @@ def get_dashboard(request):
         {
             "id": p.id,
             "service_name": p.service.name if p.service else p.custom_name,
+            "description": p.description,
             "amount": float(p.amount),
             "next_charge_date": p.next_charge_date.strftime("%Y-%m-%d"),
             "category": p.service.category if p.service else "Other",
@@ -143,15 +144,26 @@ def get_dashboard(request):
         for p in upcoming_qs
     ]
 
+    today = datetime.today().date()
     alerts = []
     for p in upcoming_qs:
-        if p.status == 'low_balance' or (account and account.balance < p.amount):
+        is_overdue = p.next_charge_date < today
+        has_low_balance = account and account.balance < p.amount
+
+        if is_overdue or p.status == 'low_balance' or has_low_balance:
+            if is_overdue:
+                message = "Просрочен платеж"
+                alert_type = "overdue"
+            else:
+                message = "Недостаточно средств для списания"
+                alert_type = "low_balance"
+
             alerts.append({
                 "id": p.id,
                 "service_name": p.service.name if p.service else p.custom_name,
-                "message": "Недостаточно средств для списания" if account and account.balance < p.amount else "Предстоящий платеж",
+                "message": message,
                 "amount": float(p.amount),
-                "type": "low_balance" if account and account.balance < p.amount else "upcoming",
+                "type": alert_type,
             })
 
     all_active = RecurringPayment.objects.filter(
@@ -265,6 +277,7 @@ def payments_list_create(request):
         user=user,
         service=service,
         custom_name=serializer.validated_data['custom_name'],
+        description=serializer.validated_data.get('description', ''),
         amount=serializer.validated_data['amount'],
         next_charge_date=serializer.validated_data['next_charge_date'],
         status='active',
@@ -277,8 +290,11 @@ def payments_list_create(request):
             "payment": {
                 "id": payment.id,
                 "service_name": service.name if service else payment.custom_name,
+                "description": payment.description,
                 "amount": float(payment.amount),
                 "next_charge_date": payment.next_charge_date.strftime("%Y-%m-%d"),
+                "category": service.category if service else "Other",
+                "is_mandatory": service.is_mandatory if service else False,
                 "status": payment.status,
             },
         },
