@@ -118,6 +118,32 @@ type OperationsFilterId = 'all' | 'income' | 'expense' | 'subscriptions'
 
 interface PaymentsLocationState {
   quickAction?: string
+  repeatOperation?: {
+    title?: string
+    subtitle?: string
+    amount?: number
+  }
+}
+
+function mapRepeatOperationToFavorite(
+  repeatOperation: PaymentsLocationState['repeatOperation'],
+): FavoritePaymentEntry | null {
+  const title = repeatOperation?.title?.trim() || ''
+  const subtitle = repeatOperation?.subtitle?.trim() || 'Повтор операции'
+  const amount = Math.round(Math.abs(Number(repeatOperation?.amount) || 0))
+
+  if (!title || !Number.isFinite(amount) || amount <= 0) {
+    return null
+  }
+
+  return {
+    id: `repeat-${title.toLowerCase()}-${amount}`,
+    title,
+    subtitle,
+    account: 'По данным прошлой операции',
+    lastAmount: amount,
+    icon: Phone,
+  }
 }
 
 const STATUS_TONE: Record<PaymentStatus, StatusTone> = {
@@ -440,9 +466,9 @@ function HomePage({
   async function copyCardData(value: string) {
     try {
       await navigator.clipboard.writeText(value)
-      toast.success('Скопировано')
+      toast.success('Скопировано', { id: 'home-card-copy' })
     } catch {
-      toast.error('Не удалось скопировать')
+      toast.error('Не удалось скопировать', { id: 'home-card-copy' })
     }
   }
 
@@ -736,16 +762,23 @@ function CardOverviewPage({
     initialQuickActionCandidate && isPaymentQuickActionId(initialQuickActionCandidate)
       ? initialQuickActionCandidate
       : null
+  const initialRepeatPayment = mapRepeatOperationToFavorite(locationState?.repeatOperation)
 
   const [selectedFavoritePayment, setSelectedFavoritePayment] =
-    useState<FavoritePaymentEntry | null>(null)
+    useState<FavoritePaymentEntry | null>(initialRepeatPayment)
   const [activeQuickAction, setActiveQuickAction] = useState<PaymentQuickActionId | null>(
     initialQuickAction,
   )
-  const [payAmount, setPayAmount] = useState('')
+  const [payAmount, setPayAmount] = useState(
+    initialRepeatPayment ? String(initialRepeatPayment.lastAmount) : '',
+  )
   const [paying, setPaying] = useState(false)
   const [payNotice, setPayNotice] = useState(
-    initialQuickAction ? QUICK_ACTION_NOTICE[initialQuickAction] : '',
+    initialRepeatPayment
+      ? `Повтор операции: ${initialRepeatPayment.title}`
+      : initialQuickAction
+        ? QUICK_ACTION_NOTICE[initialQuickAction]
+        : '',
   )
   const payTimerRef = useRef<number | null>(null)
 
@@ -765,12 +798,12 @@ function CardOverviewPage({
   }, [payNotice])
 
   useEffect(() => {
-    if (!locationState?.quickAction) {
+    if (!locationState?.quickAction && !locationState?.repeatOperation) {
       return
     }
 
     navigate('/payments', { replace: true, state: null })
-  }, [locationState?.quickAction, navigate])
+  }, [locationState?.quickAction, locationState?.repeatOperation, navigate])
 
   useEffect(() => {
     return () => {
@@ -1741,6 +1774,16 @@ function SmartDebitDetailsPage({
   const navigate = useNavigate()
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [payingDebtId, setPayingDebtId] = useState<string | null>(null)
+
+  const primaryAlert = dashboard?.alerts[0] ?? null
+  const primaryAlertPayment = primaryAlert
+    ? dashboard?.upcoming.find((payment) => payment.id === primaryAlert.paymentId) ?? null
+    : null
+  const overdueCount = dashboard?.upcoming.filter((payment) => payment.status === 'overdue').length ?? 0
+  const canPayPrimaryAlertNow =
+    Boolean(primaryAlert && primaryAlertPayment?.status === 'overdue') &&
+    (dashboard?.account.balance ?? 0) >= (primaryAlert?.amount ?? 0)
 
   function handleBackNavigation() {
     if (window.history.length > 1) {
@@ -1756,6 +1799,15 @@ function SmartDebitDetailsPage({
     }
     await onStatusChange(selectedPayment.id, status)
     setSelectedPayment(null)
+  }
+
+  async function handlePayAlertNow(paymentId: string) {
+    setPayingDebtId(paymentId)
+    try {
+      await onPayDebt(paymentId)
+    } finally {
+      setPayingDebtId(null)
+    }
   }
 
   return (
@@ -1793,7 +1845,7 @@ function SmartDebitDetailsPage({
               </div>
               <div
                 className={`smartdebit-hero-stat${
-                  dashboard.alerts.length ? ' smartdebit-hero-stat-warn' : ''
+                  overdueCount ? ' smartdebit-hero-stat-warn' : ''
                 }`}
                 role="listitem"
               >
@@ -1802,7 +1854,7 @@ function SmartDebitDetailsPage({
                 </span>
                 <span className="smartdebit-hero-stat-body">
                   <span className="smartdebit-hero-stat-label">Просрочек</span>
-                  <span className="smartdebit-hero-stat-value">{dashboard.alerts.length}</span>
+                  <span className="smartdebit-hero-stat-value">{overdueCount}</span>
                 </span>
               </div>
             </div>
@@ -1850,20 +1902,28 @@ function SmartDebitDetailsPage({
 
         {!loading && dashboard?.enabled ? (
           <>
-            {dashboard.alerts[0] ? (
+            {primaryAlert ? (
               <div className="danger-box">
                 <p>
-                  {dashboard.alerts[0].title} · {numberFormatter.format(dashboard.alerts[0].amount)} ₽
+                  {primaryAlert.title} · {numberFormatter.format(primaryAlert.amount)} ₽
                 </p>
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => {
-                    void onPayDebt(dashboard.alerts[0].paymentId)
-                  }}
-                >
-                  Погасить сейчас
-                </button>
+                {primaryAlertPayment?.status === 'overdue' && !canPayPrimaryAlertNow ? (
+                  <small className="danger-box-help">
+                    Пополните карту, чтобы погасить задолженность.
+                  </small>
+                ) : null}
+                {primaryAlertPayment?.status === 'overdue' ? (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => {
+                      void handlePayAlertNow(primaryAlert.paymentId)
+                    }}
+                    disabled={!canPayPrimaryAlertNow || payingDebtId === primaryAlert.paymentId}
+                  >
+                    {payingDebtId === primaryAlert.paymentId ? 'Погашаем...' : 'Погасить сейчас'}
+                  </button>
+                ) : null}
               </div>
             ) : null}
 
@@ -2228,20 +2288,26 @@ function App() {
   const handleLogin = useCallback(async (username: string, password: string) => {
     await authApi.login(username, password)
     const normalizedUsername = username.trim()
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/')
+    }
     setCurrentUsername(normalizedUsername)
     setProfileName(normalizedUsername)
     setDashboardError('')
-    toast.success('Вход выполнен')
+    toast.success('Вход выполнен', { id: 'auth-login' })
   }, [])
 
   const handleLogout = useCallback(() => {
     authApi.logout()
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/')
+    }
     setCurrentUsername(null)
     setProfileName(PROFILE.fullName)
     setDashboard(null)
     setTransactions([])
     setDashboardError('')
-    toast.success('Вы вышли из аккаунта')
+    toast.success('Вы вышли из аккаунта', { id: 'auth-logout' })
   }, [])
 
   const userBankOperations = useMemo(() => {
@@ -2299,10 +2365,12 @@ function App() {
     async (paymentId: string) => {
       try {
         const result = await smartDebitApi.payDebt(paymentId)
-        toast.success(result.message)
+        toast.success(result.message, { id: `smartdebit-pay-${paymentId}` })
         await refreshDashboard()
       } catch (error) {
-        toast.error(resolveErrorMessage(error, 'Не удалось оплатить платёж'))
+        toast.error(resolveErrorMessage(error, 'Не удалось оплатить платёж'), {
+          id: `smartdebit-pay-${paymentId}`,
+        })
       }
     },
     [refreshDashboard],

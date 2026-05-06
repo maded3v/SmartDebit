@@ -4,6 +4,17 @@ import App from '../src/App'
 
 vi.mock('../src/api', () => {
   return {
+    authApi: {
+      getStoredUsername: vi.fn(() => 'user1'),
+      getMe: vi.fn(async () => ({
+        username: 'user1',
+        firstName: 'Иван',
+        lastName: 'Иванов',
+        fullName: 'Иван Иванов',
+      })),
+      login: vi.fn(async () => undefined),
+      logout: vi.fn(() => undefined),
+    },
     smartDebitApi: {
       getDashboard: vi.fn(async () => ({
         enabled: true,

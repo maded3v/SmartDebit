@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   X,
   Copy,
@@ -23,6 +24,7 @@ interface OperationDetailDialogProps {
 
 export function OperationDetailDialog({ detail, onClose }: OperationDetailDialogProps) {
   const closeRef = useRef<HTMLButtonElement | null>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!detail) return
@@ -58,24 +60,68 @@ export function OperationDetailDialog({ detail, onClose }: OperationDetailDialog
 
   if (!detail) return null
 
-  const isIncome = detail.amount > 0
-  const formattedAmount = formatAmount(detail.amount)
+  const currentDetail = detail
+  const isIncome = currentDetail.amount > 0
+  const formattedAmount = formatAmount(currentDetail.amount)
 
   async function copyId() {
     try {
-      await navigator.clipboard.writeText(detail!.operationCode)
-      toast.success('Номер операции скопирован')
+      await navigator.clipboard.writeText(currentDetail.operationCode)
+      toast.success('Номер операции скопирован', { id: 'operation-copy-id' })
     } catch {
-      toast.error('Не удалось скопировать')
+      toast.error('Не удалось скопировать', { id: 'operation-copy-id' })
     }
   }
 
-  function shareReceipt() {
-    toast.success('Чек отправлен в Сохранённые')
+  function buildReceiptText() {
+    return [
+      `Чек по операции ${currentDetail.title}`,
+      `Сумма: ${formattedAmount}`,
+      `Дата: ${currentDetail.dateTimeLabel}`,
+      `Категория: ${currentDetail.category}`,
+      `ID операции: ${currentDetail.operationCode}`,
+    ].join('\n')
+  }
+
+  async function shareReceipt() {
+    const receiptText = buildReceiptText()
+
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: `Чек · ${currentDetail.title}`,
+          text: receiptText,
+        })
+        toast.success('Чек готов к отправке', { id: 'operation-share-receipt' })
+        return
+      }
+
+      await navigator.clipboard.writeText(receiptText)
+      toast.success('Чек скопирован в буфер', { id: 'operation-share-receipt' })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      toast.error('Не удалось подготовить чек', { id: 'operation-share-receipt' })
+    }
   }
 
   function repeatOperation() {
-    toast.success('Открываем повтор операции')
+    if (isIncome) {
+      toast('Повтор доступен только для списаний', { id: 'operation-repeat-unavailable' })
+      return
+    }
+
+    navigate('/payments', {
+      state: {
+        repeatOperation: {
+          title: currentDetail.title,
+          subtitle: currentDetail.subtitle,
+          amount: Math.abs(currentDetail.amount),
+        },
+      },
+    })
+    onClose()
   }
 
   return (

@@ -222,6 +222,7 @@ async function doFetch(path: string, init?: RequestInit, includeAuth = true) {
 interface BackendPayment {
   id: number | string
   service_name: string
+  description?: string
   amount: number
   next_charge_date: string
   category: string
@@ -413,11 +414,13 @@ function getPeriodLabel(nextChargeDate: string) {
 
 function mapBackendPayment(payment: BackendPayment): Payment {
   const status = normalizeStatus(payment.status)
+  const description = (payment.description || '').trim()
+  const fallbackProvider = payment.category || 'SmartDebit'
 
   return {
     id: String(payment.id),
     title: payment.service_name || 'Регулярный платеж',
-    provider: payment.category || 'SmartDebit',
+    provider: description || fallbackProvider,
     amount: Number(payment.amount) || 0,
     category: payment.category || 'Прочее',
     mandatory: Boolean(payment.is_mandatory),
@@ -613,6 +616,7 @@ export const smartDebitApi = {
       method: 'POST',
       body: JSON.stringify({
         custom_name: payload.title,
+        description: payload.description,
         amount: payload.amount,
         next_charge_date: payload.nextChargeDate,
       }),

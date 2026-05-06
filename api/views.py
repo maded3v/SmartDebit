@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 import re
 
 from django.db import connection
@@ -24,6 +24,48 @@ def _get_api_user(request):
         return request.user.api_profile
     except User.DoesNotExist:
         return None
+
+
+def _payment_name(payment):
+    return payment.service.name if payment.service else payment.custom_name
+
+
+def _payment_category(payment):
+    return payment.service.category if payment.service else "Прочее"
+
+
+def _payment_is_mandatory(payment):
+    return payment.service.is_mandatory if payment.service else False
+
+
+def _payment_description(payment):
+    return (payment.description or '').strip()
+
+
+def _payment_status(payment, account):
+    if payment.status in ['cancelled', 'frozen', 'paid']:
+        return payment.status
+
+    if payment.next_charge_date < date.today():
+        return 'overdue'
+
+    if payment.status == 'low_balance' and account and account.balance >= payment.amount:
+        return 'active'
+
+    return payment.status
+
+
+def _serialize_payment(payment, account=None):
+    return {
+        "id": payment.id,
+        "service_name": _payment_name(payment),
+        "description": _payment_description(payment),
+        "amount": float(payment.amount),
+        "next_charge_date": payment.next_charge_date.strftime("%Y-%m-%d"),
+        "category": _payment_category(payment),
+        "is_mandatory": _payment_is_mandatory(payment),
+        "status": _payment_status(payment, account),
+    }
 
 
 CATEGORY_MAP = {
@@ -130,28 +172,28 @@ def get_dashboard(request):
         status__in=['active', 'low_balance'],
     ).select_related('service').order_by('next_charge_date')[:5]
 
-    upcoming = [
-        {
-            "id": p.id,
-            "service_name": p.service.name if p.service else p.custom_name,
-            "amount": float(p.amount),
-            "next_charge_date": p.next_charge_date.strftime("%Y-%m-%d"),
-            "category": p.service.category if p.service else "Other",
-            "is_mandatory": p.service.is_mandatory if p.service else False,
-            "status": p.status,
-        }
-        for p in upcoming_qs
-    ]
+    upcoming = [_serialize_payment(p, account) for p in upcoming_qs]
 
     alerts = []
     for p in upcoming_qs:
+        payment_status = _payment_status(p, account)
+        if payment_status == 'overdue':
+            alerts.append({
+                "id": p.id,
+                "service_name": _payment_name(p),
+                "message": "Просрочен платеж",
+                "amount": float(p.amount),
+                "type": "overdue",
+            })
+            continue
+
         if p.status == 'low_balance' or (account and account.balance < p.amount):
             alerts.append({
                 "id": p.id,
-                "service_name": p.service.name if p.service else p.custom_name,
-                "message": "Недостаточно средств для списания" if account and account.balance < p.amount else "Предстоящий платеж",
+                "service_name": _payment_name(p),
+                "message": "Недостаточно средств для списания",
                 "amount": float(p.amount),
-                "type": "low_balance" if account and account.balance < p.amount else "upcoming",
+                "type": "low_balance",
             })
 
     all_active = RecurringPayment.objects.filter(
@@ -237,18 +279,8 @@ def payments_list_create(request):
 
     if request.method == "GET":
         payments = RecurringPayment.objects.filter(user=user).select_related('service')
-        data = [
-            {
-                "id": p.id,
-                "service_name": p.service.name if p.service else p.custom_name,
-                "amount": float(p.amount),
-                "next_charge_date": p.next_charge_date.strftime("%Y-%m-%d"),
-                "category": p.service.category if p.service else "Other",
-                "is_mandatory": p.service.is_mandatory if p.service else False,
-                "status": p.status,
-            }
-            for p in payments
-        ]
+        account = Account.objects.filter(user=user).first()
+        data = [_serialize_payment(p, account) for p in payments]
         return Response({"status": "success", "payments": data})
 
     serializer = PaymentCreateSerializer(data=request.data)
@@ -265,6 +297,7 @@ def payments_list_create(request):
         user=user,
         service=service,
         custom_name=serializer.validated_data['custom_name'],
+        description=serializer.validated_data.get('description', ''),
         amount=serializer.validated_data['amount'],
         next_charge_date=serializer.validated_data['next_charge_date'],
         status='active',
@@ -274,13 +307,7 @@ def payments_list_create(request):
         {
             "status": "success",
             "message": "Платеж создан",
-            "payment": {
-                "id": payment.id,
-                "service_name": service.name if service else payment.custom_name,
-                "amount": float(payment.amount),
-                "next_charge_date": payment.next_charge_date.strftime("%Y-%m-%d"),
-                "status": payment.status,
-            },
+            "payment": _serialize_payment(payment, Account.objects.filter(user=user).first()),
         },
         status=status.HTTP_201_CREATED,
     )
@@ -320,15 +347,7 @@ def payment_detail(request, payment_id):
     if request.method == "GET":
         return Response({
             "status": "success",
-            "payment": {
-                "id": payment.id,
-                "service_name": payment.service.name if payment.service else payment.custom_name,
-                "amount": float(payment.amount),
-                "next_charge_date": payment.next_charge_date.strftime("%Y-%m-%d"),
-                "category": payment.service.category if payment.service else "Other",
-                "is_mandatory": payment.service.is_mandatory if payment.service else False,
-                "status": payment.status,
-            },
+            "payment": _serialize_payment(payment, Account.objects.filter(user=user).first()),
         })
 
     if request.method == "PATCH":

@@ -27,6 +27,7 @@ class ToggleSmartDebitSerializer(serializers.Serializer):
 class PaymentCreateSerializer(serializers.Serializer):
     service_id = serializers.IntegerField(required=False, allow_null=True)
     custom_name = serializers.CharField(required=False, allow_blank=True, default='')
+    description = serializers.CharField(required=False, allow_blank=True, default='', max_length=255)
     amount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,

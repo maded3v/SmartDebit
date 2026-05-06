@@ -474,3 +474,72 @@ class ApiUserAndTransactionsEndpointTest(TestCase):
         )
         self.assertEqual(response.status_code, 402)
         self.assertEqual(response.data['error_code'], 'INSUFFICIENT_FUNDS')
+
+
+class DashboardOverdueLogicTest(TestCase):
+    def setUp(self):
+        self.auth_user = AuthUser.objects.create_user(username='overdue_user', password='pass123')
+        self.user = User.objects.create(
+            internal_id='overdue_user_1',
+            auth_user=self.auth_user,
+            is_smartdebit_enabled=True,
+        )
+        self.account = Account.objects.create(user=self.user, balance=Decimal('60000.00'), currency='RUB')
+        self.service = ServiceDictionary.objects.create(
+            name='Ипотека Сбербанк',
+            category='Кредиты',
+            is_mandatory=True,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.auth_user)
+
+    def test_past_due_payment_stays_overdue_with_sufficient_balance(self):
+        RecurringPayment.objects.create(
+            user=self.user,
+            service=self.service,
+            amount=Decimal('52000.00'),
+            next_charge_date=date.today() - timedelta(days=1),
+            status='active',
+        )
+
+        response = self.client.get('/api/v1/smartdebit/dashboard/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['data']['upcoming_payments'][0]['status'], 'overdue')
+        self.assertEqual(response.data['data']['alerts'][0]['message'], 'Просрочен платеж')
+
+
+class ManualPaymentDescriptionApiTest(TestCase):
+    def setUp(self):
+        self.auth_user = AuthUser.objects.create_user(username='manual_user', password='pass123')
+        self.user = User.objects.create(
+            internal_id='manual_user_1',
+            auth_user=self.auth_user,
+            is_smartdebit_enabled=True,
+        )
+        Account.objects.create(user=self.user, balance=Decimal('150000.00'), currency='RUB')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.auth_user)
+
+    def test_manual_payment_description_is_saved_and_returned_in_dashboard(self):
+        create_response = self.client.post(
+            '/api/v1/payments/',
+            {
+                'custom_name': 'Аренда офиса',
+                'description': 'Бизнес-центр Север',
+                'amount': '25000.00',
+                'next_charge_date': (date.today() + timedelta(days=3)).isoformat(),
+            },
+            format='json',
+        )
+
+        self.assertEqual(create_response.status_code, 201)
+        self.assertEqual(create_response.data['payment']['description'], 'Бизнес-центр Север')
+
+        dashboard_response = self.client.get('/api/v1/smartdebit/dashboard/')
+
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertEqual(
+            dashboard_response.data['data']['upcoming_payments'][0]['description'],
+            'Бизнес-центр Север',
+        )
