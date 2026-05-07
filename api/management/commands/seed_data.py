@@ -13,64 +13,6 @@ def make_dt(days_ago):
     return timezone.make_aware(datetime.combine(d, datetime.min.time()))
 
 
-# Иконки магазинов / сервисов. Используем публичные CDN, не требующие ключа:
-#   https://cdn.simpleicons.org/<slug>/<HEX>      Цветные SVG иконки
-#   https://logo.clearbit.com/<domain>            Фавиконы компаний
-# Для сервисов без устойчивого бренд логотипа (ЖКХ, электричество, ОСАГО)
-# оставляем пустую строку, фронтенд покажет дефолтную плашку.
-def _si(slug, hex_color):
-    return f'https://cdn.simpleicons.org/{slug}/{hex_color}'
-
-
-def _cb(domain):
-    return f'https://logo.clearbit.com/{domain}'
-
-
-SERVICE_ICON_URLS = {
-    # Развлечения / стриминг
-    'Яндекс Плюс':         _si('yandex', 'FFCC00'),
-    'KION':                _cb('kion.ru'),
-    'Netflix':             _si('netflix', 'E50914'),
-    'Spotify':             _si('spotify', '1DB954'),
-    'START':               _cb('start.ru'),
-    'Самокат':             _cb('samokat.ru'),
-    'Wildberries':         _cb('wildberries.ru'),
-    'Apple Music':         _si('applemusic', 'FA243C'),
-    'Amazon Prime':        _si('amazon', 'FF9900'),
-    'Xbox Game Pass':      _si('xbox', '107C10'),
-    'PlayStation Plus':    _si('playstation', '003791'),
-    'YouTube Premium':     _si('youtube', 'FF0000'),
-    # IT / cloud
-    'VPS reg.ru':          _cb('reg.ru'),
-    'GitHub':              _si('github', '181717'),
-    'Figma':               _si('figma', 'F24E1E'),
-    'Notion':              _si('notion', '000000'),
-    'Домен .ru':           _cb('reg.ru'),
-    'Dropbox':             _si('dropbox', '0061FF'),
-    'iCloud+':             _si('icloud', '3693F3'),
-    'Google One':          _si('googleone', '4285F4'),
-    # Доставка / транспорт
-    'Glovo':               _cb('glovoapp.com'),
-    'Uber One':            _si('uber', '000000'),
-    'Яндекс Go Plus':      _si('yandex', 'FFCC00'),
-    # Спорт / здоровье
-    'World Class':         _cb('worldclass.ru'),
-    # Кредиты
-    'Ипотека Сбербанк':    _cb('sberbank.ru'),
-    'Автокредит ВТБ':      _cb('vtb.ru'),
-    'Кредит Тинькофф':     _cb('tinkoff.ru'),
-    # Без устойчивого брендового логотипа, оставляем пустыми, fallback на фронте.
-    'ЖКХ (Квартплата)':    '',
-    'Электричество':       '',
-    'Страховка ОСАГО':     '',
-    # Связь / финансы
-    'Интернет Ростелеком': _cb('rt.ru'),
-    'Мобильная связь МТС': _cb('mts.ru'),
-    'Обслуживание счёта':  _cb('tinkoff.ru'),
-    'Tinkoff Pro':         _cb('tinkoff.ru'),
-}
-
-
 ALL_SERVICES = [
     # Развлечения
     {'name': 'Яндекс Плюс',       'category': 'Развлечения', 'is_mandatory': False},
@@ -108,10 +50,6 @@ USERS_DATA = [
         'last_name': 'Кузнецов',
         'internal_id': 'user_1',
         'balance': Decimal('42300.00'),
-        'savings_balance': Decimal('128450.30'),
-        'phone': '+7 916 234-15-08',
-        'email': 'ilya.kuznetsov@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/men/12.jpg',
         'smartdebit': True,
         'payments': [
             ('Яндекс Плюс',        Decimal('299.00'),   'active',  3),
@@ -136,10 +74,6 @@ USERS_DATA = [
         'last_name': 'Смирнова',
         'internal_id': 'user_2',
         'balance': Decimal('18500.00'),
-        'savings_balance': Decimal('57890.12'),
-        'phone': '+7 925 117-44-21',
-        'email': 'maria.smirnova@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/women/45.jpg',
         'smartdebit': True,
         'payments': [
             ('Ипотека Сбербанк',   Decimal('52000.00'), 'active',  1),
@@ -165,10 +99,6 @@ USERS_DATA = [
         'last_name': 'Орлов',
         'internal_id': 'user_3',
         'balance': Decimal('125000.00'),
-        'savings_balance': Decimal('412300.85'),
-        'phone': '+7 903 552-08-77',
-        'email': 'alexey.orlov@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/men/32.jpg',
         'smartdebit': True,
         'payments': [
             ('VPS reg.ru',         Decimal('890.00'),   'active',  2),
@@ -198,10 +128,6 @@ USERS_DATA = [
         'last_name': 'Воронова',
         'internal_id': 'user_4',
         'balance': Decimal('67800.00'),
-        'savings_balance': Decimal('215680.00'),
-        'phone': '+7 912 663-91-04',
-        'email': 'anna.voronova@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/women/68.jpg',
         'smartdebit': True,
         'payments': [
             ('Ипотека Сбербанк',   Decimal('38000.00'), 'active',  1),
@@ -232,10 +158,6 @@ USERS_DATA = [
         'last_name': 'Павлов',
         'internal_id': 'user_5',
         'balance': Decimal('4200.00'),
-        'savings_balance': Decimal('14290.67'),
-        'phone': '+7 977 880-12-65',
-        'email': 'dmitry.pavlov@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/men/53.jpg',
         'smartdebit': False,
         'payments': [
             ('Мобильная связь МТС',Decimal('300.00'),   'active',  5),
@@ -256,10 +178,6 @@ USERS_DATA = [
         'last_name': 'Соколова',
         'internal_id': 'user_6',
         'balance': Decimal('89000.00'),
-        'savings_balance': Decimal('305120.40'),
-        'phone': '+7 964 405-37-88',
-        'email': 'elena.sokolova@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/women/22.jpg',
         'smartdebit': True,
         'payments': [
             ('Кредит Тинькофф',    Decimal('15000.00'), 'active',  2),
@@ -289,10 +207,6 @@ USERS_DATA = [
         'last_name': 'Фролов',
         'internal_id': 'user_7',
         'balance': Decimal('31500.00'),
-        'savings_balance': Decimal('98760.55'),
-        'phone': '+7 906 712-50-43',
-        'email': 'nikita.frolov@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/men/76.jpg',
         'smartdebit': True,
         'payments': [
             ('Автокредит ВТБ',     Decimal('18500.00'), 'active',  2),
@@ -318,10 +232,6 @@ USERS_DATA = [
         'last_name': 'Романова',
         'internal_id': 'user_8',
         'balance': Decimal('11200.00'),
-        'savings_balance': Decimal('33450.10'),
-        'phone': '+7 985 326-09-58',
-        'email': 'olga.romanova@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/women/85.jpg',
         'smartdebit': False,
         'payments': [
             ('ЖКХ (Квартплата)',   Decimal('6800.00'),  'active',  3),
@@ -345,10 +255,6 @@ USERS_DATA = [
         'last_name': 'Лебедев',
         'internal_id': 'user_9',
         'balance': Decimal('58000.00'),
-        'savings_balance': Decimal('184500.00'),
-        'phone': '+7 921 049-86-13',
-        'email': 'sergey.lebedev@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/men/64.jpg',
         'smartdebit': True,
         'payments': [
             ('Figma',              Decimal('1600.00'),  'active',  4),
@@ -378,10 +284,6 @@ USERS_DATA = [
         'last_name': 'Морозова',
         'internal_id': 'user_10',
         'balance': Decimal('1850.00'),
-        'savings_balance': Decimal('9009.42'),
-        'phone': '+7 968 770-31-29',
-        'email': 'victoria.morozova@example.com',
-        'avatar_url': 'https://randomuser.me/api/portraits/women/14.jpg',
         'smartdebit': True,
         'payments': [
             ('Кредит Тинькофф',    Decimal('12000.00'), 'low_balance', 1),
@@ -408,18 +310,8 @@ class Command(BaseCommand):
         for s in ALL_SERVICES:
             obj, _ = ServiceDictionary.objects.get_or_create(
                 name=s['name'],
-                defaults={
-                    'category': s['category'],
-                    'is_mandatory': s['is_mandatory'],
-                    'icon_url': SERVICE_ICON_URLS.get(s['name'], ''),
-                },
+                defaults={'category': s['category'], 'is_mandatory': s['is_mandatory']},
             )
-            # Догружаем icon_url для уже существующих записей, если в нашем
-            # справочнике появилась/изменилась ссылка.
-            desired_icon = SERVICE_ICON_URLS.get(s['name'], '')
-            if desired_icon and obj.icon_url != desired_icon:
-                obj.icon_url = desired_icon
-                obj.save(update_fields=['icon_url'])
             service_map[s['name']] = obj
 
         created_users = 0
@@ -442,63 +334,27 @@ class Command(BaseCommand):
                 auth_user.last_name = data.get('last_name', '')
                 auth_user_updated = True
 
-            desired_email = data.get('email', '')
-            if desired_email and auth_user.email != desired_email:
-                auth_user.email = desired_email
-                auth_user_updated = True
-
             if auth_user_updated:
                 auth_user.save()
-
-            full_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
 
             user, _ = User.objects.get_or_create(
                 internal_id=data['internal_id'],
                 defaults={
                     'is_smartdebit_enabled': data['smartdebit'],
                     'auth_user': auth_user,
-                    'phone': data.get('phone', ''),
-                    'email': data.get('email', ''),
-                    'full_name': full_name,
-                    'avatar_url': data.get('avatar_url', ''),
                 },
             )
-
-            user_updated_fields = []
             if user.auth_user is None:
                 user.auth_user = auth_user
-                user_updated_fields.append('auth_user')
-            if user.phone != data.get('phone', ''):
-                user.phone = data.get('phone', '')
-                user_updated_fields.append('phone')
-            if user.email != data.get('email', ''):
-                user.email = data.get('email', '')
-                user_updated_fields.append('email')
-            if user.full_name != full_name:
-                user.full_name = full_name
-                user_updated_fields.append('full_name')
-            if user.avatar_url != data.get('avatar_url', ''):
-                user.avatar_url = data.get('avatar_url', '')
-                user_updated_fields.append('avatar_url')
-            if user_updated_fields:
-                user.save(update_fields=user_updated_fields)
+                user.save(update_fields=['auth_user'])
 
             if created:
                 created_users += 1
 
-            account, account_created = Account.objects.get_or_create(
+            account, _ = Account.objects.get_or_create(
                 user=user,
-                defaults={
-                    'balance': data['balance'],
-                    'currency': 'RUB',
-                    'savings_balance': data.get('savings_balance', Decimal('0.00')),
-                },
+                defaults={'balance': data['balance'], 'currency': 'RUB'},
             )
-
-            desired_savings = data.get('savings_balance', Decimal('0.00'))
-            if not account_created and account.savings_balance != desired_savings:
-                account.savings_balance = desired_savings
-                account.save(update_fields=['savings_balance'])
 
             for service_name, amount, status, days_until in data['payments']:
                 service = service_map[service_name]

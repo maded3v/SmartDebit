@@ -62,10 +62,6 @@ interface BackendMeEnvelope {
     first_name?: string
     last_name?: string
     full_name?: string
-    email?: string
-    phone?: string
-    avatar_url?: string
-    is_smartdebit_enabled?: boolean
   }
 }
 
@@ -74,10 +70,6 @@ export interface ApiMe {
   firstName: string
   lastName: string
   fullName: string
-  email: string
-  phone: string
-  avatarUrl: string
-  isSmartDebitEnabled: boolean
 }
 
 function readStorage(key: string) {
@@ -235,10 +227,7 @@ interface BackendPayment {
   next_charge_date: string
   category: string
   is_mandatory: boolean
-  icon_url?: string
   status: string
-  is_overdue_simulated?: boolean
-  days_overdue?: number
 }
 
 interface BackendAlert {
@@ -247,21 +236,17 @@ interface BackendAlert {
   message: string
   amount: number
   type: string
-  is_overdue_simulated?: boolean
-  days_overdue?: number
 }
 
 interface BackendDashboardEnvelope {
   status: string
   data: {
     balance: number
-    savings_balance?: number
     currency?: string
     is_smartdebit_enabled?: boolean
     upcoming_payments: BackendPayment[]
     alerts: BackendAlert[]
     analytics?: Record<string, number>
-    as_of_date?: string | null
   }
 }
 
@@ -312,20 +297,11 @@ interface BackendTransaction {
   direction?: string
   transaction_date: string
   status?: string
-  is_manual?: boolean
-  icon_url?: string
 }
 
 interface BackendTransactionsEnvelope {
   status?: string
   transactions?: BackendTransaction[]
-}
-
-interface BackendDeleteTransactionEnvelope {
-  status?: string
-  message?: string
-  id?: number | string
-  error_code?: string
 }
 
 export interface ApiTransaction {
@@ -335,8 +311,6 @@ export interface ApiTransaction {
   direction: 'income' | 'expense'
   transactionDate: string
   status: string
-  isManual: boolean
-  iconUrl: string
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -366,20 +340,12 @@ function mapBackendMe(payload: BackendMeEnvelope): ApiMe {
   const firstName = (payload.data?.first_name || '').trim()
   const lastName = (payload.data?.last_name || '').trim()
   const fullName = (payload.data?.full_name || `${firstName} ${lastName}` || username).trim() || username
-  const email = (payload.data?.email || '').trim()
-  const phone = (payload.data?.phone || '').trim()
-  const avatarUrl = (payload.data?.avatar_url || '').trim()
-  const isSmartDebitEnabled = Boolean(payload.data?.is_smartdebit_enabled)
 
   return {
     username,
     firstName,
     lastName,
     fullName,
-    email,
-    phone,
-    avatarUrl,
-    isSmartDebitEnabled,
   }
 }
 
@@ -463,9 +429,6 @@ function mapBackendPayment(payment: BackendPayment): Payment {
     nextChargeDate: payment.next_charge_date,
     periodLabel: getPeriodLabel(payment.next_charge_date),
     source: 'auto',
-    iconUrl: (payment.icon_url || '').trim() || undefined,
-    isOverdueSimulated: Boolean(payment.is_overdue_simulated),
-    daysOverdue: Math.max(0, Math.round(Number(payment.days_overdue) || 0)),
   }
 }
 
@@ -479,8 +442,6 @@ function mapBackendTransaction(transaction: BackendTransaction): ApiTransaction 
     direction,
     transactionDate: transaction.transaction_date,
     status: transaction.status || 'completed',
-    isManual: Boolean(transaction.is_manual),
-    iconUrl: (transaction.icon_url || '').trim(),
   }
 }
 
@@ -490,8 +451,6 @@ function mapAlerts(alerts: BackendAlert[]): DashboardAlert[] {
     paymentId: String(alert.id),
     title: `${alert.service_name}: ${alert.message}`,
     amount: Number(alert.amount) || 0,
-    isOverdueSimulated: Boolean(alert.is_overdue_simulated),
-    daysOverdue: Math.max(0, Math.round(Number(alert.days_overdue) || 0)),
   }))
 }
 
@@ -543,20 +502,13 @@ function computeAvailableBalance(balance: number, upcoming: Payment[]) {
 }
 
 function isLegacyDashboard(payload: unknown): payload is DashboardPayload {
-  if (
-    !payload ||
-    typeof payload !== 'object' ||
-    !('enabled' in payload) ||
-    !('account' in payload) ||
-    !('upcoming' in payload)
-  ) {
-    return false
-  }
-  const candidate = payload as DashboardPayload
-  if (!candidate.account || typeof candidate.account.savings !== 'number') {
-    return false
-  }
-  return true
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      'enabled' in payload &&
+      'account' in payload &&
+      'upcoming' in payload,
+  )
 }
 
 function isBackendDashboard(payload: unknown): payload is BackendDashboardEnvelope {
@@ -580,7 +532,6 @@ function mapDashboardPayload(payload: unknown): DashboardPayload {
   const upcoming = payload.data.upcoming_payments.map(mapBackendPayment)
   const alerts = mapAlerts(payload.data.alerts || [])
   const balance = Number(payload.data.balance) || 0
-  const savings = Number(payload.data.savings_balance) || 0
   const enabled =
     typeof payload.data.is_smartdebit_enabled === 'boolean'
       ? payload.data.is_smartdebit_enabled
@@ -591,7 +542,6 @@ function mapDashboardPayload(payload: unknown): DashboardPayload {
     account: {
       balance,
       available: computeAvailableBalance(balance, upcoming),
-      savings,
     },
     alerts,
     upcoming,
@@ -601,26 +551,17 @@ function mapDashboardPayload(payload: unknown): DashboardPayload {
   }
 }
 
-function buildDashboardPath(asOfDate?: string | null) {
-  const trimmed = (asOfDate || '').trim()
-  if (!trimmed) {
-    return '/smartdebit/dashboard/'
-  }
-  return `/smartdebit/dashboard/?as_of_date=${encodeURIComponent(trimmed)}`
-}
-
 export const smartDebitApi = {
-  async getDashboard(asOfDate?: string | null) {
-    const path = buildDashboardPath(asOfDate)
+  async getDashboard() {
     try {
-      const payload = await request<unknown>(path)
+      const payload = await request<unknown>('/smartdebit/dashboard/')
       return mapDashboardPayload(payload)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
 
       if (/User not found/i.test(message)) {
         await smartDebitApi.toggle(true)
-        const payload = await request<unknown>(path)
+        const payload = await request<unknown>('/smartdebit/dashboard/')
         return mapDashboardPayload(payload)
       }
 
@@ -705,34 +646,10 @@ export const smartDebitApi = {
     }
   },
 
-  async getTransactions(limit = 60, asOfDate?: string | null) {
+  async getTransactions(limit = 60) {
     const safeLimit = Math.max(1, Math.min(Math.round(limit), 200))
-    const params = new URLSearchParams({ limit: String(safeLimit) })
-    const trimmedDate = (asOfDate || '').trim()
-    if (trimmedDate) {
-      params.set('as_of_date', trimmedDate)
-    }
-    const payload = await request<BackendTransactionsEnvelope>(
-      `/transactions/?${params.toString()}`,
-    )
+    const payload = await request<BackendTransactionsEnvelope>(`/transactions/?limit=${safeLimit}`)
     const transactions = Array.isArray(payload.transactions) ? payload.transactions : []
     return transactions.map(mapBackendTransaction)
-  },
-
-  async deleteTransaction(transactionId: string) {
-    const id = String(transactionId).trim()
-    if (!id) {
-      throw new Error('Не указан идентификатор операции')
-    }
-
-    const payload = await request<BackendDeleteTransactionEnvelope>(
-      `/transactions/${encodeURIComponent(id)}/`,
-      { method: 'DELETE' },
-    )
-
-    return {
-      message: payload.message || 'Операция удалена',
-      id: payload.id != null ? String(payload.id) : id,
-    }
   },
 }

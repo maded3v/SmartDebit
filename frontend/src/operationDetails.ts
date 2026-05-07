@@ -209,16 +209,11 @@ interface BuildArgs {
   smartTag?: string
   cardLast4?: string
   statusOverride?: { label: string; tone: OperationDetail['statusTone'] }
-  // Если бэкенд прислал готовую ссылку на иконку (ServiceDictionary.icon_url),
-  // отдадим приоритет именно ей. Иначе пытаемся подобрать локальный/CDN-логотип
-  // через MERCHANT_LOGOS, а если ничего не нашли, отрисуется плашка с буквой.
-  iconUrlOverride?: string | null
 }
 
 export function buildOperationDetail(args: BuildArgs): OperationDetail {
   const meta = metaFor(args.title, args.subtitle)
-  const overrideIcon = (args.iconUrlOverride || '').trim()
-  const logo = overrideIcon ? null : findMerchantLogo(args.title, args.subtitle)
+  const logo = findMerchantLogo(args.title, args.subtitle)
   const status = args.statusOverride
     ? { statusLabel: args.statusOverride.label, statusTone: args.statusOverride.tone }
     : deriveStatus(args.amount, args.dateLabel)
@@ -240,7 +235,7 @@ export function buildOperationDetail(args: BuildArgs): OperationDetail {
     paymentMethod: `T-Bank Black •• ${args.cardLast4 ?? '4218'}`,
     operationCode: buildOperationCode(args.id),
     smartTag: args.smartTag,
-    logoUrl: overrideIcon || logo?.src,
+    logoUrl: logo?.src,
     brandInitial: initial,
     brandColor: brandColorFor(args.title),
   }
