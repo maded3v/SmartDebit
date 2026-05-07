@@ -1,4 +1,5 @@
-from datetime import date, datetime
+# Путь: api/views.py
+from datetime import date, datetime, timedelta
 import re
 
 from django.db import connection
@@ -19,11 +20,69 @@ from api.serializers import (
 from api.services.parser import find_recurring_patterns, create_recurring_payments_from_patterns
 
 
+MAX_TIME_TRAVEL_DAYS = 365
+
+
 def _get_api_user(request):
     try:
         return request.user.api_profile
     except User.DoesNotExist:
         return None
+
+
+def _parse_as_of_date(request, user):
+    """Разбор и валидация query-параметра ?as_of_date=YYYY-MM-DD.
+
+    Возвращает кортеж (as_of_date | None, error_response | None).
+    Если параметр не передан — вернём (None, None) и вызывающий
+    код работает с реальной датой. Если параметр некорректный —
+    вернём готовый Response с 400.
+    """
+    raw = request.query_params.get('as_of_date')
+    if not raw:
+        return None, None
+
+    try:
+        as_of_date = datetime.strptime(raw, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None, Response(
+            {
+                "status": "error",
+                "message": "Неверный формат даты. Ожидается YYYY-MM-DD.",
+                "error_code": "INVALID_AS_OF_DATE",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    today = date.today()
+    max_date = today + timedelta(days=MAX_TIME_TRAVEL_DAYS)
+    if as_of_date > max_date:
+        return None, Response(
+            {
+                "status": "error",
+                "message": f"Дата не может быть позже {max_date.isoformat()}.",
+                "error_code": "AS_OF_DATE_TOO_FAR",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if user is not None:
+        created_at = getattr(user, 'created_at', None)
+        min_date = created_at.date() if created_at else None
+        if min_date and as_of_date < min_date:
+            return None, Response(
+                {
+                    "status": "error",
+                    "message": (
+                        f"Дата не может быть раньше даты регистрации "
+                        f"аккаунта ({min_date.isoformat()})."
+                    ),
+                    "error_code": "AS_OF_DATE_BEFORE_SIGNUP",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    return as_of_date, None
 
 
 def _payment_name(payment):
@@ -42,11 +101,63 @@ def _payment_description(payment):
     return (payment.description or '').strip()
 
 
-def _payment_status(payment, account):
+OVERDUE_GRACE_DAYS = 7
+
+
+def _add_months(d, months):
+    """Сдвигает дату вперёд на ``months`` месяцев, корректно учитывая
+    короткие месяцы (например, 31 января + 1 месяц → 28/29 февраля).
+    """
+    total = d.year * 12 + (d.month - 1) + months
+    year = total // 12
+    month = total % 12 + 1
+    if month == 12:
+        first_of_next = date(year + 1, 1, 1)
+    else:
+        first_of_next = date(year, month + 1, 1)
+    last_day = (first_of_next - timedelta(days=1)).day
+    return date(year, month, min(d.day, last_day))
+
+
+def _effective_next_charge_date(payment, as_of_date=None):
+    """Рассчитываем «эффективную» дату ближайшего списания относительно
+    виртуальной даты ``as_of_date``.
+
+    Регулярные платежи трактуем как ежемесячные: если виртуальная дата
+    далеко за фактической ``next_charge_date`` (более чем на ``OVERDUE_GRACE_DAYS``
+    дней), последовательно сдвигаем дату вперёд по месяцам, чтобы платёж
+    «откатился» к ближайшему будущему циклу. Это нужно только для отображения —
+    сами данные в БД не изменяются.
+
+    Для платежей со статусом ``cancelled``, ``frozen``, ``paid`` дата не сдвигается.
+    """
+    next_date = payment.next_charge_date
+    if as_of_date is None:
+        return next_date
+    if payment.status in ('cancelled', 'frozen', 'paid'):
+        return next_date
+
+    threshold = as_of_date - timedelta(days=OVERDUE_GRACE_DAYS)
+    iterations = 0
+    while next_date < threshold and iterations < 240:
+        next_date = _add_months(next_date, 1)
+        iterations += 1
+    return next_date
+
+
+def _payment_status(payment, account, as_of_date=None):
+    """Рассчитываем эффективный статус платежа.
+
+    Если передан as_of_date — используем его вместо сегодняшней даты
+    для вычисления просрочки. Сами данные в БД не изменяем — это
+    чисто визуальная симуляция.
+    """
     if payment.status in ['cancelled', 'frozen', 'paid']:
         return payment.status
 
-    if payment.next_charge_date < date.today():
+    reference_date = as_of_date or date.today()
+    effective_date = _effective_next_charge_date(payment, as_of_date)
+    if effective_date < reference_date:
         return 'overdue'
 
     if payment.status == 'low_balance' and account and account.balance >= payment.amount:
@@ -55,16 +166,35 @@ def _payment_status(payment, account):
     return payment.status
 
 
-def _serialize_payment(payment, account=None):
+def _serialize_payment(payment, account=None, as_of_date=None):
+    effective_status = _payment_status(payment, account, as_of_date=as_of_date)
+    real_status = _payment_status(payment, account)
+
+    is_simulated = bool(
+        as_of_date is not None
+        and effective_status == 'overdue'
+        and real_status != 'overdue'
+    )
+
+    reference_date = as_of_date or date.today()
+    effective_date = _effective_next_charge_date(payment, as_of_date)
+
+    days_overdue = 0
+    if effective_status == 'overdue':
+        delta = (reference_date - effective_date).days
+        days_overdue = max(0, delta)
+
     return {
         "id": payment.id,
         "service_name": _payment_name(payment),
         "description": _payment_description(payment),
         "amount": float(payment.amount),
-        "next_charge_date": payment.next_charge_date.strftime("%Y-%m-%d"),
+        "next_charge_date": effective_date.strftime("%Y-%m-%d"),
         "category": _payment_category(payment),
         "is_mandatory": _payment_is_mandatory(payment),
-        "status": _payment_status(payment, account),
+        "status": effective_status,
+        "is_overdue_simulated": is_simulated,
+        "days_overdue": days_overdue,
     }
 
 
@@ -138,8 +268,21 @@ def get_services(request):
 
 @extend_schema(
     summary="Дашборд SmartDebit",
-    description="Возвращает баланс, предстоящие платежи, алерты и аналитику",
+    description=(
+        "Возвращает баланс, предстоящие платежи, алерты и аналитику. "
+        "Опциональный параметр ?as_of_date=YYYY-MM-DD позволяет симулировать "
+        "просрочки относительно виртуальной даты (без изменения БД)."
+    ),
     tags=["SmartDebit"],
+    parameters=[
+        OpenApiParameter(
+            name='as_of_date',
+            type=OpenApiTypes.DATE,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description='Виртуальная дата для симуляции просрочек (YYYY-MM-DD).',
+        ),
+    ],
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -150,6 +293,10 @@ def get_dashboard(request):
             {"status": "error", "message": "Профиль не найден"},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    as_of_date, error = _parse_as_of_date(request, user)
+    if error is not None:
+        return error
 
     account = Account.objects.filter(user=user).first()
     balance = float(account.balance) if account else 0.0
@@ -164,26 +311,42 @@ def get_dashboard(request):
                 "upcoming_payments": [],
                 "alerts": [],
                 "analytics": {"entertainment": 0, "utilities": 0, "finance": 0},
+                "as_of_date": as_of_date.isoformat() if as_of_date else None,
             },
         })
 
-    upcoming_qs = RecurringPayment.objects.filter(
-        user=user,
-        status__in=['active', 'low_balance'],
-    ).select_related('service').order_by('next_charge_date')[:5]
+    upcoming_qs = list(
+        RecurringPayment.objects.filter(
+            user=user,
+            status__in=['active', 'low_balance'],
+        ).select_related('service').order_by('next_charge_date')[:10]
+    )
 
-    upcoming = [_serialize_payment(p, account) for p in upcoming_qs]
+    if as_of_date is not None:
+        upcoming_qs.sort(
+            key=lambda p: _effective_next_charge_date(p, as_of_date)
+        )
+    upcoming_qs = upcoming_qs[:5]
+
+    upcoming = [_serialize_payment(p, account, as_of_date=as_of_date) for p in upcoming_qs]
 
     alerts = []
     for p in upcoming_qs:
-        payment_status = _payment_status(p, account)
+        payment_status = _payment_status(p, account, as_of_date=as_of_date)
         if payment_status == 'overdue':
+            reference_date = as_of_date or date.today()
+            effective_date = _effective_next_charge_date(p, as_of_date)
             alerts.append({
                 "id": p.id,
                 "service_name": _payment_name(p),
                 "message": "Просрочен платеж",
                 "amount": float(p.amount),
                 "type": "overdue",
+                "days_overdue": max(0, (reference_date - effective_date).days),
+                "is_overdue_simulated": (
+                    as_of_date is not None
+                    and _payment_status(p, account) != 'overdue'
+                ),
             })
             continue
 
@@ -194,6 +357,8 @@ def get_dashboard(request):
                 "message": "Недостаточно средств для списания",
                 "amount": float(p.amount),
                 "type": "low_balance",
+                "days_overdue": 0,
+                "is_overdue_simulated": False,
             })
 
     all_active = RecurringPayment.objects.filter(
@@ -217,6 +382,7 @@ def get_dashboard(request):
             "upcoming_payments": upcoming,
             "alerts": alerts,
             "analytics": analytics,
+            "as_of_date": as_of_date.isoformat() if as_of_date else None,
         },
     })
 
@@ -264,8 +430,21 @@ def toggle_smartdebit(request):
 
 @extend_schema(
     summary="Управление платежами",
-    description="GET: Список всех платежей пользователя\nPOST: Создание нового регулярного платежа",
+    description=(
+        "GET: Список всех платежей пользователя. Поддерживает опциональный "
+        "?as_of_date=YYYY-MM-DD для симуляции просрочек.\nPOST: Создание "
+        "нового регулярного платежа."
+    ),
     tags=["Payments"],
+    parameters=[
+        OpenApiParameter(
+            name='as_of_date',
+            type=OpenApiTypes.DATE,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description='Виртуальная дата для симуляции просрочек (YYYY-MM-DD).',
+        ),
+    ],
 )
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -278,10 +457,18 @@ def payments_list_create(request):
         )
 
     if request.method == "GET":
+        as_of_date, error = _parse_as_of_date(request, user)
+        if error is not None:
+            return error
+
         payments = RecurringPayment.objects.filter(user=user).select_related('service')
         account = Account.objects.filter(user=user).first()
-        data = [_serialize_payment(p, account) for p in payments]
-        return Response({"status": "success", "payments": data})
+        data = [_serialize_payment(p, account, as_of_date=as_of_date) for p in payments]
+        return Response({
+            "status": "success",
+            "payments": data,
+            "as_of_date": as_of_date.isoformat() if as_of_date else None,
+        })
 
     serializer = PaymentCreateSerializer(data=request.data)
     if not serializer.is_valid():
@@ -539,6 +726,7 @@ def adjust_account_balance(request):
         amount=amount,
         transaction_date=datetime.now(),
         status='completed',
+        is_manual=True,
     )
 
     return Response({
@@ -609,11 +797,69 @@ def get_transactions(request):
             "direction": _transaction_direction(t),
             "transaction_date": t.transaction_date.isoformat(),
             "status": t.status,
+            "is_manual": t.is_manual,
         }
         for t in transactions
     ]
 
     return Response({"status": "success", "transactions": data})
+
+
+@extend_schema(
+    summary="Удалить ручную операцию",
+    description=(
+        "Удаляет операцию текущего пользователя. Удалять можно только операции, "
+        "созданные вручную (is_manual=True). Возвращает 403 при попытке удалить "
+        "автоматическую транзакцию."
+    ),
+    tags=["Transactions"],
+    parameters=[
+        OpenApiParameter(
+            name='transaction_id',
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.PATH,
+            description='ID операции',
+        ),
+    ],
+)
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_transaction(request, transaction_id):
+    user = _get_api_user(request)
+    if not user:
+        return Response(
+            {"status": "error", "message": "Профиль не найден"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        transaction = Transaction.objects.select_related('account').get(
+            id=transaction_id,
+            account__user=user,
+        )
+    except Transaction.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Операция не найдена"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not transaction.is_manual:
+        return Response(
+            {
+                "status": "error",
+                "message": "Нельзя удалить автоматическую операцию",
+                "error_code": "NOT_MANUAL",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    transaction.delete()
+
+    return Response({
+        "status": "success",
+        "message": "Операция удалена",
+        "id": transaction_id,
+    })
 
 
 @extend_schema(

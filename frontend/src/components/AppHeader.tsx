@@ -1,62 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeftRight,
   Bell,
   BellOff,
   Check,
-  CreditCard,
-  Home,
   LogOut,
   Menu,
-  Shield,
   User,
   X,
 } from 'lucide-react'
 import type { NotificationItem } from '../types'
+import { NAV_ITEMS } from '../config/navigation'
+import { TimeTravel } from './TimeTravel/TimeTravel'
 
 interface AppHeaderProps {
   notifications: NotificationItem[]
   profileName: string
   onLogout?: () => void
 }
-
-interface NavEntry {
-  to: string
-  label: string
-  icon: typeof Home
-  match: (pathname: string) => boolean
-  newChip?: boolean
-}
-
-const NAV_ITEMS: NavEntry[] = [
-  {
-    to: '/',
-    label: 'Главная',
-    icon: Home,
-    match: (pathname) => pathname === '/',
-  },
-  {
-    to: '/operations',
-    label: 'Операции',
-    icon: ArrowLeftRight,
-    match: (pathname) =>
-      pathname.startsWith('/operations') && !pathname.includes('/smartdebit'),
-  },
-  {
-    to: '/payments',
-    label: 'Платежи',
-    icon: CreditCard,
-    match: (pathname) => pathname.startsWith('/payments'),
-  },
-  {
-    to: '/operations/smartdebit',
-    label: 'SmartDebit',
-    icon: Shield,
-    match: (pathname) => pathname.includes('/smartdebit'),
-    newChip: true,
-  },
-]
 
 function getNameInitial(fullName: string) {
   const normalized = fullName.trim()
@@ -183,6 +144,8 @@ export function AppHeader({ notifications, profileName, onLogout }: AppHeaderPro
       </nav>
 
       <div className="topbar-actions">
+        <TimeTravel className="topbar-time-travel" compact />
+
         <div
           className={isNotificationOpen ? 'notification-wrap active' : 'notification-wrap'}
           ref={notificationWrapRef}

@@ -21,6 +21,19 @@ export interface Payment {
   nextChargeDate: string
   periodLabel: string
   source: 'auto' | 'manual'
+  // 
+  //   Признак того, что просрочка возникла исключительно из-за «перемотки
+  //   времени» (виртуальной даты). При работе с реальной датой всегда `false`.
+   
+  //   Поле опциональное: демо-данные и оффлайн-симуляция могут его не задавать
+  //   — в таком случае оно трактуется как `false`.
+  //  
+  // isOverdueSimulated?: boolean
+  // 
+  //   На сколько дней платёж просрочен относительно текущей (реальной или
+  //   виртуальной) даты. Для не-просроченных платежей значение `0`/`undefined`.
+  //  
+  daysOverdue?: number
 }
 
 export interface DashboardAlert {
@@ -28,6 +41,10 @@ export interface DashboardAlert {
   paymentId: string
   title: string
   amount: number
+  /** См. {@link Payment.isOverdueSimulated}. */
+  isOverdueSimulated?: boolean
+  /** См. {@link Payment.daysOverdue}. */
+  daysOverdue?: number
 }
 
 export interface ChartSlice {
