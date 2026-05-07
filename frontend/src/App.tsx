@@ -268,6 +268,10 @@ function formatPaymentTitle(title: string) {
   return normalized.slice(0, 1).toUpperCase() + normalized.slice(1)
 }
 
+function isManualBalanceTransaction(title: string) {
+  return /ручное пополнение|ручное списание|пополнение через тест|пополнение счета/i.test(title)
+}
+
 function isPaymentQuickActionId(value: string): value is PaymentQuickActionId {
   return PAYMENT_QUICK_ACTIONS.some((action) => action.id === value)
 }
@@ -2201,7 +2205,13 @@ function transactionsToHomeHistory(transactions: ApiTransaction[]): HomeHistoryI
     const title = formatPaymentTitle(transaction.merchantName)
     const amount = mapTransactionAmount(transaction)
     const initial = title.trim().charAt(0).toUpperCase() || '•'
-    const iconTone: HomeHistoryItem['iconTone'] = amount >= 0 ? 'green' : 'dark'
+    const iconTone: HomeHistoryItem['iconTone'] = isManualBalanceTransaction(title)
+      ? amount >= 0
+        ? 'green'
+        : 'red'
+      : amount >= 0
+        ? 'green'
+        : 'dark'
 
     return {
       id: `home-${transaction.id}`,

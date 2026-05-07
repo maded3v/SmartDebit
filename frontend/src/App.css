@@ -1240,6 +1240,7 @@
   place-items: center;
   font-size: 14px;
   font-weight: 700;
+  overflow: hidden;
 }
 
 .history-icon.has-logo {
@@ -1575,6 +1576,7 @@
   font-size: 14px;
   font-weight: 700;
   color: #ffffff;
+  overflow: hidden;
 }
 
 .operation-icon.has-initial {
@@ -1666,10 +1668,13 @@
 }
 
 .merchant-logo {
-  width: 20px;
-  height: 20px;
+  width: 100%;
+  height: 100%;
   display: block;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.18);
+  transform-origin: center;
 }
 
 .operations-empty {
@@ -3858,8 +3863,8 @@
 }
 
 .merchant-logo {
-  width: 21px;
-  height: 21px;
+  width: 100%;
+  height: 100%;
 }
 
 .operation-list li {
@@ -4461,6 +4466,7 @@
   color: #1c2533;
   letter-spacing: -0.02em;
   box-shadow: 0 6px 16px rgba(13, 19, 32, 0.08);
+  overflow: hidden;
 }
 
 .op-dialog-logo.has-logo {
@@ -4469,9 +4475,12 @@
 }
 
 .op-dialog-logo img {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.16);
+  transform-origin: center;
   display: block;
 }
 
