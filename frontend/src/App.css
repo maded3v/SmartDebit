@@ -119,6 +119,163 @@
   margin-left: auto;
 }
 
+/* === TimeTravel widget ====================================================== */
+.time-travel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #f4f6fb;
+  border: 1px solid #e3e8f1;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.2;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.time-travel.is-simulating {
+  background: #fff8e1;
+  border-color: #f1c54a;
+  color: #6b4500;
+  box-shadow: 0 4px 14px rgba(241, 197, 74, 0.28);
+}
+
+.time-travel-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.time-travel-icon {
+  flex-shrink: 0;
+  color: #5b6478;
+}
+
+.time-travel.is-simulating .time-travel-icon {
+  color: #b97a00;
+}
+
+.time-travel-text {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.time-travel-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5f6d85;
+}
+
+.time-travel-date {
+  font-weight: 600;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.time-travel-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #b97a00;
+  font-weight: 600;
+}
+
+.time-travel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.time-travel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #d8def0;
+  background: #fff;
+  color: #1f2a44;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.time-travel-btn:hover {
+  background: #ffdd2d;
+  border-color: #f0c906;
+  color: #111720;
+}
+
+.time-travel-btn:active {
+  transform: translateY(1px);
+}
+
+.time-travel-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.time-travel-reset {
+  border-style: dashed;
+}
+
+.time-travel-reset-label {
+  display: inline;
+}
+
+.time-travel-compact .time-travel-title {
+  display: none;
+}
+
+.time-travel-compact .time-travel-reset-label {
+  display: none;
+}
+
+.time-travel-compact {
+  padding: 4px 8px;
+  gap: 6px;
+}
+
+.time-travel-compact .time-travel-date {
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .time-travel-compact .time-travel-actions {
+    gap: 2px;
+  }
+  .time-travel-compact .time-travel-btn {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+}
+
+/* «Лента» сверху — намёк, что симуляция активна */
+.shell.shell--simulating::before {
+  content: 'Активна симуляция времени · данные пересчитаны под виртуальную дату';
+  display: block;
+  background: linear-gradient(90deg, #fff4e1 0%, #ffe9b8 100%);
+  color: #8a5a00;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid #f1c54a;
+}
+
 .notification-wrap {
   position: relative;
 }
@@ -1524,6 +1681,64 @@
   border-bottom: 0;
 }
 
+.operation-li.with-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.operation-li.with-action .operation-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.operation-delete {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-right: -6px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: #aab4c5;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.operation-delete:hover,
+.operation-delete:focus-visible {
+  background: rgba(220, 53, 69, 0.12);
+  color: #d34848;
+  outline: none;
+}
+
+.operation-delete:focus-visible {
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.35) inset;
+}
+
+.operation-delete:active {
+  transform: scale(0.95);
+}
+
+.operation-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+  color: #aab4c5;
+}
+
+@media (max-width: 480px) {
+  .operation-delete {
+    width: 32px;
+    height: 32px;
+    margin-right: -4px;
+  }
+}
+
 .operation-row {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) auto 16px;
@@ -1622,6 +1837,31 @@
 .smart-tag.danger {
   background: #fee8e8;
   color: #ae3c3c;
+}
+
+/* === TimeTravel: бейдж просрочки в строке операции ============================ */
+.overdue-tag {
+  margin-top: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fee2e2;
+  color: #b1261b;
+  border: 1px solid #f5b3ad;
+}
+
+.overdue-tag.simulated {
+  background: #fff4e1;
+  color: #a85c04;
+  border-color: #f3c98b;
+}
+
+.overdue-tag svg {
+  flex-shrink: 0;
 }
 
 .amount {

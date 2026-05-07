@@ -228,6 +228,8 @@ interface BackendPayment {
   category: string
   is_mandatory: boolean
   status: string
+  is_overdue_simulated?: boolean
+  days_overdue?: number
 }
 
 interface BackendAlert {
@@ -236,6 +238,8 @@ interface BackendAlert {
   message: string
   amount: number
   type: string
+  is_overdue_simulated?: boolean
+  days_overdue?: number
 }
 
 interface BackendDashboardEnvelope {
@@ -247,6 +251,7 @@ interface BackendDashboardEnvelope {
     upcoming_payments: BackendPayment[]
     alerts: BackendAlert[]
     analytics?: Record<string, number>
+    as_of_date?: string | null
   }
 }
 
@@ -297,11 +302,19 @@ interface BackendTransaction {
   direction?: string
   transaction_date: string
   status?: string
+  is_manual?: boolean
 }
 
 interface BackendTransactionsEnvelope {
   status?: string
   transactions?: BackendTransaction[]
+}
+
+interface BackendDeleteTransactionEnvelope {
+  status?: string
+  message?: string
+  id?: number | string
+  error_code?: string
 }
 
 export interface ApiTransaction {
@@ -311,6 +324,7 @@ export interface ApiTransaction {
   direction: 'income' | 'expense'
   transactionDate: string
   status: string
+  isManual: boolean
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -429,6 +443,8 @@ function mapBackendPayment(payment: BackendPayment): Payment {
     nextChargeDate: payment.next_charge_date,
     periodLabel: getPeriodLabel(payment.next_charge_date),
     source: 'auto',
+    isOverdueSimulated: Boolean(payment.is_overdue_simulated),
+    daysOverdue: Math.max(0, Math.round(Number(payment.days_overdue) || 0)),
   }
 }
 
@@ -442,6 +458,7 @@ function mapBackendTransaction(transaction: BackendTransaction): ApiTransaction 
     direction,
     transactionDate: transaction.transaction_date,
     status: transaction.status || 'completed',
+    isManual: Boolean(transaction.is_manual),
   }
 }
 
@@ -451,6 +468,8 @@ function mapAlerts(alerts: BackendAlert[]): DashboardAlert[] {
     paymentId: String(alert.id),
     title: `${alert.service_name}: ${alert.message}`,
     amount: Number(alert.amount) || 0,
+    isOverdueSimulated: Boolean(alert.is_overdue_simulated),
+    daysOverdue: Math.max(0, Math.round(Number(alert.days_overdue) || 0)),
   }))
 }
 
@@ -551,17 +570,26 @@ function mapDashboardPayload(payload: unknown): DashboardPayload {
   }
 }
 
+function buildDashboardPath(asOfDate?: string | null) {
+  const trimmed = (asOfDate || '').trim()
+  if (!trimmed) {
+    return '/smartdebit/dashboard/'
+  }
+  return `/smartdebit/dashboard/?as_of_date=${encodeURIComponent(trimmed)}`
+}
+
 export const smartDebitApi = {
-  async getDashboard() {
+  async getDashboard(asOfDate?: string | null) {
+    const path = buildDashboardPath(asOfDate)
     try {
-      const payload = await request<unknown>('/smartdebit/dashboard/')
+      const payload = await request<unknown>(path)
       return mapDashboardPayload(payload)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
 
       if (/User not found/i.test(message)) {
         await smartDebitApi.toggle(true)
-        const payload = await request<unknown>('/smartdebit/dashboard/')
+        const payload = await request<unknown>(path)
         return mapDashboardPayload(payload)
       }
 
@@ -646,10 +674,34 @@ export const smartDebitApi = {
     }
   },
 
-  async getTransactions(limit = 60) {
+  async getTransactions(limit = 60, asOfDate?: string | null) {
     const safeLimit = Math.max(1, Math.min(Math.round(limit), 200))
-    const payload = await request<BackendTransactionsEnvelope>(`/transactions/?limit=${safeLimit}`)
+    const params = new URLSearchParams({ limit: String(safeLimit) })
+    const trimmedDate = (asOfDate || '').trim()
+    if (trimmedDate) {
+      params.set('as_of_date', trimmedDate)
+    }
+    const payload = await request<BackendTransactionsEnvelope>(
+      `/transactions/?${params.toString()}`,
+    )
     const transactions = Array.isArray(payload.transactions) ? payload.transactions : []
     return transactions.map(mapBackendTransaction)
+  },
+
+  async deleteTransaction(transactionId: string) {
+    const id = String(transactionId).trim()
+    if (!id) {
+      throw new Error('Не указан идентификатор операции')
+    }
+
+    const payload = await request<BackendDeleteTransactionEnvelope>(
+      `/transactions/${encodeURIComponent(id)}/`,
+      { method: 'DELETE' },
+    )
+
+    return {
+      message: payload.message || 'Операция удалена',
+      id: payload.id != null ? String(payload.id) : id,
+    }
   },
 }
