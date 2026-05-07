@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.conf import settings
 from django.db import models
 
@@ -14,10 +12,6 @@ class User(models.Model):
     )
     internal_id = models.CharField(max_length=100, unique=True, db_index=True)
     is_smartdebit_enabled = models.BooleanField(default=False)
-    phone = models.CharField(max_length=32, blank=True, default='')
-    email = models.EmailField(blank=True, default='')
-    full_name = models.CharField(max_length=255, blank=True, default='')
-    avatar_url = models.URLField(max_length=500, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -26,9 +20,6 @@ class User(models.Model):
 class Account(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts')
     balance = models.DecimalField(max_digits=12, decimal_places=2)
-    savings_balance = models.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal('0.00')
-    )
     currency = models.CharField(max_length=3, default="RUB")
     def __str__(self):
         return f"{self.user.internal_id} - {self.balance}"

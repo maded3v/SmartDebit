@@ -1,4 +1,3 @@
-// Путь: frontend/src/App.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BrowserRouter,
@@ -12,8 +11,7 @@ import {
 import './App.css'
 import type { FormEvent } from 'react'
 import { LoginPage } from './components/LoginPage'
-import { SmartDebitOffMessage } from './components/SmartDebitOffMessage'
-import { authApi, smartDebitApi, type ApiMe, type ApiTransaction } from './api'
+import { authApi, smartDebitApi, type ApiTransaction } from './api'
 import {
   ArrowLeftRight,
   Briefcase,
@@ -44,7 +42,6 @@ import {
   Sparkles,
   AlertTriangle,
   CalendarClock,
-  Trash2,
   User,
   UserCheck,
   Wifi,
@@ -59,10 +56,8 @@ import type {
 } from './types'
 import toast from 'react-hot-toast'
 import { AppHeader } from './components/AppHeader'
-import { TimeTravel } from './components/TimeTravel'
 import { BottomNav } from './components/BottomNav'
 import { OperationDetailDialog } from './components/OperationDetailDialog'
-import { TimeTravelProvider, useTimeTravel } from './hooks/useTimeTravel'
 import {
   buildOperationDetail,
   brandColorFor,
@@ -84,25 +79,6 @@ interface BankOperation {
   amount: number
   smartTag?: string
   tone: 'neutral' | 'danger' | 'success'
-  /**
-   * Идентификатор транзакции на бэкенде (без префикса `tx-`).
-   * Заполняется только для строк, пришедших из истории (real transactions),
-   * прогнозы SmartDebit оставляют поле пустым.
-   */
-  transactionId?: string
-  /** Создана ли операция вручную через корректировку баланса (`is_manual=true`). */
-  isManual?: boolean
-  /** Просрочен ли платеж (фактически или из-за виртуальной даты). */
-  isOverdue?: boolean
-  /**
-   * Просрочка появилась исключительно из-за «перемотки времени»,
-   * в реальности платёж ещё не просрочен.
-   */
-  isOverdueSimulated?: boolean
-  // На сколько дней платеж просрочен относительно виртуальной или реальной даты.
-  daysOverdue?: number
-  // Готовая ссылка на иконку мерчанта (ServiceDictionary.icon_url).
-  iconUrl?: string
 }
 
 interface HomeHistoryItem {
@@ -113,8 +89,6 @@ interface HomeHistoryItem {
   icon: string
   iconTone: 'green' | 'dark' | 'gray' | 'red'
   smartTag?: string
-  // Готовая ссылка на иконку мерчанта (ServiceDictionary.icon_url).
-  iconUrl?: string
 }
 
 interface FavoritePaymentEntry {
@@ -124,10 +98,6 @@ interface FavoritePaymentEntry {
   account: string
   lastAmount: number
   icon: typeof Phone
-  // URL логотипа мерчанта (ServiceDictionary.icon_url с бэка). Если задан,
-  // в строке избранного рендерится img, иначе fallback на локальный логотип
-  // из MERCHANT_LOGOS, иначе lucide иконка по категории.
-  iconUrl?: string
 }
 
 interface PaymentQuickActionEntry {
@@ -263,11 +233,6 @@ const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
   month: 'long',
 })
-const dateFormatterWithYear = new Intl.DateTimeFormat('ru-RU', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-})
 
 function formatCurrency(value: number, signed = false) {
   const prefix = signed ? (value > 0 ? '+' : value < 0 ? '-' : '') : ''
@@ -279,10 +244,7 @@ function formatDate(value: string) {
   if (Number.isNaN(date.getTime())) {
     return 'Неизвестная дата'
   }
-  if (date.getFullYear() === new Date().getFullYear()) {
-    return dateFormatter.format(date)
-  }
-  return dateFormatterWithYear.format(date)
+  return dateFormatter.format(date)
 }
 
 function resolveErrorMessage(error: unknown, fallback: string) {
@@ -333,29 +295,9 @@ function buildOperationsFeed(
       amount: -payment.amount,
       smartTag: `SmartDebit · ${payment.periodLabel}`,
       tone,
-      isOverdue: payment.status === 'overdue',
-      isOverdueSimulated: payment.isOverdueSimulated,
-      daysOverdue: payment.daysOverdue,
-      iconUrl: payment.iconUrl,
     }
   })
   return [...baseOperations, ...smartOperations]
-}
-
-function pluralizeDays(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  if (mod10 === 1 && mod100 !== 11) return 'день'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'дня'
-  return 'дней'
-}
-
-function formatDaysOverdueLabel(days: number): string {
-  const safe = Math.max(0, Math.round(days))
-  if (safe === 0) {
-    return 'Просрочено сегодня'
-  }
-  return `Просрочено на ${safe} ${pluralizeDays(safe)}`
 }
 
 interface OperationGroup {
@@ -428,8 +370,6 @@ function HomePage({
   walletCashback,
   onTopUp,
   onSpend,
-  onEnableSmartDebit,
-  smartDebitToggling,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
@@ -439,8 +379,6 @@ function HomePage({
   walletCashback: number
   onTopUp: (amount: number) => Promise<boolean>
   onSpend: (amount: number) => Promise<boolean>
-  onEnableSmartDebit?: () => Promise<void> | void
-  smartDebitToggling?: boolean
 }) {
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
     return userHistory ?? []
@@ -510,7 +448,6 @@ function HomePage({
         amount: item.amount,
         dateLabel: item.date,
         smartTag: item.smartTag,
-        iconUrlOverride: item.iconUrl,
       }),
     )
   }, [])
@@ -634,7 +571,7 @@ function HomePage({
               <PiggyBank size={15} strokeWidth={2.2} />
             </span>
             <div>
-              <p>{formatCurrency(dashboard?.account.savings ?? 0)}</p>
+              <p>9 009,42 ₽</p>
               <small>Накопительный счет</small>
             </div>
             <span className="trend-badge">
@@ -663,37 +600,43 @@ function HomePage({
         </aside>
 
         <div className="home-right-column">
-          {dashboard?.enabled === false ? (
-            <SmartDebitOffMessage
-              onEnable={onEnableSmartDebit}
-              enabling={Boolean(smartDebitToggling)}
-            />
-          ) : (
-            <article className="panel home-smartdebit-widget">
-              <div className="row-between">
-                <h2>SmartDebit</h2>
-                <span className="status-badge green">Включен</span>
+          <article className="panel home-smartdebit-widget">
+            <div className="row-between">
+              <h2>SmartDebit</h2>
+              <span className={dashboard?.enabled ? 'status-badge green' : 'status-badge gray'}>
+                {dashboard?.enabled ? 'Включен' : 'Выключен'}
+              </span>
+            </div>
+
+            {dashboard?.enabled ? (
+              <>
+                <p className="muted">Ближайшие списания на 7 дней</p>
+
+                <ul className="home-widget-list">
+                  {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
+                    <li key={payment.id}>
+                      <div>
+                        <p>{formatPaymentTitle(payment.title)}</p>
+                        <small>{formatDate(payment.nextChargeDate)}</small>
+                      </div>
+                      <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link to="/operations/smartdebit" className="widget-link-btn">
+                  Открыть SmartDebit
+                </Link>
+              </>
+            ) : (
+              <div className="home-smartdebit-disabled">
+                <p className="muted">SmartDebit выключен. Включите сервис, чтобы видеть будущие списания.</p>
+                <Link to="/operations/smartdebit" className="widget-link-btn">
+                  Перейти к SmartDebit
+                </Link>
               </div>
-
-              <p className="muted">Ближайшие списания на 7 дней</p>
-
-              <ul className="home-widget-list">
-                {(dashboard?.upcoming ?? []).slice(0, 3).map((payment) => (
-                  <li key={payment.id}>
-                    <div>
-                      <p>{formatPaymentTitle(payment.title)}</p>
-                      <small>{formatDate(payment.nextChargeDate)}</small>
-                    </div>
-                    <strong>-{numberFormatter.format(payment.amount)} ₽</strong>
-                  </li>
-                ))}
-              </ul>
-
-              <Link to="/operations/smartdebit" className="widget-link-btn">
-                Открыть SmartDebit
-              </Link>
-            </article>
-          )}
+            )}
+          </article>
 
           <article className="panel home-history-panel">
             <h2>История операций</h2>
@@ -701,10 +644,8 @@ function HomePage({
             {historyItems.length ? (
               <ul className="home-history-list">
                 {historyItems.map((item) => {
-                  const remoteIcon = (item.iconUrl || '').trim()
-                  const merchantLogo = remoteIcon ? null : resolveMerchantLogo(item.title)
-                  const iconSrc = remoteIcon || merchantLogo?.src || ''
-                  const showInitial = !iconSrc
+                  const merchantLogo = resolveMerchantLogo(item.title)
+                  const showInitial = !merchantLogo
                   const tileColor = showInitial ? brandColorFor(item.title) : undefined
 
                   return (
@@ -716,21 +657,11 @@ function HomePage({
                         aria-label={`Открыть детали операции ${item.title}`}
                       >
                         <span
-                          className={`history-icon ${item.iconTone}${iconSrc ? ' has-logo' : ' has-initial'}`}
+                          className={`history-icon ${item.iconTone}${merchantLogo ? ' has-logo' : ' has-initial'}`}
                           style={tileColor ? { backgroundColor: tileColor } : undefined}
                         >
-                          {iconSrc ? (
-                            <img
-                              src={iconSrc}
-                              alt=""
-                              className="merchant-logo"
-                              loading="lazy"
-                              onError={(event) => {
-                                const target = event.currentTarget
-                                target.onerror = null
-                                target.style.display = 'none'
-                              }}
-                            />
+                          {merchantLogo ? (
+                            <img src={merchantLogo.src} alt="" className="merchant-logo" />
                           ) : (
                             brandInitial(item.title)
                           )}
@@ -951,46 +882,12 @@ function CardOverviewPage({
           <ul className="favorite-payments-list">
             {favoriteList.map((payment) => {
               const Icon = payment.icon
-              // Приоритет: iconUrl с бэка (ServiceDictionary) → локальный логотип
-              // мерчанта из MERCHANT_LOGOS → lucide иконка по категории.
-              const remoteIcon = (payment.iconUrl || '').trim()
-              const localLogo = remoteIcon
-                ? null
-                : resolveMerchantLogo(payment.title, payment.subtitle)
-              const logoSrc = remoteIcon || localLogo?.src || ''
-              const logoAlt = localLogo?.alt || payment.title
 
               return (
                 <li key={payment.id}>
                   <div className="favorite-payment-main">
-                    <span
-                      className={
-                        logoSrc
-                          ? 'favorite-payment-icon has-logo'
-                          : 'favorite-payment-icon'
-                      }
-                    >
-                      {logoSrc ? (
-                        <img
-                          src={logoSrc}
-                          alt={logoAlt}
-                          className="favorite-payment-logo"
-                          loading="lazy"
-                          onError={(event) => {
-                            // если иконка не подгрузилась, оставляем lucide fallback
-                            const target = event.currentTarget
-                            target.onerror = null
-                            target.style.display = 'none'
-                            const parent = target.parentElement
-                            if (parent) {
-                              parent.classList.remove('has-logo')
-                              parent.classList.add('logo-failed')
-                            }
-                          }}
-                        />
-                      ) : (
-                        <Icon size={19} />
-                      )}
+                    <span className="favorite-payment-icon">
+                      <Icon size={19} />
                     </span>
 
                     <div className="favorite-payment-content">
@@ -1445,15 +1342,12 @@ function OperationsPage({
   loading,
   error,
   userOperations,
-  onDeleteOperation,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
   userOperations?: BankOperation[]
-  onDeleteOperation?: (operation: BankOperation) => void | Promise<void>
 }) {
-  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<OperationsFilterId>('all')
   const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1476,7 +1370,6 @@ function OperationsPage({
         amount: operation.amount,
         dateLabel: operation.dateLabel,
         smartTag: operation.smartTag,
-        iconUrlOverride: operation.iconUrl,
       }),
     )
   }, [])
@@ -1763,27 +1656,16 @@ function OperationsPage({
                     </header>
                     <ul className="operation-list">
                       {group.items.map((operation) => {
-                        const remoteIcon = (operation.iconUrl || '').trim()
-                        const merchantLogo = remoteIcon
-                          ? null
-                          : resolveMerchantLogo(operation.title, operation.subtitle)
-                        const iconSrc = remoteIcon || merchantLogo?.src || ''
-                        const iconAlt = merchantLogo?.alt || operation.title
-                        const tileColor = !iconSrc
+                        const merchantLogo = resolveMerchantLogo(
+                          operation.title,
+                          operation.subtitle,
+                        )
+                        const tileColor = !merchantLogo
                           ? brandColorFor(operation.title)
                           : undefined
-                        const canDelete = Boolean(
-                          operation.isManual &&
-                            operation.transactionId &&
-                            onDeleteOperation,
-                        )
-                        const isDeleting = deletingId === operation.id
 
                         return (
-                          <li
-                            key={operation.id}
-                            className={canDelete ? 'operation-li with-action' : 'operation-li'}
-                          >
+                          <li key={operation.id}>
                             <button
                               type="button"
                               className="operation-row"
@@ -1791,22 +1673,16 @@ function OperationsPage({
                               aria-label={`Открыть детали операции ${operation.title}`}
                             >
                               <span
-                                className={`operation-icon ${operation.tone}${iconSrc ? ' has-logo' : ' has-initial'}`}
+                                className={`operation-icon ${operation.tone}${merchantLogo ? ' has-logo' : ' has-initial'}`}
                                 style={
                                   tileColor ? { backgroundColor: tileColor } : undefined
                                 }
                               >
-                                {iconSrc ? (
+                                {merchantLogo ? (
                                   <img
-                                    src={iconSrc}
-                                    alt={iconAlt}
+                                    src={merchantLogo.src}
+                                    alt=""
                                     className="merchant-logo"
-                                    loading="lazy"
-                                    onError={(event) => {
-                                      const target = event.currentTarget
-                                      target.onerror = null
-                                      target.style.display = 'none'
-                                    }}
                                   />
                                 ) : (
                                   brandInitial(operation.title)
@@ -1828,24 +1704,6 @@ function OperationsPage({
                                     {operation.smartTag}
                                   </small>
                                 ) : null}
-                                {operation.isOverdue ? (
-                                  <small
-                                    className={
-                                      operation.isOverdueSimulated
-                                        ? 'overdue-tag simulated'
-                                        : 'overdue-tag'
-                                    }
-                                    aria-label={
-                                      operation.isOverdueSimulated
-                                        ? 'Просрочено по виртуальной дате'
-                                        : 'Просрочено'
-                                    }
-                                  >
-                                    <AlertTriangle size={12} aria-hidden />
-                                    {formatDaysOverdueLabel(operation.daysOverdue ?? 0)}
-                                    {operation.isOverdueSimulated ? ' · симуляция' : null}
-                                  </small>
-                                ) : null}
                               </div>
                               <strong
                                 className={
@@ -1860,40 +1718,6 @@ function OperationsPage({
                                 aria-hidden
                               />
                             </button>
-                            {canDelete ? (
-                              <button
-                                type="button"
-                                className="operation-delete"
-                                disabled={isDeleting}
-                                aria-label={`Удалить ручную операцию ${operation.title}`}
-                                title="Удалить ручную операцию"
-                                onClick={async (event) => {
-                                  event.stopPropagation()
-                                  if (isDeleting || !onDeleteOperation) {
-                                    return
-                                  }
-                                  const confirmed =
-                                    typeof window === 'undefined'
-                                      ? true
-                                      : window.confirm(
-                                          `Удалить ручную операцию «${operation.title}»? Действие нельзя отменить.`,
-                                        )
-                                  if (!confirmed) {
-                                    return
-                                  }
-                                  setDeletingId(operation.id)
-                                  try {
-                                    await onDeleteOperation(operation)
-                                  } finally {
-                                    setDeletingId((current) =>
-                                      current === operation.id ? null : current,
-                                    )
-                                  }
-                                }}
-                              >
-                                <Trash2 size={16} aria-hidden />
-                              </button>
-                            ) : null}
                           </li>
                         )
                       })}
@@ -2028,17 +1852,6 @@ function SmartDebitDetailsPage({
       </header>
 
       {error ? <p className="error">{error}</p> : null}
-
-      <article className="panel smart-panel smart-panel-full smartdebit-timetravel-panel">
-        <div className="smartdebit-timetravel-head">
-          <h2>Симуляция даты</h2>
-          <p className="smartdebit-timetravel-help">
-            Промотайте виртуальный календарь вперёд, чтобы увидеть, как
-            SmartDebit пересчитает ближайшие списания и просрочки.
-          </p>
-        </div>
-        <TimeTravel className="smartdebit-timetravel-widget" />
-      </article>
 
       <article className="panel smart-panel smart-panel-full">
         <div className="row-between">
@@ -2186,32 +1999,11 @@ function ProfilePage({
   fullName,
   username,
   onLogout,
-  email,
-  phone,
-  avatarUrl,
 }: {
   fullName: string
   username?: string
   onLogout?: () => void
-  email?: string
-  phone?: string
-  avatarUrl?: string
 }) {
-  // Собираем реальные контакты из ApiMe (бэкенд), а остальные пункты
-  // (Адреса, Работа и т.п.) берём из PROFILE_SETTINGS, как раньше.
-  const trimmedPhone = (phone || '').trim()
-  const trimmedEmail = (email || '').trim()
-  const trimmedAvatar = (avatarUrl || '').trim()
-  const settings = PROFILE_SETTINGS.map((item) => {
-    if (item.id === 'profile-phone' && trimmedPhone) {
-      return { ...item, label: trimmedPhone }
-    }
-    if (item.id === 'profile-email' && trimmedEmail) {
-      return { ...item, label: trimmedEmail }
-    }
-    return item
-  })
-
   return (
     <section className="profile-page">
       <div className="profile-page-head">
@@ -2228,41 +2020,9 @@ function ProfilePage({
         <div>
           <div className="profile-headline">
             <div className="profile-avatar-big">
-              {trimmedAvatar ? (
-                <img
-                  src={trimmedAvatar}
-                  alt={fullName}
-                  className="profile-avatar-img"
-                  loading="lazy"
-                  onError={(event) => {
-                    const target = event.currentTarget
-                    target.onerror = null
-                    target.style.display = 'none'
-                  }}
-                />
-              ) : (
-                <User size={30} />
-              )}
+              <User size={30} />
             </div>
-            <div className="profile-headline-body">
-              <span className="profile-name">{fullName}</span>
-              {trimmedPhone || trimmedEmail ? (
-                <ul className="profile-contacts">
-                  {trimmedPhone ? (
-                    <li className="profile-contact">
-                      <Phone size={14} aria-hidden />
-                      <span>{trimmedPhone}</span>
-                    </li>
-                  ) : null}
-                  {trimmedEmail ? (
-                    <li className="profile-contact">
-                      <Mail size={14} aria-hidden />
-                      <span>{trimmedEmail}</span>
-                    </li>
-                  ) : null}
-                </ul>
-              ) : null}
-            </div>
+            <span className="profile-name">{fullName}</span>
           </div>
 
           <div className="profile-pro-banner">
@@ -2279,7 +2039,7 @@ function ProfilePage({
         </div>
 
         <div className="profile-settings-card">
-          {settings.map((item) => {
+          {PROFILE_SETTINGS.map((item) => {
             const Icon = item.icon
 
             return (
@@ -2353,15 +2113,12 @@ function transactionsToBankOperations(transactions: ApiTransaction[]): BankOpera
     const amount = mapTransactionAmount(transaction)
     return {
       id: `tx-${transaction.id}`,
-      transactionId: transaction.id,
-      isManual: transaction.isManual,
       title: formatPaymentTitle(transaction.merchantName),
       subtitle: 'Операция по карте',
       dateLabel: formatTransactionDateLabel(transaction.transactionDate),
       dateISO: normalizeTransactionDateISO(transaction.transactionDate),
       amount,
       tone: amount >= 0 ? 'success' : 'neutral',
-      iconUrl: (transaction.iconUrl || '').trim() || undefined,
     }
   })
 }
@@ -2389,18 +2146,9 @@ function resolveFavoriteIconByMerchant(merchantName: string) {
 }
 
 function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymentEntry[] {
-  // Группируем транзакции по мерчанту и попутно тащим iconUrl самой свежей,
-  // чтобы в избранных показывать настоящий логотип сервиса (Spotify, Netflix и т.п.),
-  // а не lucide иконку Phone.
   const grouped = new Map<
     string,
-    {
-      merchantName: string
-      count: number
-      latestTimestamp: number
-      latestAmount: number
-      latestIconUrl: string
-    }
+    { merchantName: string; count: number; latestTimestamp: number; latestAmount: number }
   >()
 
   for (const transaction of transactions) {
@@ -2413,7 +2161,6 @@ function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymen
     const timestamp = new Date(transaction.transactionDate).getTime()
     const safeTimestamp = Number.isNaN(timestamp) ? 0 : timestamp
     const amount = Math.abs(Number(transaction.amount) || 0)
-    const iconUrl = (transaction.iconUrl || '').trim()
 
     const current = grouped.get(key)
     if (!current) {
@@ -2422,7 +2169,6 @@ function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymen
         count: 1,
         latestTimestamp: safeTimestamp,
         latestAmount: amount,
-        latestIconUrl: iconUrl,
       })
       continue
     }
@@ -2432,12 +2178,6 @@ function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymen
       current.latestTimestamp = safeTimestamp
       current.latestAmount = amount
       current.merchantName = merchantName
-      if (iconUrl) {
-        current.latestIconUrl = iconUrl
-      }
-    } else if (!current.latestIconUrl && iconUrl) {
-      // запомним любой непустой URL, если у самой свежей его не было
-      current.latestIconUrl = iconUrl
     }
   }
 
@@ -2457,7 +2197,6 @@ function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymen
       account: 'Быстрый платеж',
       lastAmount: item.latestAmount,
       icon: resolveFavoriteIconByMerchant(item.merchantName),
-      iconUrl: item.latestIconUrl || undefined,
     }))
 }
 
@@ -2481,26 +2220,22 @@ function transactionsToHomeHistory(transactions: ApiTransaction[]): HomeHistoryI
       amount,
       icon: initial,
       iconTone,
-      iconUrl: (transaction.iconUrl || '').trim() || undefined,
     }
   })
 }
 
-function AppContent() {
-  const { asOfDateParam, isSimulating } = useTimeTravel()
+function App() {
   const [currentUsername, setCurrentUsername] = useState<string | null>(() => authApi.getStoredUsername())
   const [profileName, setProfileName] = useState<string>(() => authApi.getStoredUsername() || PROFILE.fullName)
-  const [profile, setProfile] = useState<ApiMe | null>(null)
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [dashboardError, setDashboardError] = useState('')
   const [transactions, setTransactions] = useState<ApiTransaction[]>([])
-  const [smartDebitToggling, setSmartDebitToggling] = useState(false)
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true)
     try {
-      const dashboardPayload = await smartDebitApi.getDashboard(asOfDateParam)
+      const dashboardPayload = await smartDebitApi.getDashboard()
       setDashboard(dashboardPayload)
       setDashboardError('')
 
@@ -2510,16 +2245,14 @@ function AppContent() {
       void authApi
         .getMe()
         .then((me) => {
-          setProfile(me)
           setProfileName(me.fullName || me.username || fallbackName)
         })
         .catch(() => {
-          setProfile(null)
           setProfileName(fallbackName)
         })
 
       try {
-        const transactionsPayload = await smartDebitApi.getTransactions(60, asOfDateParam)
+        const transactionsPayload = await smartDebitApi.getTransactions(60)
         setTransactions(transactionsPayload)
       } catch {
         setTransactions([])
@@ -2530,14 +2263,13 @@ function AppContent() {
       if (/(401|403|token|credentials|авторизац|учетные данные|доступ)/i.test(message)) {
         authApi.logout()
         setCurrentUsername(null)
-        setProfile(null)
         setProfileName(PROFILE.fullName)
         setDashboard(null)
         setTransactions([])
       }
       setDashboardLoading(false)
     }
-  }, [currentUsername, asOfDateParam])
+  }, [currentUsername])
 
   useEffect(() => {
     if (!currentUsername) {
@@ -2566,7 +2298,6 @@ function AppContent() {
       window.history.replaceState(null, '', '/')
     }
     setCurrentUsername(null)
-    setProfile(null)
     setProfileName(PROFILE.fullName)
     setDashboard(null)
     setTransactions([])
@@ -2612,7 +2343,6 @@ function AppContent() {
 
   const handleToggle = useCallback(
     async (enabled: boolean) => {
-      setSmartDebitToggling(true)
       try {
         const result = await smartDebitApi.toggle(enabled)
         await refreshDashboard()
@@ -2621,16 +2351,10 @@ function AppContent() {
         })
       } catch (error) {
         toast.error(resolveErrorMessage(error, 'Не удалось изменить состояние SmartDebit'))
-      } finally {
-        setSmartDebitToggling(false)
       }
     },
     [refreshDashboard],
   )
-
-  const handleEnableSmartDebit = useCallback(async () => {
-    await handleToggle(true)
-  }, [handleToggle])
 
   const handlePayDebt = useCallback(
     async (paymentId: string) => {
@@ -2750,30 +2474,6 @@ function AppContent() {
     [refreshDashboard],
   )
 
-  const handleDeleteOperation = useCallback(
-    async (operation: BankOperation) => {
-      const transactionId = operation.transactionId
-      if (!transactionId) {
-        toast.error('Эту операцию нельзя удалить')
-        return
-      }
-
-      try {
-        const result = await smartDebitApi.deleteTransaction(transactionId)
-        setTransactions((current) =>
-          current.filter((transaction) => transaction.id !== transactionId),
-        )
-        toast.success(result.message, { id: `delete-tx-${transactionId}` })
-        void refreshDashboard()
-      } catch (error) {
-        toast.error(resolveErrorMessage(error, 'Не удалось удалить операцию'), {
-          id: `delete-tx-${transactionId}`,
-        })
-      }
-    },
-    [refreshDashboard],
-  )
-
   if (!currentUsername) {
     return <LoginPage onLogin={handleLogin} />
   }
@@ -2786,7 +2486,7 @@ function AppContent() {
         onLogout={handleLogout}
       />
 
-      <div className={isSimulating ? 'shell shell--simulating' : 'shell'}>
+      <div className="shell">
         <div className="content">
           <Routes>
             <Route
@@ -2801,8 +2501,6 @@ function AppContent() {
                   walletCashback={walletCashback}
                   onTopUp={handleHomeTopUp}
                   onSpend={handleHomeSpend}
-                  onEnableSmartDebit={handleEnableSmartDebit}
-                  smartDebitToggling={smartDebitToggling}
                 />
               }
             />
@@ -2825,7 +2523,6 @@ function AppContent() {
                   loading={dashboardLoading}
                   error={dashboardError}
                   userOperations={userBankOperations}
-                  onDeleteOperation={handleDeleteOperation}
                 />
               }
             />
@@ -2850,9 +2547,6 @@ function AppContent() {
                   fullName={profileName}
                   username={currentUsername}
                   onLogout={handleLogout}
-                  email={profile?.email}
-                  phone={profile?.phone}
-                  avatarUrl={profile?.avatarUrl}
                 />
               }
             />
@@ -2862,14 +2556,6 @@ function AppContent() {
       </div>
       <BottomNav />
     </BrowserRouter>
-  )
-}
-
-function App() {
-  return (
-    <TimeTravelProvider>
-      <AppContent />
-    </TimeTravelProvider>
   )
 }
 

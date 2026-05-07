@@ -64,4 +64,3 @@ schema.yaml
 
 # Vite
 vite.config.ts.timestamp-*
-db.sqlite3
