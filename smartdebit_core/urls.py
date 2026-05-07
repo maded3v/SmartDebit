@@ -28,7 +28,6 @@ urlpatterns = [
 
     # Transactions
     path('api/v1/transactions/', views.get_transactions, name='get_transactions'),
-    path('api/v1/transactions/<int:transaction_id>/', views.delete_transaction, name='delete_transaction'),
 
     # Notifications
     path('api/v1/notifications/', views.get_notifications, name='get_notifications'),
