@@ -62,6 +62,10 @@ interface BackendMeEnvelope {
     first_name?: string
     last_name?: string
     full_name?: string
+    email?: string
+    phone?: string
+    avatar_url?: string
+    is_smartdebit_enabled?: boolean
   }
 }
 
@@ -70,6 +74,10 @@ export interface ApiMe {
   firstName: string
   lastName: string
   fullName: string
+  email: string
+  phone: string
+  avatarUrl: string
+  isSmartDebitEnabled: boolean
 }
 
 function readStorage(key: string) {
@@ -227,6 +235,7 @@ interface BackendPayment {
   next_charge_date: string
   category: string
   is_mandatory: boolean
+  icon_url?: string
   status: string
   is_overdue_simulated?: boolean
   days_overdue?: number
@@ -246,6 +255,7 @@ interface BackendDashboardEnvelope {
   status: string
   data: {
     balance: number
+    savings_balance?: number
     currency?: string
     is_smartdebit_enabled?: boolean
     upcoming_payments: BackendPayment[]
@@ -303,6 +313,7 @@ interface BackendTransaction {
   transaction_date: string
   status?: string
   is_manual?: boolean
+  icon_url?: string
 }
 
 interface BackendTransactionsEnvelope {
@@ -325,6 +336,7 @@ export interface ApiTransaction {
   transactionDate: string
   status: string
   isManual: boolean
+  iconUrl: string
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -354,12 +366,20 @@ function mapBackendMe(payload: BackendMeEnvelope): ApiMe {
   const firstName = (payload.data?.first_name || '').trim()
   const lastName = (payload.data?.last_name || '').trim()
   const fullName = (payload.data?.full_name || `${firstName} ${lastName}` || username).trim() || username
+  const email = (payload.data?.email || '').trim()
+  const phone = (payload.data?.phone || '').trim()
+  const avatarUrl = (payload.data?.avatar_url || '').trim()
+  const isSmartDebitEnabled = Boolean(payload.data?.is_smartdebit_enabled)
 
   return {
     username,
     firstName,
     lastName,
     fullName,
+    email,
+    phone,
+    avatarUrl,
+    isSmartDebitEnabled,
   }
 }
 
@@ -443,6 +463,7 @@ function mapBackendPayment(payment: BackendPayment): Payment {
     nextChargeDate: payment.next_charge_date,
     periodLabel: getPeriodLabel(payment.next_charge_date),
     source: 'auto',
+    iconUrl: (payment.icon_url || '').trim() || undefined,
     isOverdueSimulated: Boolean(payment.is_overdue_simulated),
     daysOverdue: Math.max(0, Math.round(Number(payment.days_overdue) || 0)),
   }
@@ -459,6 +480,7 @@ function mapBackendTransaction(transaction: BackendTransaction): ApiTransaction 
     transactionDate: transaction.transaction_date,
     status: transaction.status || 'completed',
     isManual: Boolean(transaction.is_manual),
+    iconUrl: (transaction.icon_url || '').trim(),
   }
 }
 
@@ -521,13 +543,20 @@ function computeAvailableBalance(balance: number, upcoming: Payment[]) {
 }
 
 function isLegacyDashboard(payload: unknown): payload is DashboardPayload {
-  return Boolean(
-    payload &&
-      typeof payload === 'object' &&
-      'enabled' in payload &&
-      'account' in payload &&
-      'upcoming' in payload,
-  )
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    !('enabled' in payload) ||
+    !('account' in payload) ||
+    !('upcoming' in payload)
+  ) {
+    return false
+  }
+  const candidate = payload as DashboardPayload
+  if (!candidate.account || typeof candidate.account.savings !== 'number') {
+    return false
+  }
+  return true
 }
 
 function isBackendDashboard(payload: unknown): payload is BackendDashboardEnvelope {
@@ -551,6 +580,7 @@ function mapDashboardPayload(payload: unknown): DashboardPayload {
   const upcoming = payload.data.upcoming_payments.map(mapBackendPayment)
   const alerts = mapAlerts(payload.data.alerts || [])
   const balance = Number(payload.data.balance) || 0
+  const savings = Number(payload.data.savings_balance) || 0
   const enabled =
     typeof payload.data.is_smartdebit_enabled === 'boolean'
       ? payload.data.is_smartdebit_enabled
@@ -561,6 +591,7 @@ function mapDashboardPayload(payload: unknown): DashboardPayload {
     account: {
       balance,
       available: computeAvailableBalance(balance, upcoming),
+      savings,
     },
     alerts,
     upcoming,

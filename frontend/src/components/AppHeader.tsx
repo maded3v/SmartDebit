@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import type { NotificationItem } from '../types'
 import { NAV_ITEMS } from '../config/navigation'
-import { TimeTravel } from './TimeTravel/TimeTravel'
 
 interface AppHeaderProps {
   notifications: NotificationItem[]
@@ -144,8 +143,6 @@ export function AppHeader({ notifications, profileName, onLogout }: AppHeaderPro
       </nav>
 
       <div className="topbar-actions">
-        <TimeTravel className="topbar-time-travel" compact />
-
         <div
           className={isNotificationOpen ? 'notification-wrap active' : 'notification-wrap'}
           ref={notificationWrapRef}

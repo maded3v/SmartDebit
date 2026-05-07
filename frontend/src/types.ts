@@ -21,18 +21,12 @@ export interface Payment {
   nextChargeDate: string
   periodLabel: string
   source: 'auto' | 'manual'
-  // 
-  //   Признак того, что просрочка возникла исключительно из-за «перемотки
-  //   времени» (виртуальной даты). При работе с реальной датой всегда `false`.
-   
-  //   Поле опциональное: демо-данные и оффлайн-симуляция могут его не задавать
-  //   — в таком случае оно трактуется как `false`.
-  //  
-  // isOverdueSimulated?: boolean
-  // 
-  //   На сколько дней платёж просрочен относительно текущей (реальной или
-  //   виртуальной) даты. Для не-просроченных платежей значение `0`/`undefined`.
-  //  
+  iconUrl?: string
+  // Признак того, что просрочка возникла из-за виртуальной даты (Time Travel).
+  // При работе с реальной датой всегда false. Поле опциональное.
+  isOverdueSimulated?: boolean
+  // На сколько дней платёж просрочен относительно текущей (реальной или
+  // виртуальной) даты. Для не-просроченных платежей значение 0 либо undefined.
   daysOverdue?: number
 }
 
@@ -41,9 +35,9 @@ export interface DashboardAlert {
   paymentId: string
   title: string
   amount: number
-  /** См. {@link Payment.isOverdueSimulated}. */
+  // См. Payment.isOverdueSimulated.
   isOverdueSimulated?: boolean
-  /** См. {@link Payment.daysOverdue}. */
+  // См. Payment.daysOverdue.
   daysOverdue?: number
 }
 
@@ -65,6 +59,7 @@ export interface DashboardPayload {
   account: {
     balance: number
     available: number
+    savings: number
   }
   alerts: DashboardAlert[]
   upcoming: Payment[]

@@ -2380,6 +2380,22 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+// если есть реальный логотип мерчанта (Spotify/Netflix/Yandex/etc),
+// растягиваем картинку под круглую плашку и скругляем
+.favorite-payment-icon.has-logo {
+  background: #ffffff;
+  padding: 4px;
+}
+
+.favorite-payment-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  display: block;
 }
 
 .favorite-payment-content {
@@ -5746,5 +5762,236 @@
 @media (max-width: 720px) {
   .topbar-logout {
     display: none;
+  }
+}
+
+.smartdebit-off {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f4f7ff 0%, #eef2fb 100%);
+  border: 1px solid #e3e9f5;
+  box-shadow: 0 6px 16px rgba(20, 30, 55, 0.05);
+}
+
+.smartdebit-off.compact {
+  padding: 10px 12px;
+}
+
+.smartdebit-off-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  color: #5063f0;
+  flex: 0 0 34px;
+}
+
+.smartdebit-off-body {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.smartdebit-off-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a2230;
+}
+
+.smartdebit-off-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #5d6a82;
+}
+
+.smartdebit-off-btn {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: #1f2a44;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.smartdebit-off-btn:hover:not(:disabled) {
+  background: #2b3a5e;
+}
+
+.smartdebit-off-btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+:root[data-theme='dark'] .smartdebit-off {
+  background: linear-gradient(135deg, #1c2230 0%, #161b27 100%);
+  border-color: #2a3142;
+}
+
+:root[data-theme='dark'] .smartdebit-off-icon {
+  background: #232a3a;
+  color: #93a4f5;
+}
+
+:root[data-theme='dark'] .smartdebit-off-title {
+  color: #eef2fb;
+}
+
+:root[data-theme='dark'] .smartdebit-off-subtitle {
+  color: #a4adc1;
+}
+
+:root[data-theme='dark'] .smartdebit-off-btn {
+  background: #4f6cff;
+}
+
+:root[data-theme='dark'] .smartdebit-off-btn:hover:not(:disabled) {
+  background: #5d7dff;
+}
+
+.profile-avatar-big {
+  overflow: hidden;
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+.profile-headline-body {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-contacts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.profile-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #5d6a82;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-contact span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+:root[data-theme='dark'] .profile-contact {
+  color: #a4adc1;
+}
+
+// Симуляция даты в SmartDebit: красивая карточка с заголовком и подсказкой,
+// чтобы виджет TimeTravel жил в рамках страницы SmartDebit, а не съезжал
+// уродливо в шапке на мобильном экране.
+.smartdebit-timetravel-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.smartdebit-timetravel-head {
+  display: grid;
+  gap: 4px;
+}
+
+.smartdebit-timetravel-help {
+  margin: 0;
+  color: #6f7e93;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+:root[data-theme='dark'] .smartdebit-timetravel-help {
+  color: #9aa6bd;
+}
+
+// На широких экранах виджет растягивается на всю ширину панели,
+// дата и кнопки идут в одну строку.
+.smartdebit-timetravel-widget {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.smartdebit-timetravel-widget .time-travel-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.smartdebit-timetravel-widget .time-travel-actions {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 6px;
+}
+
+.smartdebit-timetravel-widget .time-travel-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.smartdebit-timetravel-widget .time-travel-reset-label {
+  display: inline;
+}
+
+// На мобильных переводим карточку TimeTravel в две строки:
+// сверху виртуальная дата и бейдж сдвига, снизу кнопки на всю ширину.
+@media (max-width: 640px) {
+  .smartdebit-timetravel-widget {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+  .smartdebit-timetravel-widget .time-travel-info {
+    justify-content: flex-start;
+  }
+  .smartdebit-timetravel-widget .time-travel-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .smartdebit-timetravel-widget .time-travel-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  .smartdebit-timetravel-widget .time-travel-reset {
+    flex: 1 1 100%;
+  }
+  .smartdebit-timetravel-widget .time-travel-reset-label {
+    display: inline;
   }
 }

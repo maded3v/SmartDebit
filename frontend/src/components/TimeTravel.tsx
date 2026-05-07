@@ -1,6 +1,6 @@
-// Путь: frontend/src/components/TimeTravel/TimeTravel.tsx (NEW FILE)
+// Путь: frontend/src/components/TimeTravel.tsx
 import { CalendarClock, Clock, RotateCcw } from 'lucide-react'
-import { useTimeTravel } from '../../hooks/useTimeTravel'
+import { useTimeTravel } from '../hooks/useTimeTravel'
 
 const DATE_FORMATTER = new Intl.DateTimeFormat('ru-RU', {
   day: '2-digit',
