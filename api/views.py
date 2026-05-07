@@ -1,4 +1,3 @@
-# Путь: api/views.py
 from datetime import date, datetime, timedelta
 import re
 
@@ -166,6 +165,10 @@ def _payment_status(payment, account, as_of_date=None):
     return payment.status
 
 
+def _payment_icon_url(payment):
+    return (payment.service.icon_url if payment.service else '') or ''
+
+
 def _serialize_payment(payment, account=None, as_of_date=None):
     effective_status = _payment_status(payment, account, as_of_date=as_of_date)
     real_status = _payment_status(payment, account)
@@ -192,6 +195,7 @@ def _serialize_payment(payment, account=None, as_of_date=None):
         "next_charge_date": effective_date.strftime("%Y-%m-%d"),
         "category": _payment_category(payment),
         "is_mandatory": _payment_is_mandatory(payment),
+        "icon_url": _payment_icon_url(payment),
         "status": effective_status,
         "is_overdue_simulated": is_simulated,
         "days_overdue": days_overdue,
@@ -232,7 +236,21 @@ def get_me(request):
     auth_user = request.user
     first_name = (auth_user.first_name or '').strip()
     last_name = (auth_user.last_name or '').strip()
-    full_name = f"{first_name} {last_name}".strip() or auth_user.username
+    profile = _get_api_user(request)
+
+    profile_full_name = (profile.full_name if profile else '').strip()
+    full_name = (
+        profile_full_name
+        or f"{first_name} {last_name}".strip()
+        or auth_user.username
+    )
+
+    profile_email = (profile.email if profile else '').strip()
+    email = profile_email or (auth_user.email or '').strip()
+
+    phone = (profile.phone if profile else '').strip()
+    avatar_url = (profile.avatar_url if profile else '').strip()
+    is_smartdebit_enabled = bool(profile.is_smartdebit_enabled) if profile else False
 
     return Response({
         "status": "success",
@@ -241,6 +259,10 @@ def get_me(request):
             "first_name": first_name,
             "last_name": last_name,
             "full_name": full_name,
+            "email": email,
+            "phone": phone,
+            "avatar_url": avatar_url,
+            "is_smartdebit_enabled": is_smartdebit_enabled,
         },
     })
 
@@ -260,6 +282,7 @@ def get_services(request):
             "name": s.name,
             "category": s.category,
             "is_mandatory": s.is_mandatory,
+            "icon_url": s.icon_url or '',
         }
         for s in services_qs
     ]
@@ -300,6 +323,7 @@ def get_dashboard(request):
 
     account = Account.objects.filter(user=user).first()
     balance = float(account.balance) if account else 0.0
+    savings_balance = float(account.savings_balance) if account else 0.0
 
     if not user.is_smartdebit_enabled:
         return Response({
@@ -307,6 +331,7 @@ def get_dashboard(request):
             "data": {
                 "is_smartdebit_enabled": False,
                 "balance": balance,
+                "savings_balance": savings_balance,
                 "currency": "RUB",
                 "upcoming_payments": [],
                 "alerts": [],
@@ -378,6 +403,7 @@ def get_dashboard(request):
         "data": {
             "is_smartdebit_enabled": user.is_smartdebit_enabled,
             "balance": balance,
+            "savings_balance": savings_balance,
             "currency": "RUB",
             "upcoming_payments": upcoming,
             "alerts": alerts,
@@ -789,6 +815,14 @@ def get_transactions(request):
         account__user=user,
     ).order_by('-transaction_date')[:limit]
 
+    merchant_names = {t.merchant_name for t in transactions if t.merchant_name}
+    icon_by_name = {}
+    if merchant_names:
+        icon_by_name = {
+            s.name: (s.icon_url or '')
+            for s in ServiceDictionary.objects.filter(name__in=merchant_names)
+        }
+
     data = [
         {
             "id": t.id,
@@ -798,6 +832,7 @@ def get_transactions(request):
             "transaction_date": t.transaction_date.isoformat(),
             "status": t.status,
             "is_manual": t.is_manual,
+            "icon_url": icon_by_name.get(t.merchant_name, '') or '',
         }
         for t in transactions
     ]
