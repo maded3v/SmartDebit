@@ -22,26 +22,12 @@ ALL_SERVICES = [
     {'name': 'START',              'category': 'Развлечения', 'is_mandatory': False},
     {'name': 'Самокат',            'category': 'Развлечения', 'is_mandatory': False},
     {'name': 'Wildberries',        'category': 'Подписки',    'is_mandatory': False},
-    {'name': 'Apple Music',        'category': 'Подписки',    'is_mandatory': False},
-    {'name': 'Amazon Prime',       'category': 'Подписки',    'is_mandatory': False},
-    {'name': 'Xbox Game Pass',     'category': 'Развлечения', 'is_mandatory': False},
-    {'name': 'PlayStation Plus',   'category': 'Развлечения', 'is_mandatory': False},
-    {'name': 'YouTube Premium',    'category': 'Подписки',    'is_mandatory': False},
-    # IT / серверы / облако
+    # IT / серверы
     {'name': 'VPS reg.ru',         'category': 'Серверы',     'is_mandatory': False},
     {'name': 'GitHub',             'category': 'Серверы',     'is_mandatory': False},
     {'name': 'Figma',              'category': 'Серверы',     'is_mandatory': False},
     {'name': 'Notion',             'category': 'Серверы',     'is_mandatory': False},
     {'name': 'Домен .ru',          'category': 'Серверы',     'is_mandatory': False},
-    {'name': 'Dropbox',            'category': 'Серверы',     'is_mandatory': False},
-    {'name': 'iCloud+',            'category': 'Серверы',     'is_mandatory': False},
-    {'name': 'Google One',         'category': 'Серверы',     'is_mandatory': False},
-    # Доставка / транспорт
-    {'name': 'Glovo',              'category': 'Подписки',    'is_mandatory': False},
-    {'name': 'Uber One',           'category': 'Подписки',    'is_mandatory': False},
-    {'name': 'Яндекс Go Plus',     'category': 'Подписки',    'is_mandatory': False},
-    # Спорт / здоровье
-    {'name': 'World Class',        'category': 'Подписки',    'is_mandatory': False},
     # Кредиты
     {'name': 'Ипотека Сбербанк',   'category': 'Кредиты',     'is_mandatory': True},
     {'name': 'Автокредит ВТБ',     'category': 'Кредиты',     'is_mandatory': True},
@@ -56,66 +42,6 @@ ALL_SERVICES = [
     {'name': 'Страховка ОСАГО',    'category': 'Финансы',     'is_mandatory': True},
     {'name': 'Tinkoff Pro',        'category': 'Подписки',     'is_mandatory': False},
 ]
-
-
-# Дополнительные регулярные подписки, которые добавляются каждому из user1..user10
-# поверх основной истории. Все суммы в ₽, периодичность — ежемесячно (используется
-# единый next_charge_date в ближайшие 30 дней). Дублирование исключается через
-# проверку RecurringPayment.objects.filter(user=user, service=service).exists()
-# в основном цикле seed_data.
-EXTRA_SUBSCRIPTIONS_PER_USER = {
-    'user_1': [
-        ('Apple Music',     Decimal('299.00'),  18),
-        ('YouTube Premium', Decimal('399.00'),  22),
-        ('Dropbox',         Decimal('990.00'),  26),
-    ],
-    'user_2': [
-        ('Glovo',           Decimal('249.00'),   8),
-        ('iCloud+',         Decimal('199.00'),  17),
-        ('YouTube Premium', Decimal('399.00'),  24),
-    ],
-    'user_3': [
-        ('Amazon Prime',    Decimal('599.00'),  16),
-        ('Apple Music',     Decimal('299.00'),  21),
-        ('Google One',      Decimal('229.00'),  27),
-    ],
-    'user_4': [
-        ('Apple Music',     Decimal('299.00'),  19),
-        ('Glovo',           Decimal('249.00'),  23),
-        ('iCloud+',         Decimal('199.00'),  28),
-    ],
-    'user_5': [
-        ('YouTube Premium', Decimal('399.00'),  17),
-        ('iCloud+',         Decimal('199.00'),  21),
-        ('Apple Music',     Decimal('299.00'),  24),
-        ('World Class',     Decimal('2990.00'), 28),
-    ],
-    'user_6': [
-        ('Amazon Prime',    Decimal('599.00'),  15),
-        ('Dropbox',         Decimal('990.00'),  20),
-        ('Xbox Game Pass',  Decimal('499.00'),  25),
-    ],
-    'user_7': [
-        ('PlayStation Plus',Decimal('799.00'),  16),
-        ('Apple Music',     Decimal('299.00'),  19),
-        ('Google One',      Decimal('229.00'),  23),
-    ],
-    'user_8': [
-        ('Glovo',           Decimal('249.00'),  14),
-        ('iCloud+',         Decimal('199.00'),  18),
-        ('YouTube Premium', Decimal('399.00'),  22),
-    ],
-    'user_9': [
-        ('GitHub',          Decimal('560.00'),  20),  # уже есть у user3, но не у user9
-        ('Apple Music',     Decimal('299.00'),  24),
-        ('Uber One',        Decimal('349.00'),  27),
-    ],
-    'user_10': [
-        ('Apple Music',     Decimal('299.00'),  15),
-        ('Spotify',         Decimal('199.00'),  20),
-        ('YouTube Premium', Decimal('399.00'),  25),
-    ],
-}
 
 USERS_DATA = [
     {
@@ -438,22 +364,6 @@ class Command(BaseCommand):
                         service=service,
                         amount=amount,
                         status=status,
-                        next_charge_date=date.today() + timedelta(days=days_until),
-                    )
-                    created_payments += 1
-
-            for service_name, amount, days_until in EXTRA_SUBSCRIPTIONS_PER_USER.get(
-                data['internal_id'], []
-            ):
-                service = service_map.get(service_name)
-                if not service:
-                    continue
-                if not RecurringPayment.objects.filter(user=user, service=service).exists():
-                    RecurringPayment.objects.create(
-                        user=user,
-                        service=service,
-                        amount=amount,
-                        status='active',
                         next_charge_date=date.today() + timedelta(days=days_until),
                     )
                     created_payments += 1

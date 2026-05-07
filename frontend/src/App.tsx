@@ -1,4 +1,3 @@
-// Путь: frontend/src/App.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BrowserRouter,
@@ -43,7 +42,6 @@ import {
   Sparkles,
   AlertTriangle,
   CalendarClock,
-  Trash2,
   User,
   UserCheck,
   Wifi,
@@ -60,7 +58,6 @@ import toast from 'react-hot-toast'
 import { AppHeader } from './components/AppHeader'
 import { BottomNav } from './components/BottomNav'
 import { OperationDetailDialog } from './components/OperationDetailDialog'
-import { TimeTravelProvider, useTimeTravel } from './hooks/useTimeTravel'
 import {
   buildOperationDetail,
   brandColorFor,
@@ -82,23 +79,6 @@ interface BankOperation {
   amount: number
   smartTag?: string
   tone: 'neutral' | 'danger' | 'success'
-  /**
-   * Идентификатор транзакции на бэкенде (без префикса `tx-`).
-   * Заполняется только для строк, пришедших из истории (real transactions),
-   * прогнозы SmartDebit оставляют поле пустым.
-   */
-  transactionId?: string
-  /** Создана ли операция вручную через корректировку баланса (`is_manual=true`). */
-  isManual?: boolean
-  /** Просрочен ли платеж (фактически или из-за виртуальной даты). */
-  isOverdue?: boolean
-  /**
-   * Просрочка появилась исключительно из-за «перемотки времени»,
-   * в реальности платёж ещё не просрочен.
-   */
-  isOverdueSimulated?: boolean
-  /** На сколько дней платеж просрочен относительно виртуальной/реальной даты. */
-  daysOverdue?: number
 }
 
 interface HomeHistoryItem {
@@ -253,11 +233,6 @@ const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
   month: 'long',
 })
-const dateFormatterWithYear = new Intl.DateTimeFormat('ru-RU', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-})
 
 function formatCurrency(value: number, signed = false) {
   const prefix = signed ? (value > 0 ? '+' : value < 0 ? '-' : '') : ''
@@ -269,10 +244,7 @@ function formatDate(value: string) {
   if (Number.isNaN(date.getTime())) {
     return 'Неизвестная дата'
   }
-  if (date.getFullYear() === new Date().getFullYear()) {
-    return dateFormatter.format(date)
-  }
-  return dateFormatterWithYear.format(date)
+  return dateFormatter.format(date)
 }
 
 function resolveErrorMessage(error: unknown, fallback: string) {
@@ -323,28 +295,9 @@ function buildOperationsFeed(
       amount: -payment.amount,
       smartTag: `SmartDebit · ${payment.periodLabel}`,
       tone,
-      isOverdue: payment.status === 'overdue',
-      isOverdueSimulated: payment.isOverdueSimulated,
-      daysOverdue: payment.daysOverdue,
     }
   })
   return [...baseOperations, ...smartOperations]
-}
-
-function pluralizeDays(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  if (mod10 === 1 && mod100 !== 11) return 'день'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'дня'
-  return 'дней'
-}
-
-function formatDaysOverdueLabel(days: number): string {
-  const safe = Math.max(0, Math.round(days))
-  if (safe === 0) {
-    return 'Просрочено сегодня'
-  }
-  return `Просрочено на ${safe} ${pluralizeDays(safe)}`
 }
 
 interface OperationGroup {
@@ -1389,15 +1342,12 @@ function OperationsPage({
   loading,
   error,
   userOperations,
-  onDeleteOperation,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
   userOperations?: BankOperation[]
-  onDeleteOperation?: (operation: BankOperation) => void | Promise<void>
 }) {
-  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<OperationsFilterId>('all')
   const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1713,18 +1663,9 @@ function OperationsPage({
                         const tileColor = !merchantLogo
                           ? brandColorFor(operation.title)
                           : undefined
-                        const canDelete = Boolean(
-                          operation.isManual &&
-                            operation.transactionId &&
-                            onDeleteOperation,
-                        )
-                        const isDeleting = deletingId === operation.id
 
                         return (
-                          <li
-                            key={operation.id}
-                            className={canDelete ? 'operation-li with-action' : 'operation-li'}
-                          >
+                          <li key={operation.id}>
                             <button
                               type="button"
                               className="operation-row"
@@ -1740,14 +1681,8 @@ function OperationsPage({
                                 {merchantLogo ? (
                                   <img
                                     src={merchantLogo.src}
-                                    alt={merchantLogo.alt}
+                                    alt=""
                                     className="merchant-logo"
-                                    loading="lazy"
-                                    onError={(event) => {
-                                      const target = event.currentTarget
-                                      target.onerror = null
-                                      target.style.display = 'none'
-                                    }}
                                   />
                                 ) : (
                                   brandInitial(operation.title)
@@ -1769,24 +1704,6 @@ function OperationsPage({
                                     {operation.smartTag}
                                   </small>
                                 ) : null}
-                                {operation.isOverdue ? (
-                                  <small
-                                    className={
-                                      operation.isOverdueSimulated
-                                        ? 'overdue-tag simulated'
-                                        : 'overdue-tag'
-                                    }
-                                    aria-label={
-                                      operation.isOverdueSimulated
-                                        ? 'Просрочено по виртуальной дате'
-                                        : 'Просрочено'
-                                    }
-                                  >
-                                    <AlertTriangle size={12} aria-hidden />
-                                    {formatDaysOverdueLabel(operation.daysOverdue ?? 0)}
-                                    {operation.isOverdueSimulated ? ' · симуляция' : null}
-                                  </small>
-                                ) : null}
                               </div>
                               <strong
                                 className={
@@ -1801,40 +1718,6 @@ function OperationsPage({
                                 aria-hidden
                               />
                             </button>
-                            {canDelete ? (
-                              <button
-                                type="button"
-                                className="operation-delete"
-                                disabled={isDeleting}
-                                aria-label={`Удалить ручную операцию ${operation.title}`}
-                                title="Удалить ручную операцию"
-                                onClick={async (event) => {
-                                  event.stopPropagation()
-                                  if (isDeleting || !onDeleteOperation) {
-                                    return
-                                  }
-                                  const confirmed =
-                                    typeof window === 'undefined'
-                                      ? true
-                                      : window.confirm(
-                                          `Удалить ручную операцию «${operation.title}»? Действие нельзя отменить.`,
-                                        )
-                                  if (!confirmed) {
-                                    return
-                                  }
-                                  setDeletingId(operation.id)
-                                  try {
-                                    await onDeleteOperation(operation)
-                                  } finally {
-                                    setDeletingId((current) =>
-                                      current === operation.id ? null : current,
-                                    )
-                                  }
-                                }}
-                              >
-                                <Trash2 size={16} aria-hidden />
-                              </button>
-                            ) : null}
                           </li>
                         )
                       })}
@@ -2230,8 +2113,6 @@ function transactionsToBankOperations(transactions: ApiTransaction[]): BankOpera
     const amount = mapTransactionAmount(transaction)
     return {
       id: `tx-${transaction.id}`,
-      transactionId: transaction.id,
-      isManual: transaction.isManual,
       title: formatPaymentTitle(transaction.merchantName),
       subtitle: 'Операция по карте',
       dateLabel: formatTransactionDateLabel(transaction.transactionDate),
@@ -2343,8 +2224,7 @@ function transactionsToHomeHistory(transactions: ApiTransaction[]): HomeHistoryI
   })
 }
 
-function AppContent() {
-  const { asOfDateParam, isSimulating } = useTimeTravel()
+function App() {
   const [currentUsername, setCurrentUsername] = useState<string | null>(() => authApi.getStoredUsername())
   const [profileName, setProfileName] = useState<string>(() => authApi.getStoredUsername() || PROFILE.fullName)
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null)
@@ -2355,7 +2235,7 @@ function AppContent() {
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true)
     try {
-      const dashboardPayload = await smartDebitApi.getDashboard(asOfDateParam)
+      const dashboardPayload = await smartDebitApi.getDashboard()
       setDashboard(dashboardPayload)
       setDashboardError('')
 
@@ -2372,7 +2252,7 @@ function AppContent() {
         })
 
       try {
-        const transactionsPayload = await smartDebitApi.getTransactions(60, asOfDateParam)
+        const transactionsPayload = await smartDebitApi.getTransactions(60)
         setTransactions(transactionsPayload)
       } catch {
         setTransactions([])
@@ -2389,7 +2269,7 @@ function AppContent() {
       }
       setDashboardLoading(false)
     }
-  }, [currentUsername, asOfDateParam])
+  }, [currentUsername])
 
   useEffect(() => {
     if (!currentUsername) {
@@ -2594,30 +2474,6 @@ function AppContent() {
     [refreshDashboard],
   )
 
-  const handleDeleteOperation = useCallback(
-    async (operation: BankOperation) => {
-      const transactionId = operation.transactionId
-      if (!transactionId) {
-        toast.error('Эту операцию нельзя удалить')
-        return
-      }
-
-      try {
-        const result = await smartDebitApi.deleteTransaction(transactionId)
-        setTransactions((current) =>
-          current.filter((transaction) => transaction.id !== transactionId),
-        )
-        toast.success(result.message, { id: `delete-tx-${transactionId}` })
-        void refreshDashboard()
-      } catch (error) {
-        toast.error(resolveErrorMessage(error, 'Не удалось удалить операцию'), {
-          id: `delete-tx-${transactionId}`,
-        })
-      }
-    },
-    [refreshDashboard],
-  )
-
   if (!currentUsername) {
     return <LoginPage onLogin={handleLogin} />
   }
@@ -2630,7 +2486,7 @@ function AppContent() {
         onLogout={handleLogout}
       />
 
-      <div className={isSimulating ? 'shell shell--simulating' : 'shell'}>
+      <div className="shell">
         <div className="content">
           <Routes>
             <Route
@@ -2667,7 +2523,6 @@ function AppContent() {
                   loading={dashboardLoading}
                   error={dashboardError}
                   userOperations={userBankOperations}
-                  onDeleteOperation={handleDeleteOperation}
                 />
               }
             />
@@ -2701,14 +2556,6 @@ function AppContent() {
       </div>
       <BottomNav />
     </BrowserRouter>
-  )
-}
-
-function App() {
-  return (
-    <TimeTravelProvider>
-      <AppContent />
-    </TimeTravelProvider>
   )
 }
 
