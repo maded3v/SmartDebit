@@ -18,7 +18,7 @@ export interface OperationDetail {
 }
 
 const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
-  { match: /зарплат|salary|acme/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
+  { match: /зарплат|аванс|salary|advance/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
   { match: /самокат|samokat/i, src: '/icons/brands/samokat.svg', alt: 'Самокат' },
   { match: /wildberries/i, src: '/icons/brands/wildberries.svg', alt: 'Wildberries' },
   { match: /ozon/i, src: '/icons/brands/ozon.svg', alt: 'Ozon' },
@@ -68,7 +68,10 @@ interface MerchantMeta {
 }
 
 const MERCHANT_META: Array<{ match: RegExp; meta: MerchantMeta }> = [
-  { match: /зарплат|salary|acme/i, meta: { category: 'Зарплата', mcc: '0000', location: 'ООО «Acme Team»' } },
+  {
+    match: /зарплат|аванс|salary|advance/i,
+    meta: { category: 'Зарплата', mcc: '0000', location: 'Входящий перевод от банка' },
+  },
   { match: /самокат|samokat/i, meta: { category: 'Супермаркеты', mcc: '5411', location: 'Москва, Россия' } },
   { match: /wildberries/i, meta: { category: 'Маркетплейс', mcc: '5399', location: 'Wildberries Online' } },
   { match: /ozon/i, meta: { category: 'Маркетплейс', mcc: '5399', location: 'Ozon Online' } },

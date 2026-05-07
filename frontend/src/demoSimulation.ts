@@ -1009,7 +1009,7 @@ export function adjustActiveProfileBalance(
     const nextBalance = profile.dashboard.account.balance + delta
     const historyEntry = createManualHistoryItem(
       state.currentDate,
-      direction === 'topup' ? 'Пополнение счета' : 'Ручное списание',
+      direction === 'topup' ? 'Ручное пополнение' : 'Ручное списание',
       delta,
       direction === 'topup' ? 'green' : 'red',
       direction === 'topup' ? '↙' : '↗',

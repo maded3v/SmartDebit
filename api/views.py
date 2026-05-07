@@ -77,7 +77,7 @@ CATEGORY_MAP = {
 }
 
 INCOME_MERCHANT_RE = re.compile(
-    r'(зарплат|salary|refund|возврат|cashback|кешбек|кэшбек|пополн|topup|deposit)',
+    r'(зарплат|аванс|salary|advance|refund|возврат|cashback|кешбек|кэшбек|пополн|topup|deposit)',
     re.IGNORECASE,
 )
 
@@ -524,7 +524,7 @@ def adjust_account_balance(request):
 
     if action == 'topup':
         account.balance += amount
-        default_merchant_name = 'Пополнение счета'
+        default_merchant_name = 'Ручное пополнение'
         success_message = 'Баланс пополнен'
     else:
         account.balance -= amount

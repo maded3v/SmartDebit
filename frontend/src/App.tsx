@@ -181,7 +181,7 @@ const WALLET_CASHBACK_BY_USER: Record<string, number> = {
 }
 
 const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
-  { match: /зарплат|salary|acme/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
+  { match: /зарплат|аванс|salary|advance/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
   { match: /самокат|samokat/i, src: '/icons/brands/samokat.svg', alt: 'Самокат' },
   { match: /wildberries/i, src: '/icons/brands/wildberries.svg', alt: 'Wildberries' },
   { match: /ozon/i, src: '/icons/brands/ozon.svg', alt: 'Ozon' },
@@ -2398,7 +2398,7 @@ function App() {
       }
 
       try {
-        const result = await smartDebitApi.adjustBalance('topup', normalizedAmount, 'Пополнение счета')
+        const result = await smartDebitApi.adjustBalance('topup', normalizedAmount, 'Ручное пополнение')
         applyServerBalance(result.newBalance)
         toast.success(result.message)
         await refreshDashboard()
