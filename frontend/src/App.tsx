@@ -58,7 +58,13 @@ import toast from 'react-hot-toast'
 import { AppHeader } from './components/AppHeader'
 import { BottomNav } from './components/BottomNav'
 import { OperationDetailDialog } from './components/OperationDetailDialog'
-import { buildOperationDetail, brandColorFor, brandInitial, categoryFor } from './operationDetails'
+import {
+  buildOperationDetail,
+  brandColorFor,
+  brandInitial,
+  categoryFor,
+  findMerchantLogo as resolveMerchantLogo,
+} from './operationDetails'
 import type { OperationDetail } from './operationDetails'
 
 type StatusTone = 'green' | 'yellow' | 'red' | 'gray'
@@ -180,18 +186,6 @@ const WALLET_CASHBACK_BY_USER: Record<string, number> = {
   user10: 1200,
 }
 
-const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
-  { match: /зарплат|аванс|salary|advance/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
-  { match: /самокат|samokat/i, src: '/icons/brands/samokat.svg', alt: 'Самокат' },
-  { match: /wildberries/i, src: '/icons/brands/wildberries.svg', alt: 'Wildberries' },
-  { match: /ozon/i, src: '/icons/brands/ozon.svg', alt: 'Ozon' },
-  { match: /яндекс|yandex/i, src: '/icons/brands/yandex.svg', alt: 'Яндекс' },
-  { match: /kion/i, src: '/icons/brands/kion.svg', alt: 'KION' },
-  { match: /start/i, src: '/icons/brands/start.svg', alt: 'START' },
-  { match: /магнит|magnit/i, src: '/icons/brands/magnit.svg', alt: 'Магнит' },
-  { match: /сбер|sber|ипотек/i, src: '/icons/brands/sber.svg', alt: 'Сбербанк' },
-]
-
 const PAYMENT_QUICK_ACTIONS: PaymentQuickActionEntry[] = [
   { id: 'quick-phone', label: 'По номеру телефона', icon: Phone },
   { id: 'quick-details', label: 'По реквизитам', icon: FileText },
@@ -258,15 +252,6 @@ function resolveErrorMessage(error: unknown, fallback: string) {
     return error.message
   }
   return fallback
-}
-
-function resolveMerchantLogo(...parts: string[]) {
-  const value = parts.join(' ').trim()
-  if (!value) {
-    return null
-  }
-
-  return MERCHANT_LOGOS.find((merchant) => merchant.match.test(value)) ?? null
 }
 
 function formatPaymentTitle(title: string) {
