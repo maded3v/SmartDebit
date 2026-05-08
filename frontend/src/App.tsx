@@ -44,7 +44,6 @@ import {
   Sparkles,
   AlertTriangle,
   CalendarClock,
-  Trash2,
   User,
   UserCheck,
   Wifi,
@@ -1445,15 +1444,12 @@ function OperationsPage({
   loading,
   error,
   userOperations,
-  onDeleteOperation,
 }: {
   dashboard: DashboardPayload | null
   loading: boolean
   error: string
   userOperations?: BankOperation[]
-  onDeleteOperation?: (operation: BankOperation) => void | Promise<void>
 }) {
-  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<OperationsFilterId>('all')
   const [activeDetail, setActiveDetail] = useState<OperationDetail | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1772,18 +1768,9 @@ function OperationsPage({
                         const tileColor = !iconSrc
                           ? brandColorFor(operation.title)
                           : undefined
-                        const canDelete = Boolean(
-                          operation.isManual &&
-                            operation.transactionId &&
-                            onDeleteOperation,
-                        )
-                        const isDeleting = deletingId === operation.id
 
                         return (
-                          <li
-                            key={operation.id}
-                            className={canDelete ? 'operation-li with-action' : 'operation-li'}
-                          >
+                          <li key={operation.id} className="operation-li">
                             <button
                               type="button"
                               className="operation-row"
@@ -1860,40 +1847,6 @@ function OperationsPage({
                                 aria-hidden
                               />
                             </button>
-                            {canDelete ? (
-                              <button
-                                type="button"
-                                className="operation-delete"
-                                disabled={isDeleting}
-                                aria-label={`Удалить ручную операцию ${operation.title}`}
-                                title="Удалить ручную операцию"
-                                onClick={async (event) => {
-                                  event.stopPropagation()
-                                  if (isDeleting || !onDeleteOperation) {
-                                    return
-                                  }
-                                  const confirmed =
-                                    typeof window === 'undefined'
-                                      ? true
-                                      : window.confirm(
-                                          `Удалить ручную операцию «${operation.title}»? Действие нельзя отменить.`,
-                                        )
-                                  if (!confirmed) {
-                                    return
-                                  }
-                                  setDeletingId(operation.id)
-                                  try {
-                                    await onDeleteOperation(operation)
-                                  } finally {
-                                    setDeletingId((current) =>
-                                      current === operation.id ? null : current,
-                                    )
-                                  }
-                                }}
-                              >
-                                <Trash2 size={16} aria-hidden />
-                              </button>
-                            ) : null}
                           </li>
                         )
                       })}
@@ -2750,30 +2703,6 @@ function AppContent() {
     [refreshDashboard],
   )
 
-  const handleDeleteOperation = useCallback(
-    async (operation: BankOperation) => {
-      const transactionId = operation.transactionId
-      if (!transactionId) {
-        toast.error('Эту операцию нельзя удалить')
-        return
-      }
-
-      try {
-        const result = await smartDebitApi.deleteTransaction(transactionId)
-        setTransactions((current) =>
-          current.filter((transaction) => transaction.id !== transactionId),
-        )
-        toast.success(result.message, { id: `delete-tx-${transactionId}` })
-        void refreshDashboard()
-      } catch (error) {
-        toast.error(resolveErrorMessage(error, 'Не удалось удалить операцию'), {
-          id: `delete-tx-${transactionId}`,
-        })
-      }
-    },
-    [refreshDashboard],
-  )
-
   if (!currentUsername) {
     return <LoginPage onLogin={handleLogin} />
   }
@@ -2825,7 +2754,6 @@ function AppContent() {
                   loading={dashboardLoading}
                   error={dashboardError}
                   userOperations={userBankOperations}
-                  onDeleteOperation={handleDeleteOperation}
                 />
               }
             />

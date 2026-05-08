@@ -813,10 +813,21 @@ class Command(BaseCommand):
                 },
             )
 
+            desired_balance = data['balance']
             desired_savings = data.get('savings_balance', Decimal('0.00'))
+            desired_currency = 'RUB'
+            account_updated_fields = []
+            if not account_created and account.balance != desired_balance:
+                account.balance = desired_balance
+                account_updated_fields.append('balance')
+            if not account_created and account.currency != desired_currency:
+                account.currency = desired_currency
+                account_updated_fields.append('currency')
             if not account_created and account.savings_balance != desired_savings:
                 account.savings_balance = desired_savings
-                account.save(update_fields=['savings_balance'])
+                account_updated_fields.append('savings_balance')
+            if account_updated_fields:
+                account.save(update_fields=account_updated_fields)
 
             # Перед перезаливкой авто-транзакций (recurring history + рандом)
             # вытираем предыдущие seed-операции, чтобы исправить уже накопившиеся
