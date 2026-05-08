@@ -2,6 +2,41 @@
 from django.db import migrations, models
 
 
+TRANSACTION_IS_MANUAL_INDEX = 'api_transaction_is_manual_9653a7ed'
+
+
+def ensure_transaction_is_manual_defaults_and_index(apps, schema_editor):
+    vendor = schema_editor.connection.vendor
+
+    if vendor == 'postgresql':
+        schema_editor.execute(
+            'UPDATE api_transaction SET is_manual = FALSE WHERE is_manual IS NULL;'
+        )
+        schema_editor.execute(
+            'ALTER TABLE api_transaction ALTER COLUMN is_manual SET DEFAULT FALSE;'
+        )
+        schema_editor.execute(
+            f'CREATE INDEX IF NOT EXISTS {TRANSACTION_IS_MANUAL_INDEX} '
+            'ON api_transaction (is_manual);'
+        )
+        return
+
+    if vendor == 'sqlite':
+        schema_editor.execute(
+            'UPDATE api_transaction SET is_manual = 0 WHERE is_manual IS NULL;'
+        )
+        schema_editor.execute(
+            f'CREATE INDEX IF NOT EXISTS {TRANSACTION_IS_MANUAL_INDEX} '
+            'ON api_transaction (is_manual);'
+        )
+        return
+
+    schema_editor.execute(
+        f'CREATE INDEX IF NOT EXISTS {TRANSACTION_IS_MANUAL_INDEX} '
+        'ON api_transaction (is_manual);'
+    )
+
+
 class Migration(migrations.Migration):
     """
     Безопасная миграция для поля Transaction.is_manual.
@@ -20,17 +55,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql="UPDATE api_transaction SET is_manual = FALSE WHERE is_manual IS NULL;",
-            reverse_sql=migrations.RunSQL.noop,
-        ),
-        migrations.AlterField(
-            model_name='transaction',
-            name='is_manual',
-            field=models.BooleanField(
-                db_default=False,
-                db_index=True,
-                default=False,
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    ensure_transaction_is_manual_defaults_and_index,
+                    migrations.RunPython.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AlterField(
+                    model_name='transaction',
+                    name='is_manual',
+                    field=models.BooleanField(
+                        db_default=False,
+                        db_index=True,
+                        default=False,
+                    ),
+                ),
+            ],
         ),
     ]
