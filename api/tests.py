@@ -479,6 +479,30 @@ class ApiUserAndTransactionsEndpointTest(TestCase):
         self.assertEqual(response.status_code, 402)
         self.assertEqual(response.data['error_code'], 'INSUFFICIENT_FUNDS')
 
+    def test_delete_manual_transaction_succeeds(self):
+        manual_transaction = Transaction.objects.create(
+            account=self.account,
+            merchant_name='Ручное списание',
+            amount=Decimal('500.00'),
+            transaction_date=timezone.now(),
+            status='completed',
+            is_manual=True,
+        )
+
+        response = self.client.delete(f'/api/v1/transactions/{manual_transaction.id}/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Transaction.objects.filter(id=manual_transaction.id).exists())
+
+    def test_delete_automatic_transaction_is_forbidden(self):
+        auto_transaction = Transaction.objects.filter(account=self.account, is_manual=False).first()
+        self.assertIsNotNone(auto_transaction)
+
+        response = self.client.delete(f'/api/v1/transactions/{auto_transaction.id}/')
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data['error_code'], 'NOT_MANUAL')
+
 
 class DashboardOverdueLogicTest(TestCase):
     def setUp(self):

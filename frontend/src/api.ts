@@ -340,6 +340,17 @@ export interface ApiTransaction {
   iconUrl: string
 }
 
+function sanitizeIconUrl(value?: string) {
+  const trimmed = (value || '').trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  // Используем только локальные иконки из public, чтобы не зависеть от внешних CDN
+  // и не засорять консоль ошибками загрузки логотипов.
+  return trimmed.startsWith('/') ? trimmed : ''
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isAuthEndpoint = path.startsWith('/auth/')
   const response = await doFetch(path, init, !isAuthEndpoint)
@@ -464,7 +475,7 @@ function mapBackendPayment(payment: BackendPayment): Payment {
     nextChargeDate: payment.next_charge_date,
     periodLabel: getPeriodLabel(payment.next_charge_date),
     source: 'auto',
-    iconUrl: (payment.icon_url || '').trim() || undefined,
+    iconUrl: sanitizeIconUrl(payment.icon_url) || undefined,
     isOverdueSimulated: Boolean(payment.is_overdue_simulated),
     daysOverdue: Math.max(0, Math.round(Number(payment.days_overdue) || 0)),
   }
@@ -481,7 +492,7 @@ function mapBackendTransaction(transaction: BackendTransaction): ApiTransaction 
     transactionDate: transaction.transaction_date,
     status: transaction.status || 'completed',
     isManual: Boolean(transaction.is_manual),
-    iconUrl: (transaction.icon_url || '').trim(),
+    iconUrl: sanitizeIconUrl(transaction.icon_url),
   }
 }
 

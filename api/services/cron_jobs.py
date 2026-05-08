@@ -4,7 +4,8 @@ from api.models import Account, Notification, RecurringPayment, Transaction
 
 
 def daily_alert_generator():
-    tomorrow = date.today() + timedelta(days=1)
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=tomorrow,
         status='active',
@@ -16,7 +17,7 @@ def daily_alert_generator():
             user=payment.user,
             payment=payment,
             notification_type='upcoming',
-            created_at__date=date.today(),
+            created_at__date__in=[today - timedelta(days=1), today],
         ).exists()
         if already_notified:
             continue
@@ -40,7 +41,8 @@ def daily_alert_generator():
 
 
 def low_balance_checker():
-    tomorrow = date.today() + timedelta(days=1)
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=tomorrow,
         status='active',
@@ -73,7 +75,8 @@ def low_balance_checker():
 
 
 def missed_payment_detector():
-    yesterday = date.today() - timedelta(days=1)
+    today = date.today()
+    yesterday = today - timedelta(days=1)
     payments = RecurringPayment.objects.filter(
         next_charge_date=yesterday,
         status='active',
