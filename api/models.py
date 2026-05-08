@@ -58,6 +58,7 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     transaction_date = models.DateTimeField(db_index=True)
     status = models.CharField(max_length=20, default='completed')
+    is_manual = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.merchant_name} - {self.amount}"
 

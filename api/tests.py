@@ -373,6 +373,7 @@ class MissedPaymentDetectorTest(TestCase):
                 datetime.combine(date.today() - timedelta(days=1), datetime.min.time())
             ),
             status='completed',
+            is_manual=False,
         )
         result = missed_payment_detector()
         self.assertEqual(len(result), 0)
@@ -422,6 +423,7 @@ class ApiUserAndTransactionsEndpointTest(TestCase):
             amount=Decimal('120000.00'),
             transaction_date=timezone.now(),
             status='completed',
+            is_manual=False,
         )
         Transaction.objects.create(
             account=self.account,
@@ -429,6 +431,7 @@ class ApiUserAndTransactionsEndpointTest(TestCase):
             amount=Decimal('2500.00'),
             transaction_date=timezone.now() - timedelta(minutes=5),
             status='completed',
+            is_manual=False,
         )
 
         self.client = APIClient()
@@ -463,6 +466,7 @@ class ApiUserAndTransactionsEndpointTest(TestCase):
                 account=self.account,
                 merchant_name='Пополнение через тест',
                 amount=Decimal('1500.00'),
+                is_manual=True,
             ).exists()
         )
 

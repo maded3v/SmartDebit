@@ -459,6 +459,7 @@ def pay_payment(request, payment_id):
         amount=payment.amount,
         transaction_date=datetime.now(),
         status='completed',
+        is_manual=False,
     )
 
     payment.status = 'paid'
@@ -539,6 +540,7 @@ def adjust_account_balance(request):
         amount=amount,
         transaction_date=datetime.now(),
         status='completed',
+        is_manual=True,
     )
 
     return Response({

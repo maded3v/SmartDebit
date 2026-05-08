@@ -382,6 +382,7 @@ class Command(BaseCommand):
                         amount=amount,
                         transaction_date=make_dt(days_ago),
                         status='completed',
+                        is_manual=False,
                     )
                     created_tx += 1
 
