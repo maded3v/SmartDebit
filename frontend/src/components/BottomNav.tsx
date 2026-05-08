@@ -1,17 +1,11 @@
+// Путь: frontend/src/components/BottomNav.tsx
 import { NavLink } from 'react-router-dom'
-import { Home, ArrowLeftRight, CreditCard, Sparkles } from 'lucide-react'
-
-const ITEMS = [
-  { to: '/', label: 'Главная', icon: Home, end: true },
-  { to: '/operations', label: 'Операции', icon: ArrowLeftRight, end: true },
-  { to: '/payments', label: 'Платежи', icon: CreditCard, end: false },
-  { to: '/operations/smartdebit', label: 'SmartDebit', icon: Sparkles, end: false },
-] as const
+import { NAV_ITEMS } from '../config/navigation'
 
 export function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="Основная навигация">
-      {ITEMS.map((item) => {
+      {NAV_ITEMS.map((item) => {
         const Icon = item.icon
         return (
           <NavLink

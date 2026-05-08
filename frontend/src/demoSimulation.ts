@@ -1,3 +1,4 @@
+// Путь: frontend/src/demoSimulation.ts
 import type { CreatePaymentPayload, DashboardPayload, Payment, PaymentStatus } from './types'
 
 export interface DemoHistoryItem {
@@ -640,6 +641,7 @@ function rebuildDashboard(dashboard: DashboardPayload, currentDate: string): Das
     account: {
       balance: Number(dashboard.account.balance) || 0,
       available: computeAvailableBalance(Number(dashboard.account.balance) || 0, upcoming),
+      savings: Number(dashboard.account.savings) || 0,
     },
     generatedAt: new Date().toISOString(),
   }
@@ -725,6 +727,7 @@ function createProfileFromTemplate(template: DemoProfileTemplate, currentDate: s
       account: {
         balance: template.startingBalance,
         available: template.startingBalance,
+        savings: 0,
       },
       alerts: [],
       upcoming,
