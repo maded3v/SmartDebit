@@ -2790,6 +2790,7 @@ function AppContent() {
       <AppHeader
         notifications={dashboard?.notifications ?? []}
         profileName={profileName}
+        avatarUrl={profile?.avatarUrl}
         onLogout={handleLogout}
       />
 

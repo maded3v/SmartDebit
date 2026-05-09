@@ -15,6 +15,7 @@ import { NAV_ITEMS } from '../config/navigation'
 interface AppHeaderProps {
   notifications: NotificationItem[]
   profileName: string
+  avatarUrl?: string
   onLogout?: () => void
 }
 
@@ -26,15 +27,17 @@ function getNameInitial(fullName: string) {
   return normalized.slice(0, 1).toUpperCase()
 }
 
-export function AppHeader({ notifications, profileName, onLogout }: AppHeaderProps) {
+export function AppHeader({ notifications, profileName, avatarUrl, onLogout }: AppHeaderProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const isProfileActive = location.pathname.startsWith('/profile')
   const profileInitial = getNameInitial(profileName)
+  const trimmedAvatarUrl = (avatarUrl || '').trim()
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set())
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
 
   const notificationWrapRef = useRef<HTMLDivElement | null>(null)
 
@@ -245,12 +248,18 @@ export function AppHeader({ notifications, profileName, onLogout }: AppHeaderPro
           aria-label="Профиль"
         >
           <span className="user-avatar" aria-hidden="true">
-            <User size={13} strokeWidth={2.3} />
+            {trimmedAvatarUrl && failedAvatarUrl !== trimmedAvatarUrl ? (
+              <img
+                src={trimmedAvatarUrl}
+                alt=""
+                className="user-avatar-img"
+                onError={() => setFailedAvatarUrl(trimmedAvatarUrl)}
+              />
+            ) : (
+              <span className="user-avatar-fallback">{profileInitial}</span>
+            )}
           </span>
           <span className="topbar-user-name">{profileName}</span>
-          <span className="topbar-user-initial" aria-hidden="true">
-            {profileInitial}
-          </span>
         </NavLink>
         {onLogout ? (
           <button
