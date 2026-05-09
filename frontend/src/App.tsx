@@ -2497,6 +2497,18 @@ function AppContent() {
   const [transactions, setTransactions] = useState<ApiTransaction[]>([])
   const [smartDebitToggling, setSmartDebitToggling] = useState(false)
 
+  const refreshProfile = useCallback(async () => {
+    const fallbackName = currentUsername || authApi.getStoredUsername() || PROFILE.fullName
+    try {
+      const me = await authApi.getMe()
+      setProfile(me)
+      setProfileName(me.fullName || me.username || fallbackName)
+    } catch {
+      setProfile(null)
+      setProfileName(fallbackName)
+    }
+  }, [currentUsername])
+
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true)
     try {
@@ -2505,18 +2517,6 @@ function AppContent() {
       setDashboardError('')
 
       setDashboardLoading(false)
-
-      const fallbackName = currentUsername || authApi.getStoredUsername() || PROFILE.fullName
-      void authApi
-        .getMe()
-        .then((me) => {
-          setProfile(me)
-          setProfileName(me.fullName || me.username || fallbackName)
-        })
-        .catch(() => {
-          setProfile(null)
-          setProfileName(fallbackName)
-        })
 
       try {
         const transactionsPayload = await smartDebitApi.getTransactions(60, asOfDateParam)
@@ -2537,14 +2537,21 @@ function AppContent() {
       }
       setDashboardLoading(false)
     }
-  }, [currentUsername, asOfDateParam])
+  }, [asOfDateParam])
 
   useEffect(() => {
     if (!currentUsername) {
       return
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshProfile()
+  }, [currentUsername, refreshProfile])
+
+  useEffect(() => {
+    if (!currentUsername) {
+      return
+    }
+
     void refreshDashboard()
   }, [currentUsername, refreshDashboard])
 

@@ -5500,7 +5500,7 @@
 @media (max-width: 720px) {
   .bottom-nav {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 0;
     position: fixed;
     bottom: 0;

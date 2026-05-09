@@ -703,7 +703,18 @@ USERS_DATA = [
 class Command(BaseCommand):
     help = 'Seed 10 test users with realistic transaction history'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--refresh-transactions',
+            action='store_true',
+            help=(
+                'Rebuild seeded automatic transactions even if they already exist. '
+                'Use this manually when seed history needs to be regenerated.'
+            ),
+        )
+
     def handle(self, *args, **kwargs):
+        refresh_transactions = kwargs.get('refresh_transactions', False)
         service_map = {}
         for s in ALL_SERVICES:
             obj, _ = ServiceDictionary.objects.get_or_create(
@@ -743,6 +754,7 @@ class Command(BaseCommand):
         created_payments = 0
         created_tx = 0
         wiped_tx = 0
+        skipped_tx_users = 0
 
         for data in USERS_DATA:
             auth_user, created = AuthUser.objects.get_or_create(username=data['username'])
@@ -829,13 +841,19 @@ class Command(BaseCommand):
             if account_updated_fields:
                 account.save(update_fields=account_updated_fields)
 
-            # Перед перезаливкой авто-транзакций (recurring history + рандом)
-            # вытираем предыдущие seed-операции, чтобы исправить уже накопившиеся
-            # дубли (раньше повторный запуск seed_data в другой день создавал
-            # вторую копию подписки на соседнее число). Ручные операции
-            # (is_manual=True) НЕ трогаем — это пользовательские записи.
-            removed = Transaction.objects.filter(account=account, is_manual=False).delete()
-            wiped_tx += removed[0] or 0
+            # Повторный seed_data запускается на Render при старте сервиса, поэтому
+            # тяжёлую перезаливку истории делаем только для пустого аккаунта или
+            # при явном --refresh-transactions. Ручные операции не трогаем.
+            existing_auto_tx = Transaction.objects.filter(
+                account=account,
+                is_manual=False,
+            ).exists()
+            should_seed_transactions = refresh_transactions or not existing_auto_tx
+            if should_seed_transactions:
+                removed = Transaction.objects.filter(account=account, is_manual=False).delete()
+                wiped_tx += removed[0] or 0
+            else:
+                skipped_tx_users += 1
 
             # Собираем все подписки пользователя в одном списке. Из этого же
             # списка генерируем историю списаний — ровно одна запись в каждом
@@ -867,60 +885,61 @@ class Command(BaseCommand):
                     )
                     created_payments += 1
 
-            # Регулярная история (подписки/кредиты/связь): авто-генерируется из
-            # списка подписок пользователя. Для каждой подписки получаем список
-            # дат прошлых списаний (не более одного раза в месяц) и пишем
-            # ровно одну транзакцию на каждое попавшее в окно число.
-            # 'frozen' и 'cancelled' исключаются — они не списываются.
-            recurring_merchant_names: set[str] = set()
-            for service_name, amount, payment_status, days_until in user_subscriptions:
-                if payment_status in ('frozen', 'cancelled'):
-                    continue
-                recurring_merchant_names.add(service_name)
-                # Время суток для подписок: 09:00 + смещение по hash имени, чтобы
-                # 5 подписок одного дня не лепились в одну минуту.
-                base_minute = (sum(ord(c) for c in service_name) * 7) % 50
-                for tx_date in _recurring_history_dates(days_until):
+            if should_seed_transactions:
+                # Регулярная история (подписки/кредиты/связь): авто-генерируется из
+                # списка подписок пользователя. Для каждой подписки получаем список
+                # дат прошлых списаний (не более одного раза в месяц) и пишем
+                # ровно одну транзакцию на каждое попавшее в окно число.
+                # 'frozen' и 'cancelled' исключаются — они не списываются.
+                recurring_merchant_names: set[str] = set()
+                for service_name, amount, payment_status, days_until in user_subscriptions:
+                    if payment_status in ('frozen', 'cancelled'):
+                        continue
+                    recurring_merchant_names.add(service_name)
+                    # Время суток для подписок: 09:00 + смещение по hash имени, чтобы
+                    # 5 подписок одного дня не лепились в одну минуту.
+                    base_minute = (sum(ord(c) for c in service_name) * 7) % 50
+                    for tx_date in _recurring_history_dates(days_until):
+                        Transaction.objects.create(
+                            account=account,
+                            merchant_name=service_name,
+                            amount=amount,
+                            transaction_date=_make_dt(
+                                tx_date,
+                                hour=9,
+                                minute=base_minute,
+                            ),
+                            status='completed',
+                            is_manual=False,
+                        )
+                        created_tx += 1
+
+                # Ad-hoc история «1 апреля – 10 мая»: выпечка, транспорт (55₽),
+                # столовые, ЖКХ, аптеки, заправки, маркетплейсы и краснодарские
+                # локальные заведения. RNG сидируется логином, поэтому набор
+                # стабилен между запусками. Дедуп по (мерчант, день) и исключение
+                # имён регулярных подписок чтобы не плодить пересечения.
+                random_count = 120
+                for merchant, amount, days_ago, hour, minute in random_transactions_for_user(
+                    seed_key=data['username'],
+                    count=random_count,
+                    exclude_merchants=recurring_merchant_names,
+                ):
+                    tx_date = PIVOT_DATE - timedelta(days=days_ago)
                     Transaction.objects.create(
                         account=account,
-                        merchant_name=service_name,
+                        merchant_name=merchant,
                         amount=amount,
-                        transaction_date=_make_dt(
-                            tx_date,
-                            hour=9,
-                            minute=base_minute,
-                        ),
+                        transaction_date=_make_dt(tx_date, hour=hour, minute=minute),
                         status='completed',
                         is_manual=False,
                     )
                     created_tx += 1
 
-            # Ad-hoc история «1 апреля – 10 мая»: выпечка, транспорт (55₽),
-            # столовые, ЖКХ, аптеки, заправки, маркетплейсы и краснодарские
-            # локальные заведения. RNG сидируется логином, поэтому набор
-            # стабилен между запусками. Дедуп по (мерчант, день) и исключение
-            # имён регулярных подписок чтобы не плодить пересечения.
-            random_count = 120
-            for merchant, amount, days_ago, hour, minute in random_transactions_for_user(
-                seed_key=data['username'],
-                count=random_count,
-                exclude_merchants=recurring_merchant_names,
-            ):
-                tx_date = PIVOT_DATE - timedelta(days=days_ago)
-                Transaction.objects.create(
-                    account=account,
-                    merchant_name=merchant,
-                    amount=amount,
-                    transaction_date=_make_dt(tx_date, hour=hour, minute=minute),
-                    status='completed',
-                    is_manual=False,
-                )
-                created_tx += 1
-
         self.stdout.write(self.style.SUCCESS(
             f'Seed completed: users_created={created_users}, '
             f'payments_added={created_payments}, transactions_added={created_tx}, '
-            f'wiped_old_auto_tx={wiped_tx}'
+            f'wiped_old_auto_tx={wiped_tx}, skipped_tx_users={skipped_tx_users}'
         ))
         self.stdout.write(self.style.WARNING(
             'Logins: user1/user1 ... user10/user10'
