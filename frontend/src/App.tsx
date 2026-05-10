@@ -292,6 +292,63 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+const APP_DATA_CACHE_VERSION = 1
+
+interface AppDataCache {
+  dashboard: DashboardPayload | null
+  transactions: ApiTransaction[]
+  cachedAt: string
+}
+
+function appDataCacheKey(username: string, asOfDate?: string | null) {
+  const dateKey = (asOfDate || '').trim() || 'today'
+  return `smartdebit:app-data:v${APP_DATA_CACHE_VERSION}:${username}:${dateKey}`
+}
+
+function readAppDataCache(username: string | null, asOfDate?: string | null): AppDataCache | null {
+  if (!username || typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(appDataCacheKey(username, asOfDate))
+    if (!raw) {
+      return null
+    }
+    const parsed = JSON.parse(raw) as Partial<AppDataCache>
+    return {
+      dashboard: parsed.dashboard ?? null,
+      transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+      cachedAt: typeof parsed.cachedAt === 'string' ? parsed.cachedAt : '',
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeAppDataCache(
+  username: string | null,
+  asOfDate: string | null | undefined,
+  data: Pick<AppDataCache, 'dashboard' | 'transactions'>,
+) {
+  if (!username || typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      appDataCacheKey(username, asOfDate),
+      JSON.stringify({
+        dashboard: data.dashboard,
+        transactions: data.transactions,
+        cachedAt: new Date().toISOString(),
+      }),
+    )
+  } catch {
+    // Ignore cache write errors: the network response is still applied to state.
+  }
+}
+
 function formatPaymentTitle(title: string) {
   const normalized = title.trim()
   if (!normalized) {
@@ -419,6 +476,45 @@ function StatusBadge({
   return <span className={`status-badge ${STATUS_TONE[status]}`}>{label}</span>
 }
 
+function SkeletonLine({ className = '' }: { className?: string }) {
+  return <span className={`skeleton ${className}`.trim()} aria-hidden="true" />
+}
+
+function SkeletonRows({
+  count,
+  kind = 'compact',
+}: {
+  count: number
+  kind?: 'compact' | 'history' | 'operation' | 'payment'
+}) {
+  return (
+    <div className={`skeleton-rows skeleton-rows--${kind}`} aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => (
+        <div className="skeleton-row" key={index}>
+          <SkeletonLine className="skeleton-avatar" />
+          <span className="skeleton-stack">
+            <SkeletonLine className="skeleton-title" />
+            <SkeletonLine className="skeleton-copy" />
+          </span>
+          <SkeletonLine className="skeleton-amount" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SmartDebitPanelSkeleton() {
+  return (
+    <div className="smartdebit-panel-skeleton" aria-hidden="true">
+      <SkeletonRows count={4} kind="payment" />
+      <div className="smartdebit-panel-skeleton-grid">
+        <SkeletonLine className="skeleton-card" />
+        <SkeletonLine className="skeleton-card" />
+      </div>
+    </div>
+  )
+}
+
 function HomePage({
   dashboard,
   loading,
@@ -452,6 +548,8 @@ function HomePage({
   const [balanceAmount, setBalanceAmount] = useState('1500')
   const [balanceSubmitting, setBalanceSubmitting] = useState(false)
   const greetingName = profileName.trim().split(/\s+/)[0] || 'клиент'
+  const isInitialLoading = loading && !dashboard
+  const isHistoryLoading = loading && historyItems.length === 0
 
   function openBalanceModal(action: 'spend' | 'topup') {
     setBalanceAction(action)
@@ -527,7 +625,6 @@ function HomePage({
   return (
     <section className="home-screen">
       <h1 className="home-title">Добрый день, {greetingName}</h1>
-      {loading ? <p className="home-note">Загружаем данные...</p> : null}
       {error ? <p className="home-error">{error}</p> : null}
 
       <div className="home-layout">
@@ -537,7 +634,11 @@ function HomePage({
               <span className="wallet-currency">₽</span>
               <div className="wallet-balance-wrap">
                 <p className="wallet-balance">
-                  {formatCurrency(dashboard?.account.balance ?? 0)}
+                  {isInitialLoading ? (
+                    <SkeletonLine className="skeleton-balance" />
+                  ) : (
+                    formatCurrency(dashboard?.account.balance ?? 0)
+                  )}
                 </p>
                 <small>Black</small>
               </div>
@@ -634,7 +735,13 @@ function HomePage({
               <PiggyBank size={15} strokeWidth={2.2} />
             </span>
             <div>
-              <p>{formatCurrency(dashboard?.account.savings ?? 0)}</p>
+              <p>
+                {isInitialLoading ? (
+                  <SkeletonLine className="skeleton-value" />
+                ) : (
+                  formatCurrency(dashboard?.account.savings ?? 0)
+                )}
+              </p>
               <small>Накопительный счет</small>
             </div>
             <span className="trend-badge">
@@ -663,7 +770,17 @@ function HomePage({
         </aside>
 
         <div className="home-right-column">
-          {dashboard?.enabled === false ? (
+          {isInitialLoading ? (
+            <article className="panel home-smartdebit-widget">
+              <div className="row-between">
+                <h2>SmartDebit</h2>
+                <SkeletonLine className="skeleton-pill" />
+              </div>
+              <SkeletonLine className="skeleton-copy wide" />
+              <SkeletonRows count={3} kind="compact" />
+              <SkeletonLine className="skeleton-button" />
+            </article>
+          ) : dashboard?.enabled === false ? (
             <SmartDebitOffMessage
               onEnable={onEnableSmartDebit}
               enabling={Boolean(smartDebitToggling)}
@@ -698,7 +815,9 @@ function HomePage({
           <article className="panel home-history-panel">
             <h2>История операций</h2>
 
-            {historyItems.length ? (
+            {isHistoryLoading ? (
+              <SkeletonRows count={6} kind="history" />
+            ) : historyItems.length ? (
               <ul className="home-history-list">
                 {historyItems.map((item) => {
                   const remoteIcon = (item.iconUrl || '').trim()
@@ -1582,17 +1701,18 @@ function OperationsPage({
   }, [upcomingPayments])
 
   const nextPayment = upcomingPayments[0] ?? null
+  const isInitialLoading = loading && operations.length === 0
 
   return (
     <section className="operations-screen">
       <Link to="/operations/smartdebit" className="smartdebit-strip">
         <div className="smartdebit-strip-body">
           <strong>SmartDebit</strong>
-          {loading ? (
-            <>
-              <p>Загружаем информацию по SmartDebit...</p>
-              <small>Подождите несколько секунд.</small>
-            </>
+          {loading && !dashboard ? (
+            <div className="smartdebit-strip-skeleton" aria-hidden="true">
+              <SkeletonLine className="skeleton-copy wide" />
+              <SkeletonLine className="skeleton-copy" />
+            </div>
           ) : dashboard?.enabled ? (
             <>
               <p>
@@ -1750,7 +1870,9 @@ function OperationsPage({
               </div>
             ) : null}
 
-            {operationGroups.length ? (
+            {isInitialLoading ? (
+              <SkeletonRows count={8} kind="operation" />
+            ) : operationGroups.length ? (
               <div className="operation-groups">
                 {operationGroups.map((group) => (
                   <section key={group.key} className="operation-group">
@@ -1946,6 +2068,7 @@ function SmartDebitDetailsPage({
     ? dashboard?.upcoming.find((payment) => payment.id === primaryAlert.paymentId) ?? null
     : null
   const overdueCount = dashboard?.upcoming.filter((payment) => payment.status === 'overdue').length ?? 0
+  const isInitialLoading = loading && !dashboard
   const canPayPrimaryAlertNow =
     Boolean(primaryAlert && primaryAlertPayment?.status === 'overdue') &&
     (dashboard?.account.balance ?? 0) >= (primaryAlert?.amount ?? 0)
@@ -2023,6 +2146,23 @@ function SmartDebitDetailsPage({
                 </span>
               </div>
             </div>
+          ) : isInitialLoading ? (
+            <div className="smartdebit-hero-stats" role="list" aria-hidden="true">
+              <div className="smartdebit-hero-stat">
+                <SkeletonLine className="skeleton-avatar" />
+                <span className="smartdebit-hero-stat-body">
+                  <SkeletonLine className="skeleton-copy" />
+                  <SkeletonLine className="skeleton-title short" />
+                </span>
+              </div>
+              <div className="smartdebit-hero-stat">
+                <SkeletonLine className="skeleton-avatar" />
+                <span className="smartdebit-hero-stat-body">
+                  <SkeletonLine className="skeleton-copy" />
+                  <SkeletonLine className="skeleton-title short" />
+                </span>
+              </div>
+            </div>
           ) : null}
         </div>
       </header>
@@ -2056,9 +2196,9 @@ function SmartDebitDetailsPage({
           </label>
         </div>
 
-        {loading ? <p className="muted">Обновляем данные...</p> : null}
+        {isInitialLoading ? <SmartDebitPanelSkeleton /> : null}
 
-        {!loading && dashboard && !dashboard.enabled ? (
+        {!isInitialLoading && dashboard && !dashboard.enabled ? (
           <div className="onboard-box">
             <p>
               Включите SmartDebit, чтобы автоматически отслеживать регулярные
@@ -2076,7 +2216,7 @@ function SmartDebitDetailsPage({
           </div>
         ) : null}
 
-        {!loading && dashboard?.enabled ? (
+        {!isInitialLoading && dashboard?.enabled ? (
           <>
             {primaryAlert ? (
               <div className="danger-box">
@@ -2510,23 +2650,36 @@ function AppContent() {
   }, [currentUsername])
 
   const refreshDashboard = useCallback(async () => {
-    setDashboardLoading(true)
-    try {
-      const dashboardPayload = await smartDebitApi.getDashboard(asOfDateParam)
-      setDashboard(dashboardPayload)
+    const cached = readAppDataCache(currentUsername, asOfDateParam)
+    const hasCachedData = Boolean(cached?.dashboard || cached?.transactions.length)
+
+    if (cached?.dashboard) {
+      setDashboard(cached.dashboard)
       setDashboardError('')
+    }
+    if (cached?.transactions.length) {
+      setTransactions(cached.transactions)
+    }
 
-      setDashboardLoading(false)
+    setDashboardLoading(!hasCachedData)
 
-      try {
-        const transactionsPayload = await smartDebitApi.getTransactions(60, asOfDateParam)
-        setTransactions(transactionsPayload)
-      } catch {
-        setTransactions([])
-      }
-    } catch (error) {
-      const message = resolveErrorMessage(error, 'Не удалось загрузить данные SmartDebit')
-      setDashboardError(message)
+    const [dashboardResult, transactionsResult] = await Promise.allSettled([
+      smartDebitApi.getDashboard(asOfDateParam),
+      smartDebitApi.getTransactions(60, asOfDateParam),
+    ])
+
+    let nextDashboard = cached?.dashboard ?? null
+    let nextTransactions = cached?.transactions ?? []
+
+    if (dashboardResult.status === 'fulfilled') {
+      nextDashboard = dashboardResult.value
+      setDashboard(nextDashboard)
+      setDashboardError('')
+    } else {
+      const message = resolveErrorMessage(
+        dashboardResult.reason,
+        'Не удалось загрузить данные SmartDebit',
+      )
       if (/(401|403|token|credentials|авторизац|учетные данные|доступ)/i.test(message)) {
         authApi.logout()
         setCurrentUsername(null)
@@ -2534,10 +2687,30 @@ function AppContent() {
         setProfileName(PROFILE.fullName)
         setDashboard(null)
         setTransactions([])
+        setDashboardLoading(false)
+        return
       }
-      setDashboardLoading(false)
+      if (!cached?.dashboard) {
+        setDashboardError(message)
+      }
     }
-  }, [asOfDateParam])
+
+    if (transactionsResult.status === 'fulfilled') {
+      nextTransactions = transactionsResult.value
+      setTransactions(nextTransactions)
+    } else if (!cached?.transactions.length) {
+      setTransactions([])
+    }
+
+    if (dashboardResult.status === 'fulfilled' || transactionsResult.status === 'fulfilled') {
+      writeAppDataCache(currentUsername, asOfDateParam, {
+        dashboard: nextDashboard,
+        transactions: nextTransactions,
+      })
+    }
+
+    setDashboardLoading(false)
+  }, [currentUsername, asOfDateParam])
 
   useEffect(() => {
     if (!currentUsername) {
