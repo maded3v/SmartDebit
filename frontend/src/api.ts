@@ -15,10 +15,13 @@ const API_BASE_URL =
 const ACCESS_TOKEN_STORAGE_KEY = 'smartdebit:access-token'
 const REFRESH_TOKEN_STORAGE_KEY = 'smartdebit:refresh-token'
 const USERNAME_STORAGE_KEY = 'smartdebit:current-user'
+const TOKEN_REFRESH_SKEW_SECONDS = 60
 
 let accessTokenMemory: string | null = null
 let refreshTokenMemory: string | null = null
 let usernameMemory: string | null = null
+let refreshAccessTokenPromise: Promise<boolean> | null = null
+let validatedAccessToken: string | null = null
 
 const STATUS_LABELS: Record<PaymentStatus, string> = {
   active: 'Активен',
@@ -48,6 +51,10 @@ interface ErrorPayload {
 
 interface TokenRefreshEnvelope {
   access?: string
+}
+
+interface JwtPayload {
+  exp?: number
 }
 
 interface AuthLoginEnvelope {
@@ -130,20 +137,70 @@ function getRefreshToken() {
 function setTokens(access: string, refresh: string) {
   accessTokenMemory = access
   refreshTokenMemory = refresh
+  validatedAccessToken = access
   writeStorage(ACCESS_TOKEN_STORAGE_KEY, access)
   writeStorage(REFRESH_TOKEN_STORAGE_KEY, refresh)
 }
 
 function setAccessToken(access: string) {
   accessTokenMemory = access
+  validatedAccessToken = access
   writeStorage(ACCESS_TOKEN_STORAGE_KEY, access)
 }
 
 function clearTokens() {
   accessTokenMemory = null
   refreshTokenMemory = null
+  validatedAccessToken = null
   writeStorage(ACCESS_TOKEN_STORAGE_KEY, null)
   writeStorage(REFRESH_TOKEN_STORAGE_KEY, null)
+}
+
+function decodeBase64Url(value: string) {
+  if (typeof window === 'undefined' || typeof window.atob !== 'function') {
+    return null
+  }
+
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
+    return window.atob(padded)
+  } catch {
+    return null
+  }
+}
+
+function getTokenExpiration(token: string) {
+  const payloadPart = token.split('.')[1]
+  if (!payloadPart) {
+    return null
+  }
+
+  const decoded = decodeBase64Url(payloadPart)
+  if (!decoded) {
+    return null
+  }
+
+  try {
+    const payload = JSON.parse(decoded) as JwtPayload
+    return typeof payload.exp === 'number' ? payload.exp : null
+  } catch {
+    return null
+  }
+}
+
+function isAccessTokenExpiring(token: string) {
+  const expiresAt = getTokenExpiration(token)
+  if (!expiresAt) {
+    return false
+  }
+
+  const refreshAt = Date.now() + TOKEN_REFRESH_SKEW_SECONDS * 1000
+  return expiresAt * 1000 <= refreshAt
+}
+
+function createAuthExpiredError() {
+  return new Error('Ошибка авторизации (401). Войдите снова.')
 }
 
 function getStoredUsername() {
@@ -192,9 +249,10 @@ async function parseErrorMessage(response: Response) {
   return message
 }
 
-async function refreshAccessToken() {
+async function runRefreshAccessToken() {
   const refreshToken = getRefreshToken()
   if (!refreshToken) {
+    clearTokens()
     return false
   }
 
@@ -219,6 +277,33 @@ async function refreshAccessToken() {
 
   setAccessToken(payload.access)
   return true
+}
+
+async function refreshAccessToken() {
+  if (!refreshAccessTokenPromise) {
+    refreshAccessTokenPromise = runRefreshAccessToken().finally(() => {
+      refreshAccessTokenPromise = null
+    })
+  }
+
+  return refreshAccessTokenPromise
+}
+
+async function ensureFreshAccessToken() {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    return false
+  }
+
+  if (!isAccessTokenExpiring(accessToken)) {
+    if (validatedAccessToken !== accessToken && getRefreshToken()) {
+      return refreshAccessToken()
+    }
+    validatedAccessToken = accessToken
+    return true
+  }
+
+  return refreshAccessToken()
 }
 
 async function doFetch(path: string, init?: RequestInit, includeAuth = true) {
@@ -353,6 +438,13 @@ function sanitizeIconUrl(value?: string) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isAuthEndpoint = path.startsWith('/auth/')
+  if (!isAuthEndpoint) {
+    const hasUsableToken = await ensureFreshAccessToken()
+    if (!hasUsableToken) {
+      throw createAuthExpiredError()
+    }
+  }
+
   const response = await doFetch(path, init, !isAuthEndpoint)
 
   if (response.status === 401 && !isAuthEndpoint) {
@@ -362,8 +454,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       if (retried.ok) {
         return (await retried.json()) as T
       }
+      if (retried.status === 401) {
+        clearTokens()
+        throw createAuthExpiredError()
+      }
       throw new Error(await parseErrorMessage(retried))
     }
+    throw createAuthExpiredError()
   }
 
   if (!response.ok) {
