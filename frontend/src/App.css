@@ -704,8 +704,8 @@
 
 .nav-new-chip {
   border-radius: 999px;
-  background: #e8edf5;
-  color: #42526a;
+  background: #ffe064;
+  color: #171b25;
   font-size: 9px;
   font-weight: 700;
   padding: 2px 5px;
@@ -896,7 +896,7 @@
 }
 
 .mobile-menu-link.active {
-  background: #eef2f8;
+  background: #fef3cd;
   color: #111720;
   font-weight: 600;
 }
@@ -913,8 +913,8 @@
 }
 
 .mobile-menu-link.active .mobile-menu-link-icon {
-  background: #111720;
-  color: #ffffff;
+  background: #ffdd2d;
+  color: #111720;
 }
 
 .mobile-menu-link-label {
@@ -1413,8 +1413,8 @@
 }
 
 .action-transfer {
-  background: linear-gradient(180deg, #1c2636 0%, #101621 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #ffe878 0%, #ffdd2d 100%);
+  color: #101621;
 }
 
 .home-actions .action-top-up {
@@ -2095,7 +2095,7 @@
 }
 
 .switch input:checked {
-  background: #22c55e;
+  background: #ffdd2d;
 }
 
 .switch input:checked + span {
@@ -2103,7 +2103,7 @@
 }
 
 .switch input:focus-visible {
-  outline: 2px solid #22c55e;
+  outline: 2px solid #ffdd2d;
   outline-offset: 2px;
 }
 
@@ -3608,8 +3608,8 @@
 }
 
 :root[data-theme='dark'] .nav-new-chip {
-  background: #243247;
-  color: #c9d4e7;
+  background: #ffd94b;
+  color: #1c2330;
 }
 
 :root[data-theme='dark'] .payments-nav-button {
@@ -4169,8 +4169,8 @@
   --ui-stroke-strong: #d3dce8;
   --ui-text-1: #0f1726;
   --ui-text-2: #5f6f86;
-  --ui-accent: #8ea0bd;
-  --ui-accent-soft: #e8eef7;
+  --ui-accent: #ffdd2d;
+  --ui-accent-soft: #fff4bd;
   --ui-shadow-soft: 0 10px 26px rgba(15, 23, 37, 0.06);
   --ui-shadow-hover: 0 14px 30px rgba(15, 23, 37, 0.1);
 }
@@ -4183,7 +4183,7 @@
   --ui-stroke-strong: #3a4d68;
   --ui-text-1: #edf2ff;
   --ui-text-2: #97a8c3;
-  --ui-accent: #6f7f98;
+  --ui-accent: #f3d448;
   --ui-accent-soft: #2d3442;
   --ui-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.34);
   --ui-shadow-hover: 0 16px 34px rgba(0, 0, 0, 0.42);
@@ -4478,7 +4478,7 @@
 
 :root[data-theme='dark'] .payments-quick-card.active .payments-quick-icon {
   background: #3a4a61;
-  color: #e4ebf5;
+  color: #ffe481;
 }
 
 :root[data-theme='dark'] .smartdebit-strip-action {
@@ -5287,8 +5287,8 @@
 }
 
 .operations-advanced-toggle.open {
-  background: #eef3f9;
-  border-color: #b9c5d6;
+  background: #fff7c8;
+  border-color: #ffdd2d;
 }
 
 .operations-advanced-toggle .operations-advanced-caret {
@@ -5307,8 +5307,8 @@
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: #14202f;
-  color: #ffffff;
+  background: #ffdd2d;
+  color: #14202f;
   font-size: 12px;
   font-weight: 700;
 }
@@ -5395,9 +5395,9 @@
 }
 
 .operations-category-chip.checked {
-  background: #14202f;
-  border-color: #14202f;
-  color: #ffffff;
+  background: #ffdd2d;
+  border-color: #ffdd2d;
+  color: #14202f;
 }
 
 .operations-advanced-clear {
@@ -5527,9 +5527,9 @@
 }
 
 :root[data-theme='dark'] .operations-advanced-toggle.open {
-  background: #243247;
-  border-color: #4c5f7a;
-  color: #e4ebf5;
+  background: #3a2e16;
+  border-color: #ffdd2d;
+  color: #ffdd2d;
 }
 
 :root[data-theme='dark'] .operations-advanced {
@@ -5553,8 +5553,8 @@
 }
 
 :root[data-theme='dark'] .operations-category-chip.checked {
-  background: #d9e2f1;
-  border-color: #d9e2f1;
+  background: #ffdd2d;
+  border-color: #ffdd2d;
   color: #14202f;
 }
 
@@ -5698,7 +5698,7 @@
 
   .bottom-nav-link.active {
     color: #14202f;
-    background: #eef2f8;
+    background: #fff7c8;
   }
 
   .bottom-nav-link svg {
@@ -5722,8 +5722,8 @@
 }
 
 :root[data-theme='dark'] .bottom-nav-link.active {
-  color: #f5f7ff;
-  background: #243247;
+  color: #ffdd2d;
+  background: #2c2818;
 }
 
 /* Mobile landscape: card back/front texture often looks distorted at extreme aspect ratios.
