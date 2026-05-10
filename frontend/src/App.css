@@ -3141,6 +3141,20 @@
   color: #ad3737;
 }
 
+.delete-confirm-modal {
+  width: min(360px, 100%);
+}
+
+.delete-confirm-modal h3 {
+  margin: 0 32px 8px 0;
+  color: #111824;
+  font-size: 19px;
+}
+
+.delete-confirm-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
 .form-grid {
   margin-top: 12px;
   display: grid;

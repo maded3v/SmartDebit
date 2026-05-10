@@ -1,5 +1,5 @@
 // Путь: frontend/src/App.tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BrowserRouter,
   Link,
@@ -1581,23 +1581,27 @@ function OperationsPage({
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
   const [merchantQuery, setMerchantQuery] = useState('')
+  const [pendingDeleteOperation, setPendingDeleteOperation] = useState<BankOperation | null>(null)
+  const deferredSearchQuery = useDeferredValue(searchQuery)
+  const deferredMerchantQuery = useDeferredValue(merchantQuery)
   const operations = useMemo(
     () => buildOperationsFeed(dashboard, userOperations ?? []),
     [dashboard, userOperations],
   )
 
   const openOperationDetail = useCallback((operation: BankOperation) => {
-    setActiveDetail(
-      buildOperationDetail({
-        id: operation.id,
-        title: operation.title,
-        subtitle: operation.subtitle,
-        amount: operation.amount,
-        dateLabel: operation.dateLabel,
-        smartTag: operation.smartTag,
-        iconUrlOverride: operation.iconUrl,
-      }),
-    )
+    const detail = buildOperationDetail({
+      id: operation.id,
+      title: operation.title,
+      subtitle: operation.subtitle,
+      amount: operation.amount,
+      dateLabel: operation.dateLabel,
+      smartTag: operation.smartTag,
+      iconUrlOverride: operation.iconUrl,
+    })
+    startTransition(() => {
+      setActiveDetail(detail)
+    })
   }, [])
 
   const availableCategories = useMemo(() => {
@@ -1618,8 +1622,8 @@ function OperationsPage({
     return Number.isFinite(value) ? value : null
   }, [maxAmount])
 
-  const trimmedSearch = searchQuery.trim().toLowerCase()
-  const trimmedMerchant = merchantQuery.trim().toLowerCase()
+  const trimmedSearch = deferredSearchQuery.trim().toLowerCase()
+  const trimmedMerchant = deferredMerchantQuery.trim().toLowerCase()
 
   const filteredOperations = useMemo(() => {
     return operations.filter((operation) => {
@@ -1674,18 +1678,47 @@ function OperationsPage({
     (activeFilter !== 'all' ? 1 : 0)
 
   function toggleCategory(category: string) {
-    setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((value) => value !== category) : [...prev, category],
-    )
+    startTransition(() => {
+      setSelectedCategories((prev) =>
+        prev.includes(category) ? prev.filter((value) => value !== category) : [...prev, category],
+      )
+    })
   }
 
   function clearAllFilters() {
-    setActiveFilter('all')
-    setSearchQuery('')
-    setSelectedCategories([])
-    setMinAmount('')
-    setMaxAmount('')
-    setMerchantQuery('')
+    startTransition(() => {
+      setActiveFilter('all')
+      setSearchQuery('')
+      setSelectedCategories([])
+      setMinAmount('')
+      setMaxAmount('')
+      setMerchantQuery('')
+    })
+  }
+
+  function requestDeleteOperation(operation: BankOperation) {
+    startTransition(() => {
+      setPendingDeleteOperation(operation)
+    })
+  }
+
+  function cancelDeleteOperation() {
+    setPendingDeleteOperation(null)
+  }
+
+  async function confirmDeleteOperation() {
+    const operation = pendingDeleteOperation
+    if (!operation || deletingId === operation.id || !onDeleteOperation) {
+      return
+    }
+
+    setPendingDeleteOperation(null)
+    setDeletingId(operation.id)
+    try {
+      await onDeleteOperation(operation)
+    } finally {
+      setDeletingId((current) => (current === operation.id ? null : current))
+    }
   }
 
   const upcomingPayments = useMemo(() => {
@@ -1748,7 +1781,9 @@ function OperationsPage({
                     type="button"
                     className={activeFilter === filter.id ? 'active' : ''}
                     onClick={() => {
-                      setActiveFilter(filter.id)
+                      startTransition(() => {
+                        setActiveFilter(filter.id)
+                      })
                     }}
                     aria-pressed={activeFilter === filter.id}
                   >
@@ -1782,7 +1817,11 @@ function OperationsPage({
               <button
                 type="button"
                 className={`operations-advanced-toggle${advancedOpen ? ' open' : ''}`}
-                onClick={() => setAdvancedOpen((value) => !value)}
+                onClick={() => {
+                  startTransition(() => {
+                    setAdvancedOpen((value) => !value)
+                  })
+                }}
                 aria-expanded={advancedOpen}
               >
                 <SlidersHorizontal size={16} aria-hidden />
@@ -1989,28 +2028,12 @@ function OperationsPage({
                                 disabled={isDeleting}
                                 aria-label={`Удалить ручную операцию ${operation.title}`}
                                 title="Удалить ручную операцию"
-                                onClick={async (event) => {
+                                onClick={(event) => {
                                   event.stopPropagation()
-                                  if (isDeleting || !onDeleteOperation) {
+                                  if (isDeleting) {
                                     return
                                   }
-                                  const confirmed =
-                                    typeof window === 'undefined'
-                                      ? true
-                                      : window.confirm(
-                                          `Удалить ручную операцию «${operation.title}»? Действие нельзя отменить.`,
-                                        )
-                                  if (!confirmed) {
-                                    return
-                                  }
-                                  setDeletingId(operation.id)
-                                  try {
-                                    await onDeleteOperation(operation)
-                                  } finally {
-                                    setDeletingId((current) =>
-                                      current === operation.id ? null : current,
-                                    )
-                                  }
+                                  requestDeleteOperation(operation)
                                 }}
                               >
                                 <Trash2 size={16} aria-hidden />
@@ -2036,6 +2059,40 @@ function OperationsPage({
           </article>
         </div>
       </div>
+      {pendingDeleteOperation ? (
+        <div className="modal-overlay delete-confirm-overlay" role="presentation" onClick={cancelDeleteOperation}>
+          <div
+            className="modal-window delete-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-operation-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="close-btn" type="button" onClick={cancelDeleteOperation}>
+              x
+            </button>
+            <h3 id="delete-operation-title">Удалить ручную операцию?</h3>
+            <p className="muted">
+              «{pendingDeleteOperation.title}» будет удалена из истории. Действие нельзя отменить.
+            </p>
+            <div className="modal-actions delete-confirm-actions">
+              <button type="button" onClick={cancelDeleteOperation}>
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="danger-btn"
+                disabled={deletingId === pendingDeleteOperation.id}
+                onClick={() => {
+                  void confirmDeleteOperation()
+                }}
+              >
+                {deletingId === pendingDeleteOperation.id ? 'Удаляем...' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <OperationDetailDialog detail={activeDetail} onClose={() => setActiveDetail(null)} />
     </section>
   )

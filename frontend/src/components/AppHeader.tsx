@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -307,7 +307,9 @@ export function AppHeader({ notifications, profileName, avatarUrl, onLogout }: A
                     className={isActive ? 'mobile-menu-link active' : 'mobile-menu-link'}
                     onClick={() => {
                       setIsMobileMenuOpen(false)
-                      navigate(item.to)
+                      startTransition(() => {
+                        navigate(item.to)
+                      })
                     }}
                   >
                     <span className="mobile-menu-link-icon">
@@ -325,7 +327,9 @@ export function AppHeader({ notifications, profileName, avatarUrl, onLogout }: A
                 }
                 onClick={() => {
                   setIsMobileMenuOpen(false)
-                  navigate('/profile')
+                  startTransition(() => {
+                    navigate('/profile')
+                  })
                 }}
               >
                 <span className="mobile-menu-link-icon">
