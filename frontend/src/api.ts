@@ -256,6 +256,12 @@ async function runRefreshAccessToken() {
     return false
   }
 
+  const refreshExpiresAt = getTokenExpiration(refreshToken)
+  if (refreshExpiresAt && refreshExpiresAt * 1000 <= Date.now()) {
+    clearTokens()
+    return false
+  }
+
   const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
     method: 'POST',
     headers: {
@@ -347,6 +353,20 @@ interface BackendDashboardEnvelope {
     upcoming_payments: BackendPayment[]
     alerts: BackendAlert[]
     analytics?: Record<string, number>
+    simulation?: {
+      from_date?: string
+      as_of_date?: string
+      total_scheduled_amount?: number
+      projected_balance?: number
+      charge_count?: number
+      charges?: Array<{
+        payment_id?: number | string
+        service_name?: string
+        amount?: number
+        charge_date?: string
+        category?: string
+      }>
+    } | null
     as_of_date?: string | null
   }
 }
@@ -625,6 +645,29 @@ function mapChart(analytics?: Record<string, number>): ChartSlice[] {
     .filter((item): item is ChartSlice => Boolean(item && item.amount > 0))
 }
 
+function mapSimulation(simulation: BackendDashboardEnvelope['data']['simulation']) {
+  if (!simulation) {
+    return null
+  }
+
+  return {
+    fromDate: simulation.from_date || '',
+    asOfDate: simulation.as_of_date || '',
+    totalScheduledAmount: Number(simulation.total_scheduled_amount) || 0,
+    projectedBalance: Number(simulation.projected_balance) || 0,
+    chargeCount: Math.max(0, Math.round(Number(simulation.charge_count) || 0)),
+    charges: Array.isArray(simulation.charges)
+      ? simulation.charges.map((charge) => ({
+          paymentId: charge.payment_id != null ? String(charge.payment_id) : '',
+          serviceName: charge.service_name || 'Регулярный платеж',
+          amount: Number(charge.amount) || 0,
+          chargeDate: charge.charge_date || '',
+          category: charge.category || 'Прочее',
+        }))
+      : [],
+  }
+}
+
 function buildNotifications(upcoming: Payment[], alerts: DashboardAlert[]): NotificationItem[] {
   const alertNotifications = alerts.map((alert) => ({
     id: `alert-${alert.id}`,
@@ -706,6 +749,7 @@ function mapDashboardPayload(payload: unknown): DashboardPayload {
     upcoming,
     chart: mapChart(payload.data.analytics),
     notifications: buildNotifications(upcoming, alerts),
+    simulation: mapSimulation(payload.data.simulation),
     generatedAt: new Date().toISOString(),
   }
 }

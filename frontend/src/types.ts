@@ -66,6 +66,20 @@ export interface DashboardPayload {
   upcoming: Payment[]
   chart: ChartSlice[]
   notifications: NotificationItem[]
+  simulation?: {
+    fromDate: string
+    asOfDate: string
+    totalScheduledAmount: number
+    projectedBalance: number
+    chargeCount: number
+    charges: Array<{
+      paymentId: string
+      serviceName: string
+      amount: number
+      chargeDate: string
+      category: string
+    }>
+  } | null
   generatedAt: string
 }
 

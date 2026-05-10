@@ -9,9 +9,10 @@ const DATE_FORMATTER = new Intl.DateTimeFormat('ru-RU', {
 })
 
 const QUICK_SHIFTS: Array<{ label: string; days: number }> = [
-  { label: '+1д', days: 1 },
-  { label: '+10д', days: 10 },
-  { label: '+30д', days: 30 },
+  { label: '+1 день', days: 1 },
+  { label: '+10 дней', days: 10 },
+  { label: '+30 дней', days: 30 },
+  { label: '+90 дней', days: 90 },
 ]
 
 interface TimeTravelProps {

@@ -20,7 +20,7 @@ from api.serializers import (
 from api.services.parser import find_recurring_patterns, create_recurring_payments_from_patterns
 
 
-MAX_TIME_TRAVEL_DAYS = 365
+MAX_TIME_TRAVEL_DAYS = 400
 
 
 def _get_api_user(request):
@@ -200,6 +200,55 @@ def _serialize_payment(payment, account=None, as_of_date=None):
         "status": effective_status,
         "is_overdue_simulated": is_simulated,
         "days_overdue": days_overdue,
+    }
+
+
+def _payment_charge_dates_between(payment, start_date, end_date):
+    if end_date < start_date or payment.status in ('cancelled', 'frozen', 'paid'):
+        return []
+
+    charge_date = payment.next_charge_date
+    iterations = 0
+    while charge_date < start_date and iterations < 240:
+        charge_date = _add_months(charge_date, 1)
+        iterations += 1
+
+    result = []
+    while charge_date <= end_date and iterations < 240:
+        result.append(charge_date)
+        charge_date = _add_months(charge_date, 1)
+        iterations += 1
+    return result
+
+
+def _build_simulation_summary(payments, account, as_of_date):
+    if as_of_date is None:
+        return None
+
+    today = date.today()
+    charges = []
+    total = 0
+    for payment in payments:
+        service_name = _payment_name(payment)
+        for charge_date in _payment_charge_dates_between(payment, today, as_of_date):
+            total += payment.amount
+            charges.append({
+                "payment_id": payment.id,
+                "service_name": service_name,
+                "amount": float(payment.amount),
+                "charge_date": charge_date.strftime("%Y-%m-%d"),
+                "category": _payment_category(payment),
+            })
+
+    charges.sort(key=lambda item: item["charge_date"])
+    balance = account.balance if account else 0
+    return {
+        "from_date": today.strftime("%Y-%m-%d"),
+        "as_of_date": as_of_date.strftime("%Y-%m-%d"),
+        "total_scheduled_amount": float(total),
+        "projected_balance": float(balance - total),
+        "charge_count": len(charges),
+        "charges": charges[:20],
     }
 
 
@@ -391,13 +440,16 @@ def get_dashboard(request):
         user=user,
         status__in=['active', 'low_balance'],
     ).select_related('service')
+    all_active_list = list(all_active)
 
     analytics = {"entertainment": 0, "utilities": 0, "finance": 0}
-    for p in all_active:
+    for p in all_active_list:
         cat = p.service.category if p.service else "Other"
         key = CATEGORY_MAP.get(cat)
         if key:
             analytics[key] += float(p.amount)
+
+    simulation = _build_simulation_summary(all_active_list, account, as_of_date)
 
     return Response({
         "status": "success",
@@ -409,6 +461,7 @@ def get_dashboard(request):
             "upcoming_payments": upcoming,
             "alerts": alerts,
             "analytics": analytics,
+            "simulation": simulation,
             "as_of_date": as_of_date.isoformat() if as_of_date else None,
         },
     })

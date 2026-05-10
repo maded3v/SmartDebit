@@ -5,6 +5,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from api.models import Account, User
@@ -71,3 +73,32 @@ def login_view(request):
         'access': str(refresh.access_token),
         'refresh': str(refresh),
     })
+
+
+@extend_schema(summary="Обновление access token", tags=["Auth"])
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def token_refresh_view(request):
+    serializer = TokenRefreshSerializer(data=request.data)
+    try:
+        serializer.is_valid(raise_exception=True)
+    except (InvalidToken, TokenError):
+        return Response(
+            {
+                'status': 'error',
+                'message': 'Сессия истекла. Войдите снова.',
+                'error_code': 'TOKEN_REFRESH_FAILED',
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    except Exception:
+        return Response(
+            {
+                'status': 'error',
+                'message': 'Не удалось обновить сессию. Войдите снова.',
+                'error_code': 'TOKEN_REFRESH_ERROR',
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    return Response(serializer.validated_data)

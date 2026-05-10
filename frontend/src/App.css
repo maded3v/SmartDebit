@@ -1428,6 +1428,85 @@
   background: #dce1ea;
 }
 
+.home-simulation-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #f0d24d;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff8d7 0%, #fff1a8 100%);
+  color: #2b2108;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(198, 154, 25, 0.12);
+}
+
+.home-simulation-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.home-simulation-head span,
+.home-simulation-card small {
+  color: rgba(43, 33, 8, 0.7);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.home-simulation-head strong {
+  font-size: 13px;
+}
+
+.home-simulation-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.home-simulation-balance {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 9px 10px;
+  font-size: 13px;
+}
+
+.home-simulation-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-simulation-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.home-simulation-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.home-simulation-list small {
+  grid-column: 1;
+}
+
+.home-simulation-list strong {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
 .home-open-product-btn {
   border: 1px dashed #d8dee7;
   border-radius: 14px;
@@ -6135,6 +6214,88 @@
 
 .smartdebit-timetravel-widget .time-travel-reset-label {
   display: inline;
+}
+
+.smartdebit-simulation-summary {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #f0d24d;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff8d7 0%, #fff1a8 100%);
+  color: #2b2108;
+  padding: 14px;
+}
+
+.smartdebit-simulation-summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.smartdebit-simulation-summary span,
+.smartdebit-simulation-summary small {
+  color: rgba(43, 33, 8, 0.68);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.smartdebit-simulation-summary p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.smartdebit-simulation-summary ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.smartdebit-simulation-summary li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.smartdebit-simulation-summary li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2b2108;
+}
+
+.smartdebit-simulation-summary li strong {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+:root[data-theme='dark'] .home-simulation-card,
+:root[data-theme='dark'] .smartdebit-simulation-summary {
+  border-color: #8f7730;
+  background: linear-gradient(135deg, #332b17 0%, #423719 100%);
+  color: #ffe9a8;
+}
+
+:root[data-theme='dark'] .home-simulation-head span,
+:root[data-theme='dark'] .home-simulation-card small,
+:root[data-theme='dark'] .smartdebit-simulation-summary span,
+:root[data-theme='dark'] .smartdebit-simulation-summary small {
+  color: rgba(255, 233, 168, 0.72);
+}
+
+:root[data-theme='dark'] .home-simulation-balance {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .smartdebit-simulation-summary li span {
+  color: #ffe9a8;
 }
 
 /* На мобильных переводим карточку TimeTravel в две строки:

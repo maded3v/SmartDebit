@@ -448,6 +448,14 @@ function pluralizeOperations(count: number): string {
   return 'операций'
 }
 
+function pluralizeCharges(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return 'списание'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'списания'
+  return 'списаний'
+}
+
 function groupOperationsByDay(operations: BankOperation[]): OperationGroup[] {
   const map = new Map<string, BankOperation[]>()
   for (const op of operations) {
@@ -538,6 +546,7 @@ function HomePage({
   onEnableSmartDebit?: () => Promise<void> | void
   smartDebitToggling?: boolean
 }) {
+  const { isSimulating } = useTimeTravel()
   const historyItems = useMemo<HomeHistoryItem[]>(() => {
     return userHistory ?? []
   }, [userHistory])
@@ -550,6 +559,11 @@ function HomePage({
   const greetingName = profileName.trim().split(/\s+/)[0] || 'клиент'
   const isInitialLoading = loading && !dashboard
   const isHistoryLoading = loading && historyItems.length === 0
+  const simulation = isSimulating ? dashboard?.simulation ?? null : null
+  const actualBalance = dashboard?.account.balance ?? 0
+  const displayedBalance = simulation ? simulation.projectedBalance : actualBalance
+  const simulationDateLabel = simulation?.asOfDate ? formatDate(simulation.asOfDate) : ''
+  const simulationCharges = simulation?.charges.slice(0, 4) ?? []
 
   function openBalanceModal(action: 'spend' | 'topup') {
     setBalanceAction(action)
@@ -637,10 +651,14 @@ function HomePage({
                   {isInitialLoading ? (
                     <SkeletonLine className="skeleton-balance" />
                   ) : (
-                    formatCurrency(dashboard?.account.balance ?? 0)
+                    formatCurrency(displayedBalance)
                   )}
                 </p>
-                <small>Black</small>
+                <small>
+                  {simulation
+                    ? `Прогноз на ${simulationDateLabel} · сейчас ${formatCurrency(actualBalance)}`
+                    : 'Black'}
+                </small>
               </div>
               <span className="wallet-chip">
                 <Crown size={11} strokeWidth={2.5} />
@@ -729,6 +747,38 @@ function HomePage({
               <span>Пополнить</span>
             </button>
           </div>
+
+          {isSimulating ? (
+            <article className="home-simulation-card">
+              <div className="home-simulation-head">
+                <span>Прогноз списаний</span>
+                <strong>{simulationDateLabel || 'выбранная дата'}</strong>
+              </div>
+              {simulation && simulation.chargeCount > 0 ? (
+                <>
+                  <p>
+                    До этой даты пройдет {simulation.chargeCount}{' '}
+                    {pluralizeCharges(simulation.chargeCount)} на{' '}
+                    {formatCurrency(simulation.totalScheduledAmount)}.
+                  </p>
+                  <div className="home-simulation-balance">
+                    Остаток после списаний: <strong>{formatCurrency(simulation.projectedBalance)}</strong>
+                  </div>
+                  <ul className="home-simulation-list">
+                    {simulationCharges.map((charge, index) => (
+                      <li key={`${charge.paymentId}-${charge.chargeDate}-${index}`}>
+                        <span>{formatPaymentTitle(charge.serviceName)}</span>
+                        <small>{formatDate(charge.chargeDate)}</small>
+                        <strong>-{numberFormatter.format(charge.amount)} ₽</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p>До выбранной даты новых списаний не найдено, поэтому прогнозный баланс не меняется.</p>
+              )}
+            </article>
+          ) : null}
 
           <article className="home-account-card">
             <span className="account-icon savings">
@@ -2126,6 +2176,7 @@ function SmartDebitDetailsPage({
     : null
   const overdueCount = dashboard?.upcoming.filter((payment) => payment.status === 'overdue').length ?? 0
   const isInitialLoading = loading && !dashboard
+  const simulation = dashboard?.simulation ?? null
   const canPayPrimaryAlertNow =
     Boolean(primaryAlert && primaryAlertPayment?.status === 'overdue') &&
     (dashboard?.account.balance ?? 0) >= (primaryAlert?.amount ?? 0)
@@ -2235,6 +2286,34 @@ function SmartDebitDetailsPage({
           </p>
         </div>
         <TimeTravel className="smartdebit-timetravel-widget" />
+        {simulation ? (
+          <div className="smartdebit-simulation-summary">
+            <div>
+              <span>Прогноз до {formatDate(simulation.asOfDate)}</span>
+              <strong>
+                {simulation.chargeCount
+                  ? `-${numberFormatter.format(simulation.totalScheduledAmount)} ₽`
+                  : 'Списаний нет'}
+              </strong>
+            </div>
+            <p>
+              {simulation.chargeCount
+                ? `${simulation.chargeCount} ${pluralizeCharges(simulation.chargeCount)} изменят прогнозный остаток до ${formatCurrency(simulation.projectedBalance)}.`
+                : 'Дата изменилась, но в выбранном периоде нет новых регулярных списаний.'}
+            </p>
+            {simulation.charges.length ? (
+              <ul>
+                {simulation.charges.slice(0, 5).map((charge, index) => (
+                  <li key={`${charge.paymentId}-${charge.chargeDate}-${index}`}>
+                    <span>{formatPaymentTitle(charge.serviceName)}</span>
+                    <small>{formatDate(charge.chargeDate)}</small>
+                    <strong>-{numberFormatter.format(charge.amount)} ₽</strong>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
       </article>
 
       <article className="panel smart-panel smart-panel-full">

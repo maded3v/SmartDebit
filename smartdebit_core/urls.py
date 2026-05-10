@@ -1,7 +1,6 @@
 # Путь: smartdebit_core/urls.py
 from django.contrib import admin
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from api import views, views_auth
@@ -12,7 +11,7 @@ urlpatterns = [
     # Auth
     path('api/v1/auth/register/', views_auth.register, name='auth_register'),
     path('api/v1/auth/login/', views_auth.login_view, name='auth_login'),
-    path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/auth/token/refresh/', views_auth.token_refresh_view, name='token_refresh'),
     path('api/v1/me/', views.get_me, name='auth_me'),
 
     # SmartDebit
