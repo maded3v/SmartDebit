@@ -364,7 +364,11 @@ function formatPaymentTitle(title: string) {
 }
 
 function isManualBalanceTransaction(title: string) {
-  return /ручное пополнение|ручное списание|пополнение через тест|пополнение счета/i.test(title)
+  return /ручное пополнение|ручное списание|оплата вручную|пополнение через тест|пополнение счета/i.test(title)
+}
+
+function formatManualBalanceTitle(amount: number) {
+  return amount >= 0 ? 'Ручное пополнение' : 'Ручное списание'
 }
 
 function isPaymentQuickActionId(value: string): value is PaymentQuickActionId {
@@ -863,7 +867,12 @@ function HomePage({
           )}
 
           <article className="panel home-history-panel">
-            <h2>История операций</h2>
+            <div className="home-history-head">
+              <h2>История операций</h2>
+              <Link to="/operations" className="home-history-open-link">
+                Открыть все
+              </Link>
+            </div>
 
             {isHistoryLoading ? (
               <SkeletonRows count={6} kind="history" />
@@ -875,6 +884,7 @@ function HomePage({
                   const iconSrc = remoteIcon || merchantLogo?.src || ''
                   const showInitial = !iconSrc
                   const tileColor = showInitial ? brandColorFor(item.title) : undefined
+                  const isManualBalance = isManualBalanceTransaction(item.title)
 
                   return (
                     <li key={item.id}>
@@ -885,7 +895,7 @@ function HomePage({
                         aria-label={`Открыть детали операции ${item.title}`}
                       >
                         <span
-                          className={`history-icon ${item.iconTone}${iconSrc ? ' has-logo' : ' has-initial'}`}
+                          className={`history-icon ${item.iconTone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance ? ' is-manual-balance' : ''}`}
                           style={tileColor ? { backgroundColor: tileColor } : undefined}
                         >
                           {iconSrc ? (
@@ -1983,6 +1993,8 @@ function OperationsPage({
                         const tileColor = !iconSrc
                           ? brandColorFor(operation.title)
                           : undefined
+                        const isManualBalance =
+                          Boolean(operation.isManual) || isManualBalanceTransaction(operation.title)
                         const canDelete = Boolean(
                           operation.isManual &&
                             operation.transactionId &&
@@ -2002,7 +2014,7 @@ function OperationsPage({
                               aria-label={`Открыть детали операции ${operation.title}`}
                             >
                               <span
-                                className={`operation-icon ${operation.tone}${iconSrc ? ' has-logo' : ' has-initial'}`}
+                                className={`operation-icon ${operation.tone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance ? ' is-manual-balance' : ''}`}
                                 style={
                                   tileColor ? { backgroundColor: tileColor } : undefined
                                 }
@@ -2177,6 +2189,43 @@ function SmartDebitDetailsPage({
   const overdueCount = dashboard?.upcoming.filter((payment) => payment.status === 'overdue').length ?? 0
   const isInitialLoading = loading && !dashboard
   const simulation = dashboard?.simulation ?? null
+  const timetravelBalance = dashboard?.account.balance ?? 0
+  const timetravelDemoCharges = (simulation
+    ? simulation.charges.map((charge) => ({
+        id: `${charge.paymentId}-${charge.chargeDate}`,
+        title: formatPaymentTitle(charge.serviceName),
+        amount: charge.amount,
+        chargeDate: charge.chargeDate,
+      }))
+    : (dashboard?.upcoming ?? []).map((payment) => ({
+        id: payment.id,
+        title: formatPaymentTitle(payment.title),
+        amount: payment.amount,
+        chargeDate: payment.nextChargeDate,
+      })))
+    .sort(
+      (left, right) =>
+        new Date(left.chargeDate).getTime() - new Date(right.chargeDate).getTime(),
+    )
+    .slice(0, 5)
+  const timetravelDemoTotal = timetravelDemoCharges.reduce(
+    (sum, charge) => sum + charge.amount,
+    0,
+  )
+  const timetravelDisplayTotal = simulation
+    ? simulation.totalScheduledAmount
+    : timetravelDemoTotal
+  let timetravelRunningBalance = timetravelBalance
+  const timetravelDemoRows = timetravelDemoCharges.map((charge) => {
+    timetravelRunningBalance -= charge.amount
+    return {
+      ...charge,
+      balanceAfter: timetravelRunningBalance,
+    }
+  })
+  const timetravelProjectedBalance = simulation
+    ? simulation.projectedBalance
+    : timetravelRunningBalance
   const canPayPrimaryAlertNow =
     Boolean(primaryAlert && primaryAlertPayment?.status === 'overdue') &&
     (dashboard?.account.balance ?? 0) >= (primaryAlert?.amount ?? 0)
@@ -2286,28 +2335,48 @@ function SmartDebitDetailsPage({
           </p>
         </div>
         <TimeTravel className="smartdebit-timetravel-widget" />
-        {simulation ? (
-          <div className="smartdebit-simulation-summary">
-            <div>
-              <span>Прогноз до {formatDate(simulation.asOfDate)}</span>
-              <strong>
-                {simulation.chargeCount
-                  ? `-${numberFormatter.format(simulation.totalScheduledAmount)} ₽`
-                  : 'Списаний нет'}
-              </strong>
+        {dashboard ? (
+          <div className="smartdebit-balance-demo">
+            <div className="smartdebit-balance-grid">
+              <div>
+                <span>Текущий баланс</span>
+                <strong>{formatCurrency(timetravelBalance)}</strong>
+              </div>
+              <div>
+                <span>{simulation ? `Списания до ${formatDate(simulation.asOfDate)}` : 'Ближайшие списания'}</span>
+                <strong>
+                  {timetravelDisplayTotal
+                    ? `-${numberFormatter.format(timetravelDisplayTotal)} ₽`
+                    : '0 ₽'}
+                </strong>
+              </div>
+              <div>
+                <span>{simulation ? 'Прогнозный остаток' : 'После ближайших списаний'}</span>
+                <strong>{formatCurrency(timetravelProjectedBalance)}</strong>
+              </div>
             </div>
+
             <p>
-              {simulation.chargeCount
-                ? `${simulation.chargeCount} ${pluralizeCharges(simulation.chargeCount)} изменят прогнозный остаток до ${formatCurrency(simulation.projectedBalance)}.`
-                : 'Дата изменилась, но в выбранном периоде нет новых регулярных списаний.'}
+              {simulation
+                ? simulation.chargeCount
+                  ? `${simulation.chargeCount} ${pluralizeCharges(simulation.chargeCount)} пройдут в виртуальном периоде. Ниже видно, как баланс уменьшается после каждого списания.`
+                  : 'Дата изменена, но в выбранном периоде регулярных списаний нет.'
+                : 'Промотайте дату вперед или посмотрите ближайшие платежи: баланс пересчитывается по шагам после каждого списания.'}
             </p>
-            {simulation.charges.length ? (
-              <ul>
-                {simulation.charges.slice(0, 5).map((charge, index) => (
-                  <li key={`${charge.paymentId}-${charge.chargeDate}-${index}`}>
-                    <span>{formatPaymentTitle(charge.serviceName)}</span>
-                    <small>{formatDate(charge.chargeDate)}</small>
-                    <strong>-{numberFormatter.format(charge.amount)} ₽</strong>
+
+            {timetravelDemoRows.length ? (
+              <ul className="smartdebit-balance-flow" aria-label="Демонстрация списаний">
+                {timetravelDemoRows.map((charge, index) => (
+                  <li key={`${charge.id}-${index}`}>
+                    <span className="smartdebit-balance-step">{index + 1}</span>
+                    <span className="smartdebit-balance-flow-body">
+                      <strong>{charge.title}</strong>
+                      <small>{formatDate(charge.chargeDate)}</small>
+                    </span>
+                    <span className="smartdebit-balance-flow-money">
+                      <strong>-{numberFormatter.format(charge.amount)} ₽</strong>
+                      <small>остаток {formatCurrency(charge.balanceAfter)}</small>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -2627,16 +2696,20 @@ function mapTransactionAmount(transaction: ApiTransaction) {
 function transactionsToBankOperations(transactions: ApiTransaction[]): BankOperation[] {
   return transactions.map((transaction) => {
     const amount = mapTransactionAmount(transaction)
+    const rawTitle = formatPaymentTitle(transaction.merchantName)
+    const isManualBalance = transaction.isManual || isManualBalanceTransaction(rawTitle)
+    const title = isManualBalance ? formatManualBalanceTitle(amount) : rawTitle
+
     return {
       id: `tx-${transaction.id}`,
       transactionId: transaction.id,
       isManual: transaction.isManual,
-      title: formatPaymentTitle(transaction.merchantName),
+      title,
       subtitle: 'Операция по карте',
       dateLabel: formatTransactionDateLabel(transaction.transactionDate),
       dateISO: normalizeTransactionDateISO(transaction.transactionDate),
       amount,
-      tone: amount >= 0 ? 'success' : 'neutral',
+      tone: isManualBalance ? (amount >= 0 ? 'success' : 'danger') : amount >= 0 ? 'success' : 'neutral',
       iconUrl: (transaction.iconUrl || '').trim() || undefined,
     }
   })
@@ -2739,10 +2812,12 @@ function transactionsToFavorites(transactions: ApiTransaction[]): FavoritePaymen
 
 function transactionsToHomeHistory(transactions: ApiTransaction[]): HomeHistoryItem[] {
   return transactions.slice(0, 8).map((transaction) => {
-    const title = formatPaymentTitle(transaction.merchantName)
     const amount = mapTransactionAmount(transaction)
+    const rawTitle = formatPaymentTitle(transaction.merchantName)
+    const isManualBalance = transaction.isManual || isManualBalanceTransaction(rawTitle)
+    const title = isManualBalance ? formatManualBalanceTitle(amount) : rawTitle
     const initial = title.trim().charAt(0).toUpperCase() || '•'
-    const iconTone: HomeHistoryItem['iconTone'] = isManualBalanceTransaction(title)
+    const iconTone: HomeHistoryItem['iconTone'] = isManualBalance
       ? amount >= 0
         ? 'green'
         : 'red'
@@ -3041,7 +3116,7 @@ function AppContent() {
       }
 
       try {
-        const result = await smartDebitApi.adjustBalance('spend', normalizedAmount, 'Оплата вручную')
+        const result = await smartDebitApi.adjustBalance('spend', normalizedAmount, 'Ручное списание')
         applyServerBalance(result.newBalance)
         await refreshDashboard()
         return true
