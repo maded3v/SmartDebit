@@ -5026,13 +5026,14 @@
 
 .op-dialog-logo.has-logo {
   background: #ffffff;
+  padding: 7px;
   box-shadow: inset 0 0 0 1px #dfe5ee, 0 6px 16px rgba(13, 19, 32, 0.06);
 }
 
 .op-dialog-logo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   transform: scale(1);
   transform-origin: center;
@@ -6292,11 +6293,11 @@
 .smartdebit-balance-demo {
   display: grid;
   gap: 12px;
-  border: 1px solid #f2d768;
+  border: 1px solid #e1e7f0;
   border-radius: 18px;
-  background: linear-gradient(180deg, #fffbed 0%, #fff5cf 100%);
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
   padding: 14px;
-  box-shadow: 0 14px 28px rgba(194, 148, 18, 0.1);
+  box-shadow: 0 14px 28px rgba(31, 41, 55, 0.08);
 }
 
 .smartdebit-balance-grid {
@@ -6309,15 +6310,15 @@
   display: grid;
   gap: 5px;
   min-width: 0;
-  border: 1px solid #f3df8c;
+  border: 1px solid #e3e9f2;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.82);
   padding: 12px;
 }
 
 .smartdebit-balance-grid span,
 .smartdebit-balance-flow small {
-  color: #7b6728;
+  color: #68758a;
   font-size: 12px;
   font-weight: 600;
 }
@@ -6333,7 +6334,7 @@
 
 .smartdebit-balance-demo p {
   margin: 0;
-  color: #5f4f1d;
+  color: #445268;
   font-size: 14px;
   line-height: 1.45;
 }
@@ -6351,9 +6352,9 @@
   grid-template-columns: 40px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  border: 1px solid #f0dc85;
+  border: 1px solid #e4eaf3;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.64);
+  background: rgba(255, 255, 255, 0.72);
   padding: 10px 12px;
 }
 
@@ -6367,7 +6368,7 @@
   font-size: 13px;
   font-weight: 800;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(71, 52, 0, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(20, 31, 50, 0.08);
 }
 
 .smartdebit-balance-logo.has-logo {
@@ -6482,21 +6483,21 @@
 }
 
 :root[data-theme='dark'] .smartdebit-balance-demo {
-  border-color: #8f7730;
-  background: linear-gradient(180deg, #332b17 0%, #423719 100%);
+  border-color: #2d3746;
+  background: linear-gradient(180deg, #151c27 0%, #101620 100%);
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
 }
 
 :root[data-theme='dark'] .smartdebit-balance-grid div,
 :root[data-theme='dark'] .smartdebit-balance-flow li {
-  border-color: rgba(255, 220, 112, 0.22);
+  border-color: #303b4c;
   background: rgba(255, 255, 255, 0.05);
 }
 
 :root[data-theme='dark'] .smartdebit-balance-grid span,
 :root[data-theme='dark'] .smartdebit-balance-flow small,
 :root[data-theme='dark'] .smartdebit-balance-demo p {
-  color: rgba(255, 233, 168, 0.72);
+  color: #9aa6b8;
 }
 
 :root[data-theme='dark'] .smartdebit-balance-grid strong,

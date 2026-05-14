@@ -367,6 +367,10 @@ function isManualBalanceTransaction(title: string) {
   return /ручное пополнение|ручное списание|оплата вручную|пополнение через тест|пополнение счета/i.test(title)
 }
 
+function isPersonalIncomeTransaction(title: string) {
+  return /премия|перевод от|стипендия|дивиденды/i.test(title)
+}
+
 function formatManualBalanceTitle(amount: number) {
   return amount >= 0 ? 'Ручное пополнение' : 'Ручное списание'
 }
@@ -885,6 +889,7 @@ function HomePage({
                   const showInitial = !iconSrc
                   const tileColor = showInitial ? brandColorFor(item.title) : undefined
                   const isManualBalance = isManualBalanceTransaction(item.title)
+                  const isPersonalIncome = item.amount > 0 && isPersonalIncomeTransaction(item.title)
 
                   return (
                     <li key={item.id}>
@@ -895,7 +900,7 @@ function HomePage({
                         aria-label={`Открыть детали операции ${item.title}`}
                       >
                         <span
-                          className={`history-icon ${item.iconTone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance ? ' is-manual-balance' : ''}`}
+                          className={`history-icon ${item.iconTone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance || isPersonalIncome ? ' is-manual-balance' : ''}`}
                           style={tileColor ? { backgroundColor: tileColor } : undefined}
                         >
                           {iconSrc ? (
@@ -1995,6 +2000,8 @@ function OperationsPage({
                           : undefined
                         const isManualBalance =
                           Boolean(operation.isManual) || isManualBalanceTransaction(operation.title)
+                        const isPersonalIncome =
+                          operation.amount > 0 && isPersonalIncomeTransaction(operation.title)
                         const canDelete = Boolean(
                           operation.isManual &&
                             operation.transactionId &&
@@ -2014,7 +2021,7 @@ function OperationsPage({
                               aria-label={`Открыть детали операции ${operation.title}`}
                             >
                               <span
-                                className={`operation-icon ${operation.tone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance ? ' is-manual-balance' : ''}`}
+                                className={`operation-icon ${operation.tone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance || isPersonalIncome ? ' is-manual-balance' : ''}`}
                                 style={
                                   tileColor ? { backgroundColor: tileColor } : undefined
                                 }
