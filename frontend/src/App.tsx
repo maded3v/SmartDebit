@@ -890,6 +890,10 @@ function HomePage({
                   const tileColor = showInitial ? brandColorFor(item.title) : undefined
                   const isManualBalance = isManualBalanceTransaction(item.title)
                   const isPersonalIncome = item.amount > 0 && isPersonalIncomeTransaction(item.title)
+                  const tileStyle =
+                    tileColor && !isManualBalance && !isPersonalIncome
+                      ? { background: tileColor }
+                      : undefined
 
                   return (
                     <li key={item.id}>
@@ -901,7 +905,7 @@ function HomePage({
                       >
                         <span
                           className={`history-icon ${item.iconTone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance || isPersonalIncome ? ' is-manual-balance' : ''}`}
-                          style={tileColor ? { backgroundColor: tileColor } : undefined}
+                          style={tileStyle}
                         >
                           {iconSrc ? (
                             <img
@@ -2002,6 +2006,10 @@ function OperationsPage({
                           Boolean(operation.isManual) || isManualBalanceTransaction(operation.title)
                         const isPersonalIncome =
                           operation.amount > 0 && isPersonalIncomeTransaction(operation.title)
+                        const tileStyle =
+                          tileColor && !isManualBalance && !isPersonalIncome
+                            ? { background: tileColor }
+                            : undefined
                         const canDelete = Boolean(
                           operation.isManual &&
                             operation.transactionId &&
@@ -2022,9 +2030,7 @@ function OperationsPage({
                             >
                               <span
                                 className={`operation-icon ${operation.tone}${iconSrc ? ' has-logo' : ' has-initial'}${isManualBalance || isPersonalIncome ? ' is-manual-balance' : ''}`}
-                                style={
-                                  tileColor ? { backgroundColor: tileColor } : undefined
-                                }
+                                style={tileStyle}
                               >
                                 {iconSrc ? (
                                   <img
