@@ -6215,6 +6215,10 @@
   gap: 14px;
 }
 
+.smartdebit-timetravel-panel:hover {
+  transform: none;
+}
+
 .smartdebit-timetravel-head {
   display: grid;
   gap: 4px;
@@ -6241,6 +6245,19 @@
   gap: 16px;
   padding: 12px 14px;
   border-radius: 14px;
+  border-color: #ecd46f;
+  background: #fff8dd;
+  color: #5c4b1c;
+  box-shadow: 0 10px 20px rgba(194, 148, 18, 0.08);
+}
+
+.smartdebit-timetravel-widget .time-travel-icon,
+.smartdebit-timetravel-widget .time-travel-delta {
+  color: #b98500;
+}
+
+.smartdebit-timetravel-widget .time-travel-title {
+  color: #806a28;
 }
 
 .smartdebit-timetravel-widget .time-travel-info {
@@ -6256,8 +6273,16 @@
 }
 
 .smartdebit-timetravel-widget .time-travel-btn {
+  border-color: #e7d287;
+  background: #fffdf4;
+  color: #4a3d18;
   padding: 6px 10px;
   font-size: 12px;
+}
+
+.smartdebit-timetravel-widget .time-travel-btn:hover {
+  border-color: #d5b84d;
+  background: #fff1b8;
 }
 
 .smartdebit-timetravel-widget .time-travel-reset-label {
@@ -6267,11 +6292,11 @@
 .smartdebit-balance-demo {
   display: grid;
   gap: 12px;
-  border: 1px solid #dfe8f6;
+  border: 1px solid #f2d768;
   border-radius: 18px;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+  background: linear-gradient(180deg, #fffbed 0%, #fff5cf 100%);
   padding: 14px;
-  box-shadow: 0 14px 28px rgba(36, 71, 120, 0.08);
+  box-shadow: 0 14px 28px rgba(194, 148, 18, 0.1);
 }
 
 .smartdebit-balance-grid {
@@ -6284,15 +6309,15 @@
   display: grid;
   gap: 5px;
   min-width: 0;
-  border: 1px solid #e3ebf7;
+  border: 1px solid #f3df8c;
   border-radius: 14px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.78);
   padding: 12px;
 }
 
 .smartdebit-balance-grid span,
 .smartdebit-balance-flow small {
-  color: #6a7890;
+  color: #7b6728;
   font-size: 12px;
   font-weight: 600;
 }
@@ -6308,7 +6333,7 @@
 
 .smartdebit-balance-demo p {
   margin: 0;
-  color: #42516a;
+  color: #5f4f1d;
   font-size: 14px;
   line-height: 1.45;
 }
@@ -6323,25 +6348,30 @@
 
 .smartdebit-balance-flow li {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  border: 1px solid #e4ecf8;
+  border: 1px solid #f0dc85;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.64);
   padding: 10px 12px;
 }
 
-.smartdebit-balance-step {
+.smartdebit-balance-logo {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 10px;
-  background: #111b2c;
-  color: #ffffff;
-  font-size: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  color: #172033;
+  font-size: 13px;
   font-weight: 800;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(71, 52, 0, 0.08);
+}
+
+.smartdebit-balance-logo.has-logo {
+  background: #ffffff;
 }
 
 .smartdebit-balance-flow-body,
@@ -6452,21 +6482,21 @@
 }
 
 :root[data-theme='dark'] .smartdebit-balance-demo {
-  border-color: #2f3f56;
-  background: linear-gradient(180deg, #172235 0%, #121b2b 100%);
+  border-color: #8f7730;
+  background: linear-gradient(180deg, #332b17 0%, #423719 100%);
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
 }
 
 :root[data-theme='dark'] .smartdebit-balance-grid div,
 :root[data-theme='dark'] .smartdebit-balance-flow li {
-  border-color: #304057;
-  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 220, 112, 0.22);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 :root[data-theme='dark'] .smartdebit-balance-grid span,
 :root[data-theme='dark'] .smartdebit-balance-flow small,
 :root[data-theme='dark'] .smartdebit-balance-demo p {
-  color: #9aa8be;
+  color: rgba(255, 233, 168, 0.72);
 }
 
 :root[data-theme='dark'] .smartdebit-balance-grid strong,
@@ -6474,13 +6504,39 @@
   color: #f1f5ff;
 }
 
-:root[data-theme='dark'] .smartdebit-balance-step {
-  background: #f3d448;
+:root[data-theme='dark'] .smartdebit-balance-logo.has-initial {
   color: #162235;
 }
 
 :root[data-theme='dark'] .smartdebit-balance-flow-money strong {
   color: #ff7b8d;
+}
+
+:root[data-theme='dark'] .smartdebit-timetravel-widget {
+  border-color: #8f7730;
+  background: #332b17;
+  color: #ffe9a8;
+  box-shadow: none;
+}
+
+:root[data-theme='dark'] .smartdebit-timetravel-widget .time-travel-icon,
+:root[data-theme='dark'] .smartdebit-timetravel-widget .time-travel-delta {
+  color: #f3d448;
+}
+
+:root[data-theme='dark'] .smartdebit-timetravel-widget .time-travel-title {
+  color: rgba(255, 233, 168, 0.72);
+}
+
+:root[data-theme='dark'] .smartdebit-timetravel-widget .time-travel-btn {
+  border-color: rgba(255, 220, 112, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffe9a8;
+}
+
+:root[data-theme='dark'] .smartdebit-timetravel-widget .time-travel-btn:hover {
+  border-color: rgba(255, 220, 112, 0.46);
+  background: rgba(255, 220, 112, 0.14);
 }
 
 /* На мобильных переводим карточку TimeTravel в две строки:
@@ -6520,7 +6576,7 @@
   }
 
   .smartdebit-balance-flow li {
-    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-columns: 38px minmax(0, 1fr);
     align-items: start;
   }
 

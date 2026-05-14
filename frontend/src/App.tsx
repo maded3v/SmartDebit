@@ -2191,23 +2191,35 @@ function SmartDebitDetailsPage({
   const simulation = dashboard?.simulation ?? null
   const timetravelBalance = dashboard?.account.balance ?? 0
   const timetravelDemoCharges = (simulation
-    ? simulation.charges.map((charge) => ({
-        id: `${charge.paymentId}-${charge.chargeDate}`,
-        title: formatPaymentTitle(charge.serviceName),
-        amount: charge.amount,
-        chargeDate: charge.chargeDate,
+    ? simulation.charges.map((charge) => {
+        const title = formatPaymentTitle(charge.serviceName)
+        const merchantLogo = resolveMerchantLogo(title, charge.category)
+        return {
+          id: `${charge.paymentId}-${charge.chargeDate}`,
+          title,
+          amount: charge.amount,
+          chargeDate: charge.chargeDate,
+          logoSrc: merchantLogo?.src ?? '',
+          logoAlt: merchantLogo?.alt ?? title,
+        }
+      })
+    : (dashboard?.upcoming ?? []).map((payment) => {
+        const title = formatPaymentTitle(payment.title)
+        const remoteIcon = (payment.iconUrl || '').trim()
+        const merchantLogo = remoteIcon ? null : resolveMerchantLogo(title, payment.provider)
+        return {
+          id: payment.id,
+          title,
+          amount: payment.amount,
+          chargeDate: payment.nextChargeDate,
+          logoSrc: remoteIcon || merchantLogo?.src || '',
+          logoAlt: merchantLogo?.alt || title,
+        }
       }))
-    : (dashboard?.upcoming ?? []).map((payment) => ({
-        id: payment.id,
-        title: formatPaymentTitle(payment.title),
-        amount: payment.amount,
-        chargeDate: payment.nextChargeDate,
-      })))
     .sort(
       (left, right) =>
         new Date(left.chargeDate).getTime() - new Date(right.chargeDate).getTime(),
     )
-    .slice(0, 5)
   const timetravelDemoTotal = timetravelDemoCharges.reduce(
     (sum, charge) => sum + charge.amount,
     0,
@@ -2366,19 +2378,42 @@ function SmartDebitDetailsPage({
 
             {timetravelDemoRows.length ? (
               <ul className="smartdebit-balance-flow" aria-label="Демонстрация списаний">
-                {timetravelDemoRows.map((charge, index) => (
-                  <li key={`${charge.id}-${index}`}>
-                    <span className="smartdebit-balance-step">{index + 1}</span>
-                    <span className="smartdebit-balance-flow-body">
-                      <strong>{charge.title}</strong>
-                      <small>{formatDate(charge.chargeDate)}</small>
-                    </span>
-                    <span className="smartdebit-balance-flow-money">
-                      <strong>-{numberFormatter.format(charge.amount)} ₽</strong>
-                      <small>остаток {formatCurrency(charge.balanceAfter)}</small>
-                    </span>
-                  </li>
-                ))}
+                {timetravelDemoRows.map((charge, index) => {
+                  const logoColor = charge.logoSrc ? undefined : brandColorFor(charge.title)
+
+                  return (
+                    <li key={`${charge.id}-${index}`}>
+                      <span
+                        className={`smartdebit-balance-logo${charge.logoSrc ? ' has-logo' : ' has-initial'}`}
+                        style={logoColor ? { backgroundColor: logoColor } : undefined}
+                      >
+                        {charge.logoSrc ? (
+                          <img
+                            src={charge.logoSrc}
+                            alt=""
+                            className="merchant-logo"
+                            loading="lazy"
+                            onError={(event) => {
+                              const target = event.currentTarget
+                              target.onerror = null
+                              target.style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          brandInitial(charge.title)
+                        )}
+                      </span>
+                      <span className="smartdebit-balance-flow-body">
+                        <strong>{charge.title}</strong>
+                        <small>{formatDate(charge.chargeDate)}</small>
+                      </span>
+                      <span className="smartdebit-balance-flow-money">
+                        <strong>-{numberFormatter.format(charge.amount)} ₽</strong>
+                        <small>остаток {formatCurrency(charge.balanceAfter)}</small>
+                      </span>
+                    </li>
+                  )
+                })}
               </ul>
             ) : null}
           </div>
