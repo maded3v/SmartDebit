@@ -26,12 +26,42 @@ export interface OperationDetail {
 // дефолтную иконку «магазина» (Store) поверх плашки с первой буквой.
 const SIMPLE_ICON = (slug: string, hex?: string) =>
   `https://cdn.simpleicons.org/${slug}${hex ? `/${hex}` : ''}`
+const PH4_LOGO = (path: string) => `https://www.ph4.ru/DL/LOGO/${path}.gif`
 
 const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
   { match: /зарплат|аванс|salary|advance/i, src: '/icons/brands/salary.svg', alt: 'Зарплата' },
   { match: /самокат|samokat/i, src: '/icons/samokat.png', alt: 'Самокат' },
   { match: /wildberries/i, src: '/icons/wildberries-sign-logo.png', alt: 'Wildberries' },
   { match: /ozon/i, src: '/icons/ozon-icon-logo.png', alt: 'Ozon' },
+  { match: /aliexpress/i, src: PH4_LOGO('a/aliexpress'), alt: 'AliExpress' },
+  { match: /перекр[её]сток|perekrestok/i, src: PH4_LOGO('p/perekrestok'), alt: 'Перекресток' },
+  { match: /шоколадница|shoko/i, src: PH4_LOGO('s/shoko'), alt: 'Шоколадница' },
+  { match: /вкусвилл|vkusvill/i, src: PH4_LOGO('v/vkusvill'), alt: 'ВкусВилл' },
+  { match: /kfc|kentucky fried chicken/i, src: PH4_LOGO('k/kfc'), alt: 'KFC' },
+  { match: /каро|karofilm|karo/i, src: PH4_LOGO('k/karofilm'), alt: 'Каро' },
+  { match: /пят[её]роч|5ka/i, src: PH4_LOGO('_/_5ka'), alt: 'Пятерочка' },
+  { match: /burger king/i, src: PH4_LOGO('b/burger_king'), alt: 'Burger King' },
+  { match: /м\.видео|мвидео|mvideo|m\.video/i, src: PH4_LOGO('m/mvideo'), alt: 'М.Видео' },
+  { match: /spar/i, src: PH4_LOGO('s/spar'), alt: 'SPAR' },
+  { match: /домодедово|domodedovo/i, src: PH4_LOGO('d/domodedovo'), alt: 'Домодедово' },
+  { match: /сапсан|sapsan/i, src: PH4_LOGO('r/rzd_sapsan'), alt: 'Сапсан' },
+  { match: /sushi wok/i, src: PH4_LOGO('s/sushiwok'), alt: 'Sushi Wok' },
+  { match: /декатлон|decathlon/i, src: PH4_LOGO('d/decathlon'), alt: 'Декатлон' },
+  { match: /о[’']?кей|okey/i, src: PH4_LOGO('o/okey'), alt: 'ОКЕЙ' },
+  { match: /л[’']?этуаль|l[’']?etoile|letoile/i, src: PH4_LOGO('l/letoile'), alt: "Л'Этуаль" },
+  { match: /ригла|rigla/i, src: PH4_LOGO('r/rigla'), alt: 'Ригла' },
+  { match: /dns/i, src: PH4_LOGO('d/dns_shop'), alt: 'DNS' },
+  { match: /cofix|coffix/i, src: PH4_LOGO('c/cofix'), alt: 'Cofix' },
+  { match: /азбука вкуса/i, src: PH4_LOGO('a/azbuka_vkusa'), alt: 'Азбука вкуса' },
+  { match: /цум|tsum/i, src: PH4_LOGO('t/tsum'), alt: 'ЦУМ' },
+  { match: /white rabbit/i, src: PH4_LOGO('w/white_rabbit'), alt: 'White Rabbit' },
+  { match: /аэрофлот|aeroflot/i, src: PH4_LOGO('a/aeroflot'), alt: 'Аэрофлот' },
+  { match: /тройка/i, src: PH4_LOGO('t/troika'), alt: 'Тройка' },
+  { match: /ticketland|концерт/i, src: PH4_LOGO('t/ticketland_ru'), alt: 'Ticketland' },
+  { match: /patreon/i, src: PH4_LOGO('p/patreon'), alt: 'Patreon' },
+  { match: /skyeng/i, src: PH4_LOGO('s/skyeng'), alt: 'Skyeng' },
+  { match: /apple music/i, src: PH4_LOGO('a/apple_music'), alt: 'Apple Music' },
+  { match: /youtube premium/i, src: PH4_LOGO('y/yt_premium'), alt: 'YouTube Premium' },
   { match: /yandex go plus|яндекс go plus/i, src: SIMPLE_ICON('yandex', 'FFCC00'), alt: 'Яндекс Go Plus' },
   { match: /яндекс|yandex/i, src: '/icons/Yandex_icon.svg.png', alt: 'Яндекс' },
   { match: /kion/i, src: '/icons/kion.jpg', alt: 'KION' },
@@ -45,7 +75,7 @@ const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
   { match: /электрич/i, src: '/icons/electichestvo.jpg', alt: 'Электричество' },
   { match: /vps reg\.ru|reg\.ru/i, src: '/icons/reg_ru.png', alt: 'reg.ru' },
   { match: /домен \.ru/i, src: '/icons/domen.jpg', alt: 'Домен .ru' },
-  { match: /осаго|страхов/i, src: '/icons/strahovanie.png', alt: 'Страхование' },
+  { match: /осаго|каско|страхов/i, src: '/icons/strahovanie.png', alt: 'Страхование' },
   { match: /обслуживание сч[её]та/i, src: '/favicon.svg', alt: 'Т-Банк' },
   { match: /тиньк|tinkoff|t-bank|т-банк/i, src: '/favicon.svg', alt: 'Т-Банк' },
   {
@@ -69,7 +99,7 @@ const MERCHANT_LOGOS: Array<{ match: RegExp; src: string; alt: string }> = [
   { match: /google one/i, src: SIMPLE_ICON('googleone', '4285F4'), alt: 'Google One' },
   { match: /glovo/i, src: SIMPLE_ICON('glovo', 'FFC244'), alt: 'Glovo' },
   { match: /uber/i, src: SIMPLE_ICON('uber', '000000'), alt: 'Uber' },
-  { match: /world class/i, src: SIMPLE_ICON('worldclass', 'E10A1B'), alt: 'World Class' },
+  { match: /boosty/i, src: SIMPLE_ICON('boosty', 'F15F2C'), alt: 'Boosty' },
 ]
 
 export function findMerchantLogo(...parts: string[]) {

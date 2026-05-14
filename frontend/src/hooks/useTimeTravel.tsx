@@ -22,7 +22,7 @@ import {
  */
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
-const MAX_FORWARD_DAYS = 400
+const MAX_FORWARD_DAYS = 730
 
 function startOfDay(date: Date): Date {
   const next = new Date(date.getTime())
